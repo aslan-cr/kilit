@@ -17,8 +17,10 @@ import androidx.core.app.NotificationCompat
 
 /**
  * Arka planda çalışan, bildirimi HER ZAMAN görünen servis.
- * Her saniye bakar: aktif oturum yoksa ve ekran açık/kilidi açıksa kilit ekranını getirir.
- * Bildirimde kimin ne kadar süre kaldığı yazar.
+ * Her saniye bakar:
+ *  - Ödev saatindeyse: kimin sırası olursa olsun kilit ekranını getirir.
+ *    Ödev sırasında kullanıcının süresi akmaz (duraklatılır).
+ *  - Aktif oturum yoksa ve ekran açık/kilidi açıksa şifre kilit ekranını getirir.
  */
 class GuardService : Service() {
 
@@ -30,6 +32,7 @@ class GuardService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var store: Store
     private var lastText = ""
+    private var lastTick = System.currentTimeMillis()
 
     private val tick = object : Runnable {
         override fun run() {
@@ -66,12 +69,22 @@ class GuardService : Service() {
     }
 
     private fun check() {
+        val now = System.currentTimeMillis()
+        val hw = store.homeworkActive()
+
+        // Ödev saatinde aktif kullanıcının süresi akmasın: bitişi geçen süre kadar ileri al.
+        if (hw != null && store.current.isNotEmpty()) {
+            store.sessionEnd += (now - lastTick).coerceIn(0L, 5000L)
+        }
+        lastTick = now
+
         store.refresh()
 
-        val text = if (store.isActive()) {
-            "${Store.label(store.current)} kullanıyor — kalan ${Store.fmt(store.remainingMs())}"
-        } else {
-            "Kilit ekranı bekliyor — sıradaki: ${Store.label(store.next)}"
+        val text = when {
+            hw != null -> "ÖDEV ZAMANI — ${Store.hm(hw.end)} saatine kadar kilitli"
+            store.isActive() ->
+                "${Store.label(store.current)} kullanıyor — kalan ${Store.fmt(store.remainingMs())}"
+            else -> "Kilit ekranı bekliyor — sıradaki: ${Store.label(store.next)}"
         }
         if (text != lastText) {
             lastText = text
@@ -80,7 +93,7 @@ class GuardService : Service() {
 
         // Ebeveyn şifresi henüz oluşturulmadıysa hiçbir şeyi kilitleme.
         if (!store.hasPassword(Store.PARENT)) return
-        if (store.isActive()) return
+        if (hw == null && store.isActive()) return
         if (store.parentGraceActive()) return
         if (LockActivity.visible || MainActivity.visible) return
 

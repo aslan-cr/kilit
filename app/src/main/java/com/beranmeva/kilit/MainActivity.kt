@@ -3,6 +3,7 @@ package com.beranmeva.kilit
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.TimePickerDialog
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -222,6 +223,7 @@ class MainActivity : Activity() {
                 }
             }
         }
+        add("Ödev saatleri (gün ve saat ekle / sil)") { showHomework() }
         add("Oturumu şimdi bitir") {
             store.endSessionNow()
             toast("Oturum bitti. Sıradaki: ${Store.label(store.next)}")
@@ -248,7 +250,13 @@ class MainActivity : Activity() {
         }
         val pws = "Şifre durumu — Beran: ${yn(store.hasPassword(Store.BERAN))}, " +
             "Meva: ${yn(store.hasPassword(Store.MEVA))}"
-        status?.text = "$now\n$pws\nSüre: ${store.durationMin} dk"
+        val hw = store.homeworkActive()
+        val hwLine = if (hw != null) {
+            "\nÖDEV ZAMANI şu an aktif (${Store.hm(hw.end)}'e kadar)"
+        } else {
+            "\nÖdev saati sayısı: ${store.homeworkSlots().size}"
+        }
+        status?.text = "$now\n$pws\nSüre: ${store.durationMin} dk$hwLine"
     }
 
     private fun updatePerms() {
@@ -291,6 +299,73 @@ class MainActivity : Activity() {
             .setPositiveButton("Tamam") { _, _ -> onOk(e.text.toString()) }
             .setNegativeButton("İptal", null)
             .show()
+    }
+
+    // ---------- Ödev saatleri ----------
+
+    private fun showHomework() {
+        val slots = store.homeworkSlots()
+        val items = slots.map { Store.hwLabel(it) } + "+ Yeni ödev saati ekle"
+        AlertDialog.Builder(this)
+            .setTitle("Ödev saatleri (silmek için dokun)")
+            .setItems(items.toTypedArray()) { _, i ->
+                if (i == slots.size) pickDays() else confirmDeleteHw(i)
+            }
+            .setNegativeButton("Kapat", null)
+            .show()
+    }
+
+    private fun confirmDeleteHw(i: Int) {
+        val slot = store.homeworkSlots().getOrNull(i) ?: return
+        AlertDialog.Builder(this)
+            .setTitle("Silinsin mi?")
+            .setMessage(Store.hwLabel(slot))
+            .setPositiveButton("Sil") { _, _ ->
+                store.removeHomework(i)
+                toast("Silindi")
+                updateStatus()
+                showHomework()
+            }
+            .setNegativeButton("İptal") { _, _ -> showHomework() }
+            .show()
+    }
+
+    private fun pickDays() {
+        val checked = BooleanArray(7) { it < 5 }
+        AlertDialog.Builder(this)
+            .setTitle("Hangi günler?")
+            .setMultiChoiceItems(Store.DAY_NAMES, checked) { _, which, isChecked ->
+                checked[which] = isChecked
+            }
+            .setPositiveButton("İleri") { _, _ ->
+                val days = (0..6).filter { checked[it] }.joinToString("") { (it + 1).toString() }
+                if (days.isEmpty()) {
+                    toast("En az bir gün seç")
+                } else {
+                    pickTime("Başlangıç saati", 16, 0) { s ->
+                        pickTime("Bitiş saati", 18, 0) { e -> addSlot(days, s, e) }
+                    }
+                }
+            }
+            .setNegativeButton("İptal", null)
+            .show()
+    }
+
+    private fun pickTime(title: String, h: Int, m: Int, done: (Int) -> Unit) {
+        val d = TimePickerDialog(this, { _, hh, mm -> done(hh * 60 + mm) }, h, m, true)
+        d.setTitle(title)
+        d.show()
+    }
+
+    private fun addSlot(days: String, s: Int, e: Int) {
+        if (e <= s) {
+            toast("Bitiş saati başlangıçtan sonra olmalı")
+            return
+        }
+        store.addHomework(Store.Hw(days, s, e))
+        toast("Ödev saati eklendi")
+        updateStatus()
+        showHomework()
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

@@ -5,6 +5,7 @@ import android.util.Base64
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.LocalDate
+import java.time.LocalDateTime
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
@@ -38,6 +39,17 @@ class Store(context: Context) {
             BERAN -> "BERAN İÇİN ŞİFRE OLUŞTUR"
             MEVA -> "MEVA İÇİN ŞİFRE OLUŞTUR"
             else -> "EBEVEYN ŞİFRESİ OLUŞTUR"
+        }
+
+        val DAY_NAMES = arrayOf(
+            "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"
+        )
+
+        fun hm(min: Int): String = "%02d:%02d".format(min / 60, min % 60)
+
+        fun hwLabel(h: Hw): String {
+            val days = h.days.map { DAY_NAMES[it - '1'].take(3) }.joinToString(" ")
+            return "$days  ${hm(h.start)} - ${hm(h.end)}"
         }
 
         fun fmt(ms: Long): String {
@@ -165,5 +177,47 @@ class Store(context: Context) {
         }
         current = ""
         sessionEnd = 0L
+    }
+
+    // ---------- Ödev saatleri ----------
+
+    /** days: "1".."7" rakamları (1 = Pazartesi). start/end: gün içi dakika (0-1439). */
+    data class Hw(val days: String, val start: Int, val end: Int)
+
+    private var hwRaw: String
+        get() = p.getString("hw", "") ?: ""
+        set(v) = p.edit().putString("hw", v).apply()
+
+    fun homeworkSlots(): List<Hw> =
+        hwRaw.split(";").mapNotNull { s ->
+            val a = s.split("|")
+            if (a.size != 3) return@mapNotNull null
+            val st = a[1].toIntOrNull() ?: return@mapNotNull null
+            val en = a[2].toIntOrNull() ?: return@mapNotNull null
+            Hw(a[0], st, en)
+        }
+
+    private fun saveSlots(list: List<Hw>) {
+        hwRaw = list.joinToString(";") { "${it.days}|${it.start}|${it.end}" }
+    }
+
+    fun addHomework(h: Hw) = saveSlots(homeworkSlots() + h)
+
+    fun removeHomework(i: Int) {
+        val l = homeworkSlots().toMutableList()
+        if (i in l.indices) {
+            l.removeAt(i)
+            saveSlots(l)
+        }
+    }
+
+    /** Şu an ödev saatindeyse o aralığı, değilse null döner. */
+    fun homeworkActive(): Hw? {
+        val n = LocalDateTime.now()
+        val dow = n.dayOfWeek.value.toString()
+        val m = n.hour * 60 + n.minute
+        return homeworkSlots().firstOrNull {
+            it.days.contains(dow) && m >= it.start && m < it.end
+        }
     }
 }
