@@ -132,7 +132,7 @@ class MainActivity : Activity() {
         val box = LinearLayout(this)
         box.orientation = LinearLayout.VERTICAL
         box.setPadding(dp(20), dp(10), dp(20), 0)
-        val name = EditText(this); name.hint = "Cihaz adı (örn. Beran'ın tableti)"
+        val name = EditText(this); name.hint = "Cihaz adı (örn. Bera'nın tableti)"
         val code = EditText(this); code.hint = "Kod (XXXX-XXXX)"
         code.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
         box.addView(name); box.addView(code)

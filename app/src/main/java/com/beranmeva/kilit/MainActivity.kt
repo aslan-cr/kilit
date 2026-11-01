@@ -204,9 +204,12 @@ class MainActivity : Activity() {
                 startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
             } catch (_: Exception) {
             }
-            toast("Listeden \"Beran-Meva Kilit\"i bulup aç")
+            toast("Listeden \"Bera-Meva Kilit\"i bulup aç")
         }
-        add("Beran'ın şifresini sıfırla") { confirmReset(Store.BERAN) }
+        add("Kullanım izle (diğer cihazların kullanımı)") {
+            startActivity(Intent(this, UsageViewActivity::class.java))
+        }
+        add("Bera'nın şifresini sıfırla") { confirmReset(Store.BERAN) }
         add("Meva'nın şifresini sıfırla") { confirmReset(Store.MEVA) }
         add("Ebeveyn şifresini değiştir") {
             ask("Yeni ebeveyn şifresi", "Şifre", true) { s ->
@@ -255,7 +258,7 @@ class MainActivity : Activity() {
         } else {
             "Şu an kimse girişli değil. Sıradaki: ${Store.label(store.next)}"
         }
-        val pws = "Şifre durumu — Beran: ${yn(store.hasPassword(Store.BERAN))}, " +
+        val pws = "Şifre durumu — Bera: ${yn(store.hasPassword(Store.BERAN))}, " +
             "Meva: ${yn(store.hasPassword(Store.MEVA))}"
         val hw = store.homeworkActive()
         val hwLine = if (hw != null) {

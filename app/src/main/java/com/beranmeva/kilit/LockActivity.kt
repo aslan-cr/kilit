@@ -15,7 +15,7 @@ import android.widget.TextView
 /**
  * Üç hali var:
  *  - ÖDEV ZAMANI: şifre alanı yok, kimse giremez (sadece Ebeveyn düğmesi).
- *  - "BERANIN ŞİFRESİNİ GİR" / "MEVANIN ŞİFRESİNİ GİR": normal giriş.
+ *  - "BERA'NIN ŞİFRESİNİ GİR" / "MEVANIN ŞİFRESİNİ GİR": normal giriş.
  *  - İlk giriş: şifre oluşturma.
  */
 class LockActivity : Activity() {

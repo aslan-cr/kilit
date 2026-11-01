@@ -32,19 +32,19 @@ class Store(context: Context) {
         fun other(u: String) = if (u == BERAN) MEVA else BERAN
 
         fun label(u: String) = when (u) {
-            BERAN -> "BERAN"
+            BERAN -> "BERA"
             MEVA -> "MEVA"
             else -> "EBEVEYN"
         }
 
         fun enterPrompt(u: String) = when (u) {
-            BERAN -> "BERANIN ŞİFRESİNİ GİR"
+            BERAN -> "BERA'NIN ŞİFRESİNİ GİR"
             MEVA -> "MEVANIN ŞİFRESİNİ GİR"
             else -> "EBEVEYN ŞİFRESİNİ GİR"
         }
 
         fun createPrompt(u: String) = when (u) {
-            BERAN -> "BERAN İÇİN ŞİFRE OLUŞTUR"
+            BERAN -> "BERA İÇİN ŞİFRE OLUŞTUR"
             MEVA -> "MEVA İÇİN ŞİFRE OLUŞTUR"
             else -> "EBEVEYN ŞİFRESİ OLUŞTUR"
         }

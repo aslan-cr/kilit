@@ -78,3 +78,7 @@ başka uygulamaya geçilince hemen geri gelir. Erişim verilmezse düğmeye bas�
 ## Süre sadece uygulamadayken akar (v1.5)
 Ekran kapalıyken, cihaz kilit ekranındayken, ana ekranda/son uygulamalarda ya da kilit-ebeveyn ekranındayken süre durur.
 Ekran kapalı süre her zaman geri eklenir. Ana ekran/uygulama dışı tespiti için Kullanım erişimi (panel 4) gerekir.
+
+## Kullanım İzle kilide katıldı, ad Bera (v1.6)
+Ebeveyn panelindeki "Kullanım izle" düğmesi, ayrı uygulamayla aynı ekranı açar (kullanimizle ayrı uygulama olarak da durur).
+Bunun için kilit uygulamasına INTERNET izni eklendi; yalnızca bu ekran kullanır. Çocuğun adı ekranlarda BERA olarak yazılır.
