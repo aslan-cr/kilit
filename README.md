@@ -52,3 +52,9 @@ kurulu sürümle karşılaştırır, yeni olanı kurar. Depo herkese açık (pub
 Kök klasöre içinde build.gradle.kts olan yeni bir klasör eklenirse otomatik bir uygulama (modül) sayılır.
 GitHub derlemesi bütün uygulamaları derler ve Release'e koyar. Güncelleyici açılınca Release'i kendiliğinden
 kontrol eder, yeni uygulamaları listeye ekler (kurulum için kullanıcı Android onayı verir).
+
+## Sayfa uygulamaları (v1.4)
+Bu klasörlerin her biri ayrı bir uygulamadır; sayfa `src/main/assets/index.html` içinde, internetsiz çalışır:
+`hamamboceki` (Dancing Cockroaches), `organlar` (İnsan Vücudu), `denemeatolyesi` (Deneme Atölyesi),
+`gunessistemi` (Güneş Sistemi), `yikimustasi` (Yıkım Ustası 3D). Modülde `libs.txt` varsa derleme sırasında
+oradaki dosyalar (url dosyaadı) indirilip uygulamanın içine konur.

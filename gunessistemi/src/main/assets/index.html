@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Güneş Sistemi Modeli</title>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#05060d;--fg:#e8ecf5;--mut:#8b93a7;--pn:#151a30;--ac:#ffd36b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:13px system-ui,-apple-system,sans-serif;overflow:hidden}
+body{display:flex;flex-direction:column}
+#bar{display:flex;gap:8px;align-items:center;padding:6px 8px;flex-wrap:wrap;background:var(--pn)}
+#bar b{font-size:12px;flex:1;min-width:150px}
+select,button,input{background:#222a47;color:var(--fg);border:1px solid #2f3960;border-radius:8px;padding:5px 8px;font:inherit}
+#cw{position:relative;flex:1;min-height:0}
+canvas{width:100%;height:100%;display:block;touch-action:none}
+#info{position:absolute;left:8px;top:6px;font-size:12px;color:var(--fg);text-shadow:0 0 4px #000;pointer-events:none;max-width:90%}
+#chips{display:flex;gap:6px;overflow-x:auto;padding:6px 8px;background:var(--pn)}
+#chips button{white-space:nowrap;flex:none}
+#chips button.on{background:var(--ac);color:#111;border-color:var(--ac)}
+#fp{position:absolute;left:6px;top:6px;right:6px;max-height:80%;overflow:auto;background:#151a30f2;border:1px solid #2f3960;border-radius:10px;padding:8px;z-index:5}#fp[hidden]{display:none}#fp h4{margin:10px 0 4px;font-size:12px;color:var(--ac)}#fp label{display:inline-flex;align-items:center;gap:4px;margin:3px 12px 3px 0;white-space:nowrap}#fp input{padding:0}#note{font-size:10.5px;color:var(--mut);padding:3px 8px 5px;background:var(--pn)}
+</style></head><body>
+<div id="bar"><b id="dt"></b>
+<select id="sp"><option value="1">Gerçek zaman</option><option value="86400">1 gün/sn</option><option value="864000">10 gün/sn</option><option value="31557600">1 yıl/sn</option><option value="315576000">10 yıl/sn</option><option value="0">Duraklat</option></select>
+<button id="now">Şimdi</button><input id="dp" type="date" style="width:125px">
+<label>Eğim <input id="tl" type="range" min="0" max="75" value="35" style="width:70px;padding:0"></label>
+<button id="fb">☰ Seç</button><button id="zi">＋</button><button id="zo">－</button></div>
+<div id="cw"><canvas id="c"></canvas><div id="info"></div><div id="fp" hidden></div></div>
+<div id="chips"></div>
+<div id="note">Gezegen ve cüce gezegen konumları yörünge elemanlarından o anki tarih için hesaplanır. Uydu ve yapay uydu konumları yaklaşık yörünge periyotlarından üretilir; canlı TLE verisi bu sayfadan alınamadığı için gerçek anlık konumlar değildir. Uzaklıklar karekök ölçeklidir, cisim boyutları büyütülmüştür.</div>
+<script>
+const D2R=Math.PI/180,J2000=Date.UTC(2000,0,1,12),YMS=31557600000;
+const Pl=(n,c,px,a,e,i,L,vp,om,r)=>({n,c,px,a,e,i,om,vp,ml:T=>L+r*T-vp});
+const Dw=(n,c,a,e,i,om,w,M,ep,Pr)=>({n,c,px:2.6,a,e,i,om,vp:om+w,ml:T=>M+360/Pr*(T*100-ep)});
+const B=[
+Pl("Merkür","#b5b0a8",2.5,.38709927,.20563593,7.00497902,252.2503235,77.45779628,48.33076593,149472.67411175),
+Pl("Venüs","#e8c98a",3.6,.72333566,.00677672,3.39467605,181.9790995,131.60246718,76.67984255,58517.81538729),
+Pl("Dünya","#4a90e2",3.8,1.00000261,.01671123,0,100.46457166,102.93768193,0,35999.37244981),
+Pl("Mars","#d1603d",3,1.52371034,.0933941,1.84969142,-4.55343205,-23.94362959,49.55953891,19140.30268499),
+Pl("Jüpiter","#d8b48a",7.5,5.202887,.04838624,1.30439695,34.39644051,14.72847983,100.47390909,3034.74612775),
+Pl("Satürn","#e3cf9a",6.5,9.53667594,.05386179,2.48599187,49.95424423,92.59887831,113.66242448,1222.49362201),
+Pl("Uranüs","#8fd8e0",5,19.18916464,.04725744,.77263783,313.23810451,170.9542763,74.01692503,428.48202785),
+Pl("Neptün","#4a63d9",5,30.06992276,.00859048,1.77004347,-55.12002969,44.96476227,131.78422574,218.45945325),
+Dw("Ceres","#aaa",2.7675,.0758,10.59,80.27,73.6,95.99,14.94,4.6),
+Pl("Plüton","#c9a98a",3,39.48211675,.2488273,17.14001206,238.92903833,224.06891629,110.30393684,145.20780515),
+Dw("Haumea","#ddd",43.13,.195,28.2,122.2,239,218.2,22.06,283.8),
+Dw("Makemake","#d49a7a",45.43,.161,29,79.3,297,165.5,22.06,309.9),
+Dw("Eris","#e0e0f0",67.8,.436,44,35.9,151,206,22.06,559),
+Dw("Halley","#9fe8ff",17.834,.96714,162.26,58.42,111.33,0,-13.89,75.32)];
+B[9].px=3.2;
+const DW={Ceres:1,"Plüton":1,Haumea:1,Makemake:1,Eris:1,Halley:1};
+// [ad, yarıçap km, periyot gün (eksi: ters yön), tür: m uydu, s yapay, l L2]
+const Mo={
+"Dünya":[["Ay",384400,27.3217,"m",218.3],["ISS",6780,.06452,"s",10],["Hubble",6918,.0662,"s",140],["GPS",26560,.4986,"s",70],["Jeosenkron",42164,.99727,"s",200],["Tiangong",6780,.0642,"s",250],["Starlink",6921,.0663,"s",300],["Göktürk-1",7050,.0682,"s",330],["Türksat 5A",42164,.99727,"s",120],["JWST (L2)",1500000,1,"l"]],
+"Mars":[["Phobos",9376,.3189,"m",20],["Deimos",23463,1.263,"m",110],["MRO",3800,.0787,"s",60]],
+"Jüpiter":[["Amalthea",181400,.498,"m",10],["Io",421800,1.769,"m",80],["Europa",671100,3.551,"m",150],["Ganymede",1070400,7.155,"m",220],["Callisto",1882700,16.689,"m",290],["Himalia",11461000,250.6,"m",40],["Metis",128000,.295,"m",50],["Thebe",221900,.675,"m",200],["Elara",11741000,259.6,"m",120],["Pasiphae",23624000,-743.6,"m",300]],
+"Satürn":[["Mimas",185540,.942,"m",0],["Enceladus",238040,1.37,"m",60],["Tethys",294670,1.888,"m",120],["Dione",377420,2.737,"m",180],["Rhea",527070,4.518,"m",240],["Titan",1221870,15.945,"m",300],["Hyperion",1481100,21.28,"m",30],["Iapetus",3560840,79.33,"m",90],["Phoebe",12947780,-550.5,"m",150],["Prometheus",139350,.613,"m",20],["Pandora",141720,.629,"m",200],["Janus",151460,.695,"m",100]],
+"Uranüs":[["Puck",86000,.762,"m",0],["Miranda",129900,1.413,"m",70],["Ariel",190900,2.52,"m",140],["Umbriel",266000,4.144,"m",210],["Titania",436300,8.706,"m",280],["Oberon",583500,13.463,"m",330],["Cordelia",49770,.335,"m",40],["Portia",66100,.513,"m",160],["Caliban",7231000,-579,"m",250],["Sycorax",12179000,-1288,"m",320]],
+"Neptün":[["Larissa",73548,.555,"m",0],["Proteus",117647,1.122,"m",90],["Triton",354759,-5.877,"m",180],["Nereid",5513400,360.1,"m",270],["Naiad",48227,.294,"m",30],["Despina",52526,.335,"m",130],["Galatea",61953,.429,"m",220]],
+"Plüton":[["Charon",19591,6.387,"m",0],["Styx",42656,20.16,"m",70],["Nix",48694,24.85,"m",140],["Kerberos",57783,32.17,"m",210],["Hydra",64738,38.2,"m",280]],
+"Haumea":[["Namaka",25657,18.3,"m",0],["Hiʻiaka",49880,49.5,"m",150]],
+"Makemake":[["MK2",21000,12.4,"m",0]],
+"Eris":[["Dysnomia",37273,15.79,"m",0]]};
+const Pr=[["Voyager 1",170,35,255,3.57],["Voyager 2",141,-35,289,3.26],["New Horizons",66,2,293,3.1]];
+function posM(b,M){M*=D2R;let E=M+b.e*Math.sin(M);for(let k=0;k<6;k++)E-=(E-b.e*Math.sin(E)-M)/(1-b.e*Math.cos(E));
+const xv=b.a*(Math.cos(E)-b.e),yv=b.a*Math.sqrt(1-b.e*b.e)*Math.sin(E),w=(b.vp-b.om)*D2R,o=b.om*D2R,i=b.i*D2R,
+x1=xv*Math.cos(w)-yv*Math.sin(w),y1=xv*Math.sin(w)+yv*Math.cos(w),y2=y1*Math.cos(i);
+return[x1*Math.cos(o)-y2*Math.sin(o),x1*Math.sin(o)+y2*Math.cos(o),y1*Math.sin(i)]}
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const ast=Array.from({length:1800},()=>{const a=rnd(2.1,3.3);return{a,ph:rnd(0,6.283),zr:rnd(-.12,.12),n:1/Math.pow(a,1.5)}});
+const kb=Array.from({length:1300},()=>{const a=rnd(39,49);return{a,ph:rnd(0,6.283),zr:rnd(-.25,.25),n:1/Math.pow(a,1.5)}});
+const tro=Array.from({length:260},(_,k)=>({s:k%2?1:-1,d:rnd(-18,18)*D2R,a:rnd(5.0,5.4),zr:rnd(-.1,.1)}));
+const stars=Array.from({length:140},()=>[Math.random(),Math.random(),Math.random()*1.2+.3]);
+const cv=document.getElementById("c"),ctx=cv.getContext("2d"),info=document.getElementById("info");
+let W,H,t=Date.now(),last=performance.now(),speed=1,foc=-1,zm=1,px0=0,py0=0,tilt=35*D2R,sp=[];
+function rs(){const d=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*d;cv.height=H*d;ctx.setTransform(d,0,0,d,0,0)}
+addEventListener("resize",rs);
+const chips=document.getElementById("chips");
+function mkChip(l,i){const b=document.createElement("button");b.textContent=l;b.onclick=()=>focusOn(i);b.dataset.i=i;chips.appendChild(b)}
+mkChip("Güneş Sistemi",-1);B.forEach((b,i)=>mkChip(b.n,i));
+function focusOn(i){foc=i;zm=1;px0=py0=0;[...chips.children].forEach(c=>c.classList.toggle("on",+c.dataset.i===i))}
+focusOn(-1);
+dt_=document.getElementById("dt");
+const TZ=(()=>{try{const z=Intl.DateTimeFormat().resolvedOptions().timeZone;if(z){new Date().toLocaleString("tr-TR",{timeZone:z});return z}}catch(e){}return "Europe/Istanbul"})();
+document.getElementById("sp").onchange=e=>speed=+e.target.value;
+document.getElementById("now").onclick=()=>{t=Date.now();speed=1;document.getElementById("sp").value="1"};
+document.getElementById("dp").onchange=e=>{if(e.target.value){t=new Date(e.target.value+"T12:00:00Z").getTime();speed=0;document.getElementById("sp").value="0"}};
+document.getElementById("tl").oninput=e=>tilt=e.target.value*D2R;
+document.getElementById("zi").onclick=()=>zm=Math.min(80,zm*1.4);
+document.getElementById("zo").onclick=()=>zm=Math.max(.15,zm/1.4);
+const pts=new Map();let moved=0,pd=0;
+const pDist=()=>{const a=[...pts.values()];return a.length>1?Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]):0};
+cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.offsetX,e.offsetY]);moved=0;pd=pDist()};
+cv.onpointermove=e=>{if(!pts.has(e.pointerId))return;const o=pts.get(e.pointerId);pts.set(e.pointerId,[e.offsetX,e.offsetY]);
+if(pts.size==1){px0+=e.offsetX-o[0];py0+=e.offsetY-o[1];moved+=Math.abs(e.offsetX-o[0])+Math.abs(e.offsetY-o[1])}
+else{const nd=pDist();if(pd)zm=Math.min(80,Math.max(.15,zm*nd/pd));pd=nd;moved+=9}};
+cv.onpointerup=e=>{if(pts.size==1&&moved<6&&foc<0){let best=-1,bd=26;sp.forEach(s=>{const d=Math.hypot(s.x-e.offsetX,s.y-e.offsetY);if(d<bd){bd=d;best=s.i}});if(best>=0)focusOn(best)}pts.delete(e.pointerId)};
+cv.onpointercancel=e=>pts.delete(e.pointerId);
+cv.addEventListener("wheel",e=>{e.preventDefault();zm=Math.min(80,Math.max(.15,zm*Math.exp(-e.deltaY*.001)))},{passive:false});
+function label(s,x,y,c){ctx.fillStyle=c||"#cfd6ea";ctx.font="10.5px system-ui";ctx.fillText(s,x+6,y-5)}
+function draw(){
+const T=(t-J2000)/3.15576e12,days=(t-J2000)/864e5,yrs=days/365.25,ct=Math.cos(tilt),st=Math.sin(tilt);
+ctx.fillStyle="#05060d";ctx.fillRect(0,0,W,H);
+ctx.fillStyle="#fff";for(const s of stars){ctx.globalAlpha=.3+s[2]*.3;ctx.fillRect(s[0]*W,s[1]*H,s[2],s[2])}ctx.globalAlpha=1;
+const P=B.map(b=>posM(b,b.ml(T)));
+dt_.textContent=new Date(t).toLocaleString("tr-TR",{timeZone:TZ,dateStyle:"medium",timeStyle:"medium"})+" ("+TZ+") · Kahramanmaraş: "+(()=>{const ev=P[2],lam=Math.atan2(ev[1],ev[0])+Math.PI,eps=23.44*D2R,dec=Math.asin(Math.sin(eps)*Math.sin(lam)),ra=Math.atan2(Math.cos(eps)*Math.sin(lam),Math.cos(lam)),ha=(280.46061837+360.98564736629*days+36.94)*D2R-ra,fi=37.58*D2R,alt=Math.asin(Math.sin(fi)*Math.sin(dec)+Math.cos(fi)*Math.cos(dec)*Math.cos(ha))/D2R;return alt>0?"gündüz ☀ "+alt.toFixed(0)+"°":"gece ☾"})();
+sp=[];
+if(foc<0){
+const S=Math.min(W,H)/2*.95/Math.sqrt(120);
+const pr=p=>{const r=Math.hypot(p[0],p[1],p[2])||1,k=Math.sqrt(r)/r;return[W/2+px0+p[0]*k*S*zm,H/2+py0-(p[1]*k*ct+p[2]*k*st)*S*zm]};
+const cx=W/2+px0,cy=H/2+py0;
+ctx.fillStyle="#9a8f7a";for(const a of hid.has("k:ast")?[]:ast){const th=a.ph+6.283*yrs*a.n,q=pr([a.a*Math.cos(th),a.a*Math.sin(th),a.a*a.zr*Math.sin(th)]);ctx.fillRect(q[0],q[1],1.3,1.3)}
+ctx.fillStyle="#d9a066";const jl=Math.atan2(P[4][1],P[4][0]);for(const a of hid.has("k:tro")?[]:tro){const th=jl+a.s*60*D2R+a.d,q=pr([a.a*Math.cos(th),a.a*Math.sin(th),a.a*a.zr]);ctx.fillRect(q[0],q[1],1.3,1.3)}
+ctx.fillStyle="#6fa0c8";for(const a of hid.has("k:kb")?[]:kb){const th=a.ph+6.283*yrs*a.n,q=pr([a.a*Math.cos(th),a.a*Math.sin(th),a.a*a.zr*Math.sin(th)]);ctx.fillRect(q[0],q[1],1.2,1.2)}
+let q=pr([0,-2.9,0]);!hid.has("k:ast")&&label("Asteroit kuşağı",q[0]-20,q[1]+12,"#8a826f");q=pr([0,-44,0]);!hid.has("k:kb")&&label("Kuiper kuşağı",q[0]-20,q[1]+12,"#5a7f9c");q=pr([5.2*Math.cos(jl+1.05),5.2*Math.sin(jl+1.05),0]);!hid.has("k:tro")&&label("Truva asteroitleri",q[0],q[1],"#a07a4c");
+ctx.lineWidth=1;B.forEach((b,i)=>{if(hid.has("b:"+b.n))return;ctx.strokeStyle=DW[b.n]?"rgba(180,200,255,.16)":"rgba(255,255,255,.2)";ctx.beginPath();for(let k=0;k<=90;k++){const q=pr(posM(b,k*4));k?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])}ctx.stroke()});
+if(!hid.has("b:Güneş")){const g=ctx.createRadialGradient(cx,cy,0,cx,cy,22);g.addColorStop(0,"#fff6c0");g.addColorStop(.35,"#ffc94a");g.addColorStop(1,"rgba(255,160,40,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,22,0,7);ctx.fill();
+label("Güneş",cx+2,cy-6,"#ffd36b");}
+B.forEach((b,i)=>{if(hid.has("b:"+b.n))return;const q=pr(P[i]);sp.push({i,x:q[0],y:q[1]});ctx.fillStyle=b.c;ctx.beginPath();ctx.arc(q[0],q[1],b.px,0,7);ctx.fill();
+if(b.n=="Satürn"){ctx.strokeStyle="#cdb98a";ctx.beginPath();ctx.ellipse(q[0],q[1],b.px*1.9,b.px*.6,-.3,0,7);ctx.stroke()}
+label(b.n,q[0]+b.px,q[1],DW[b.n]?"#a9b6d9":"#e8ecf5")});
+Pr.forEach(p=>{if(hid.has("p:"+p[0]))return;const d=p[1]+p[4]*(t-Date.UTC(2026,9,29))/YMS,la=p[2]*D2R,lo=p[3]*D2R,q=pr([d*Math.cos(la)*Math.cos(lo),d*Math.cos(la)*Math.sin(lo),d*Math.sin(la)]);
+ctx.fillStyle="#7ef0c0";ctx.save();ctx.translate(q[0],q[1]);ctx.rotate(.785);ctx.fillRect(-2.5,-2.5,5,5);ctx.restore();label(p[0]+" ("+Math.round(d)+" AU)",q[0],q[1],"#7ef0c0")});
+info.textContent="Gezegenler, cüce gezegenler, Halley kuyruklu yıldızı, 3 küçük cisim kuşağı ve uzay araçları. Gezegene dokunun: uydular açılır. Tarih kutusundan istediğiniz güne gidebilirsiniz.";
+}else{
+const b=B[foc],pp=P[foc],F=Math.min(W,H)/2/230*zm,cx=W/2+px0,cy=H/2+py0,ps=Math.max(8,b.px*2.4);
+const rf=a=>26*(1+Math.log(1+a/20000))*F;
+(Mo[b.n]||[]).forEach(m=>{if(hid.has("m:"+b.n+":"+m[0]))return;const[n,a,Pd,ty,ph]=m,rr=rf(a);let ang;
+if(ty=="l")ang=Math.atan2(pp[1],pp[0]);else{ang=((ph||0)+360*days/Pd)*D2R;ctx.strokeStyle=ty=="s"?"rgba(110,220,255,.22)":"rgba(255,255,255,.14)";ctx.beginPath();ctx.ellipse(cx,cy,rr,rr*ct,0,0,7);ctx.stroke()}
+const x=cx+rr*Math.cos(ang),y=cy-rr*Math.sin(ang)*ct;
+if(ty=="m"){ctx.fillStyle="#d8d8d8";ctx.beginPath();ctx.arc(x,y,Math.max(2,Math.min(4.5,2.5+Math.log10(a/1e4+1))),0,7);ctx.fill();label(n,x,y)}
+else{ctx.fillStyle="#6ee0ff";ctx.fillRect(x-2,y-2,4,4);label(n,x,y,"#6ee0ff")}});
+ctx.fillStyle=b.c;ctx.beginPath();ctx.arc(cx,cy,ps,0,7);ctx.fill();
+if(b.n=="Satürn"){ctx.strokeStyle="#cdb98a";ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(cx,cy,ps*2.1,ps*2.1*ct*.9+1,-.1,0,7);ctx.stroke();ctx.lineWidth=1}
+label(b.n,cx+ps*.5,cy-ps,"#fff");
+const sa=Math.atan2(pp[1],pp[0])+Math.PI,R=Math.min(W,H)/2-24;ctx.fillStyle="#ffd36b";ctx.beginPath();ctx.arc(W/2+R*Math.cos(sa),H/2-R*Math.sin(sa)*ct,5,0,7);ctx.fill();label("Güneş yönü",W/2+R*Math.cos(sa)-30,H/2-R*Math.sin(sa)*ct+16,"#ffd36b");
+const r=Math.hypot(pp[0],pp[1],pp[2]),n=(Mo[b.n]||[]).length;
+info.textContent=b.n+" · Güneş’e "+r.toFixed(2)+" AU ("+(r*8.317).toFixed(1)+" ışık dakikası) · "+(n?n+" uydu/yapay uydu gösteriliyor":"bilinen doğal uydusu yok")+(b.n=="Dünya"?" · Ay aydınlanma %"+Math.round(50*(1-Math.cos((218.3+360*days/27.3217)*D2R-sa))):"");
+}}
+function frame(now){t+=(now-last)*speed;last=now;draw();requestAnimationFrame(frame)}
+const hid=new Set(),fp=document.getElementById("fp");
+function grp(title,items){const h=document.createElement("h4");h.textContent=title;fp.appendChild(h);items.forEach(([k,l])=>{const lb=document.createElement("label"),cb=document.createElement("input");cb.type="checkbox";cb.checked=true;cb.onchange=()=>{cb.checked?hid.delete(k):hid.add(k)};lb.append(cb,l);fp.appendChild(lb)})}
+const tb=document.createElement("div");
+[["Tümünü seç",1],["Hiçbirini seçme",0],["Kapat",2]].forEach(([l,v])=>{const bt=document.createElement("button");bt.textContent=l;bt.style.marginRight="6px";bt.onclick=()=>{if(v==2){fp.hidden=true;return}fp.querySelectorAll("input").forEach(c=>{c.checked=!!v;c.onchange()})};tb.appendChild(bt)});
+fp.appendChild(tb);
+grp("Güneş, gezegenler, cüce gezegenler, kuyruklu yıldız",[["b:Güneş","Güneş"],...B.map(b=>["b:"+b.n,b.n])]);
+grp("Kuşaklar",[["k:ast","Asteroit kuşağı"],["k:kb","Kuiper kuşağı"],["k:tro","Truva asteroitleri"]]);
+grp("Uzay araçları",Pr.map(p=>["p:"+p[0],p[0]]));
+Object.keys(Mo).forEach(h=>grp(h+" uyduları ve yapay uyduları",Mo[h].map(m=>["m:"+h+":"+m[0],m[0]])));
+document.getElementById("fb").onclick=()=>fp.hidden=!fp.hidden;
+rs();requestAnimationFrame(frame);
+</script></body></html>

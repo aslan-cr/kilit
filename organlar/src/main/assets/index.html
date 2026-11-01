@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>İnsan Vücudu: Organlar</title>
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--text:#1d2433;--muted:#5d6678;--line:#dde1ea;--body:#e6ebf4;--accent:#e0455a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--card:#1b2030;--text:#eef1f7;--muted:#a3adc2;--line:#2c3348;--body:#252c40;--accent:#ff6b81}}
+:root[data-theme="dark"]{--bg:#12151c;--card:#1b2030;--text:#eef1f7;--muted:#a3adc2;--line:#2c3348;--body:#252c40;--accent:#ff6b81}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:1.35rem;margin:4px 0 2px}
+.sub{color:var(--muted);margin:0 0 12px;font-size:.95rem}
+.wrap{display:grid;gap:14px}
+@media(min-width:720px){.wrap{grid-template-columns:260px 1fr;align-items:start}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
+#body{width:100%;max-width:300px;display:block;margin:0 auto;height:auto}
+.organ{cursor:pointer;outline:none;transition:filter .15s}
+.organ:hover,.organ:focus-visible{filter:brightness(1.15)}
+.organ.sel use{stroke:var(--accent)!important;stroke-width:3!important;filter:drop-shadow(0 0 3px var(--accent)) drop-shadow(0 0 7px var(--accent))}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;justify-content:center}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:999px;padding:6px 12px;font:inherit;font-size:.85rem;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+#detail h2{margin:0;font-size:1.3rem}
+.tag{display:inline-block;margin:4px 0 8px;padding:2px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted);font-size:.8rem}
+#zoom{width:100%;max-width:260px;display:block;margin:6px auto 10px;background:radial-gradient(circle,var(--bg),transparent 70%);border-radius:50%}
+.beat{animation:beat 1s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+.breathe{animation:beat 4s ease-in-out infinite;transform-origin:center;transform-box:fill-box}
+@keyframes beat{0%,100%{transform:scale(1)}15%{transform:scale(1.07)}30%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.beat,.breathe{animation:none}}
+dl{margin:0}dt{font-weight:600;font-size:.85rem;color:var(--accent);margin-top:10px}dd{margin:2px 0 0}
+.lbl{fill:#fff;font-size:6.5px;text-anchor:middle;paint-order:stroke;stroke:rgba(0,0,0,.55);stroke-width:1.2px;font-weight:600}
+.hint{text-align:center;color:var(--muted);padding:24px 8px}
+.nums{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.num{flex:1 1 90px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center}.num b{display:block;color:var(--accent);font-size:1.05rem}.num span{font-size:.75rem;color:var(--muted)}
+.pl{list-style:none;margin:6px 0 0;padding:0}.pl li{padding:8px 10px;border-left:3px solid var(--accent);background:var(--bg);border-radius:0 10px 10px 0;margin-bottom:6px;font-size:.92rem}.pl b{display:block;font-size:.9rem}
+.care{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--bg);border:1px dashed var(--accent);font-size:.92rem}
+#skin{transition:opacity .7s}
+#skel{opacity:0;transition:opacity .7s;pointer-events:none}
+#organs .organ{opacity:0;transform:scale(.5);transform-box:fill-box;transform-origin:center;pointer-events:none;transition:opacity .6s,transform .6s,filter .15s}
+#body.m-in #skin{opacity:.28}#body.m-sk #skin{opacity:.1}
+#body.m-in #skel{opacity:.9}#body.m-sk #skel{opacity:1}
+#body.m-in #organs .organ{opacity:1;transform:scale(1);pointer-events:auto}
+@media(prefers-reduced-motion:reduce){#organs .organ,#skin,#skel{transition:none!important}}
+</style></head><body>
+<main>
+<h1>İnsan Vücudu: Organlar</h1>
+<p class="sub">Bir organa dokun, yakından incele.</p>
+<div class="wrap">
+<section class="card">
+<div class="chips" style="margin:0 0 10px"><button class="chip" id="m-out" aria-pressed="true">Dış görünüm</button><button class="chip" id="m-in" aria-pressed="false">Dıştan içini göster</button><button class="chip" id="m-sk" aria-pressed="false">İskeleti göster</button></div>
+<svg id="body" viewBox="0 0 300 480" role="img" aria-label="İnsan vücudu">
+<defs>
+<radialGradient id='gBrain' cx='.4' cy='.3' r='.85'><stop offset='0' stop-color='#f7c9d3'/><stop offset='.6' stop-color='#e394a4'/><stop offset='1' stop-color='#b65a74'/></radialGradient>
+<radialGradient id='gCer' cx='.4' cy='.3' r='.9'><stop offset='0' stop-color='#d98aa0'/><stop offset='1' stop-color='#9c4560'/></radialGradient>
+<radialGradient id='gLung' cx='.35' cy='.3' r='.9'><stop offset='0' stop-color='#fbc6bb'/><stop offset='.7' stop-color='#e49a8e'/><stop offset='1' stop-color='#c26e66'/></radialGradient>
+<radialGradient id='gHeart' cx='.4' cy='.3' r='.85'><stop offset='0' stop-color='#f27c82'/><stop offset='.6' stop-color='#cc2f46'/><stop offset='1' stop-color='#8c1630'/></radialGradient>
+<radialGradient id='gLiver' cx='.35' cy='.3' r='.9'><stop offset='0' stop-color='#cf7a5a'/><stop offset='.7' stop-color='#9c4833'/><stop offset='1' stop-color='#6e2c22'/></radialGradient>
+<radialGradient id='gStom' cx='.35' cy='.3' r='.9'><stop offset='0' stop-color='#f8bfa4'/><stop offset='.7' stop-color='#e48f78'/><stop offset='1' stop-color='#b8604f'/></radialGradient>
+<radialGradient id='gPanc' cx='.35' cy='.3' r='.9'><stop offset='0' stop-color='#f6dba0'/><stop offset='1' stop-color='#d9a24e'/></radialGradient>
+<radialGradient id='gSpl' cx='.35' cy='.3' r='.9'><stop offset='0' stop-color='#c58ac4'/><stop offset='1' stop-color='#6e3a76'/></radialGradient>
+<radialGradient id='gGall' cx='.35' cy='.3' r='.9'><stop offset='0' stop-color='#b5d884'/><stop offset='1' stop-color='#4f7f35'/></radialGradient>
+<radialGradient id='gBlad' cx='.35' cy='.3' r='.9'><stop offset='0' stop-color='#f7e0a0'/><stop offset='1' stop-color='#cfa447'/></radialGradient>
+<radialGradient id='gKid' cx='.35' cy='.3' r='.9'><stop offset='0' stop-color='#d96f5e'/><stop offset='1' stop-color='#8a2f2c'/></radialGradient>
+<g id='r-brain' stroke='rgba(0,0,0,.3)' stroke-width='1.2' stroke-linejoin='round'>
+<path d='M-4 24H6V42C6 46-4 46-4 42Z' fill='#d9a3ae'/>
+<path d='M-42 4C-50-14-38-34-18-38C-8-44 8-44 18-38C38-34 50-14 42 4C40 18 28 28 12 27L8 30L-10 27C-28 28-40 18-42 4Z' fill='url(#gBrain)'/>
+<path d='M10 20C18 14 38 14 42 22C38 32 20 36 12 30Z' fill='url(#gCer)'/>
+<path d='M-30-24C-22-30-14-22-6-30M-36-8C-26-14-18-4-8-12M-30 8C-22 2-14 12-6 4M6-32C14-26 22-34 30-26M10-14C20-20 28-10 38-16M8 4C16-2 24 8 32 2M16 22C24 20 30 22 36 24M14 26C22 24 28 28 34 28' fill='none' stroke='#9c4560' stroke-width='1.6' stroke-linecap='round' opacity='.75'/>
+<path d='M0-40C-3-22 4-10 0 26' fill='none' stroke='#8a3a55' stroke-width='2' stroke-linecap='round'/>
+<ellipse cx='-16' cy='-24' rx='14' ry='6' fill='#fff' opacity='.25' stroke='none'/></g>
+<g id='r-lungs' stroke='rgba(0,0,0,.3)' stroke-width='1.2' stroke-linejoin='round'>
+<path d='M-10-38C-34-44-48-14-46 22C-45 40-22 44-10 32C-6 20-8-10-10-38Z' fill='url(#gLung)'/>
+<path d='M10-38C34-44 48-14 46 22C45 40 22 44 10 34C8 26 20 14 14 2C10-8 10-22 10-38Z' fill='url(#gLung)'/>
+<path d='M-44 4C-30 6-18 10-10 20M-46-6C-34-8-22-14-14-22M44 0C30 2 22 8 16 16' fill='none' stroke='#b9615b' stroke-width='1.4' opacity='.6'/>
+<path d='M0-48V-12M0-12C-8-6-16-2-24 6M0-12C8-6 16-2 24 6M-24 6C-30 10-34 18-36 28M-24 6C-20 14-22 24-24 34M24 6C30 10 34 18 36 28M24 6C20 14 22 24 24 34M-14-4C-20-6-28-12-32-18M14-4C20-6 28-12 32-18' fill='none' stroke='#f1e2d8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>
+<ellipse cx='-28' cy='-12' rx='8' ry='14' fill='#fff' opacity='.2' stroke='none'/><ellipse cx='30' cy='-12' rx='8' ry='14' fill='#fff' opacity='.2' stroke='none'/></g>
+<g id='r-heart' stroke='rgba(0,0,0,.3)' stroke-width='1.2' stroke-linejoin='round'>
+<path d='M-18-26C-20-38-18-46-14-50' fill='none' stroke='#4f74c4' stroke-width='8' stroke-linecap='round'/>
+<path d='M2-26C2-44 16-50 26-42C32-37 32-32 32-28' fill='none' stroke='#c4283c' stroke-width='9' stroke-linecap='round'/>
+<path d='M12-26C20-34 34-34 42-26' fill='none' stroke='#6f86cf' stroke-width='7' stroke-linecap='round'/>
+<path d='M2 36C-40 8-42-26-20-30C-8-32-2-22 0-16C4-24 12-32 24-28C44-22 42 8 2 36Z' fill='url(#gHeart)'/>
+<path d='M-14-18C-6-4 0 8 2 26M18-18C18-4 10 10 4 24' fill='none' stroke='#7a1225' stroke-width='1.8' stroke-linecap='round' opacity='.8'/>
+<ellipse cx='-14' cy='-8' rx='9' ry='6' fill='#fff' opacity='.28' stroke='none' transform='rotate(-35 -14 -8)'/></g>
+<g id='r-liver' stroke='rgba(0,0,0,.3)' stroke-width='1.2' stroke-linejoin='round'>
+<path d='M-46-6C-30-28 10-34 36-22C48-16 48-6 40 4C30 18 8 28-12 26C-26 24-42 14-46-6Z' fill='url(#gLiver)'/>
+<path d='M-8-26C-6-12-4 4-10 24' fill='none' stroke='#5a2018' stroke-width='2' stroke-linecap='round'/>
+<path d='M-34 0C-18-6 0-2 16 6M-8-2C-4-10 4-16 14-18' fill='none' stroke='#5b4a8c' stroke-width='2' stroke-linecap='round' opacity='.7'/>
+<ellipse cx='-22' cy='-12' rx='14' ry='5' fill='#fff' opacity='.2' stroke='none' transform='rotate(-12 -22 -12)'/></g>
+<g id='r-stomach' stroke='rgba(0,0,0,.3)' stroke-width='1.2' stroke-linejoin='round'>
+<path d='M-14-34C-16-40-14-46-12-50' fill='none' stroke='#d99a8a' stroke-width='7' stroke-linecap='round'/>
+<path d='M30 24C42 28 48 22 48 12' fill='none' stroke='#e8a898' stroke-width='7' stroke-linecap='round'/>
+<path d='M-14-36C-6-40 2-34 8-24C12-16 22-16 30-12C46-4 44 24 24 32C2 42-26 30-26 6C-26-12-20-22-14-36Z' fill='url(#gStom)'/>
+<path d='M-16-6C-4-12 6-8 14-14M-20 6C-6 0 8 6 22-2M-14 18C0 12 10 20 22 12' fill='none' stroke='#9a4636' stroke-width='1.6' stroke-linecap='round' opacity='.55'/>
+<ellipse cx='-8' cy='-14' rx='8' ry='5' fill='#fff' opacity='.28' stroke='none'/></g>
+<g id='r-gut' stroke='rgba(0,0,0,.3)' stroke-width='1' stroke-linejoin='round'>
+<path d='M-34 34V-14C-34-26-26-30-18-30H18C26-30 34-26 34-14V34' fill='none' stroke='#c98462' stroke-width='11' stroke-linecap='round'/>
+<path d='M-34 34V-14C-34-26-26-30-18-30H18C26-30 34-26 34-14V34' fill='none' stroke='#e0a584' stroke-width='6' stroke-linecap='round'/>
+<path d='M-22-14C-10-20 10-20 22-14C28-8 18-2 8-2C-6-2-18-2-22 6C-26 14-12 14 0 12C12 10 22 12 24 20C20 28 6 26-6 26C-16 26-22 28-24 24' fill='none' stroke='#e58f86' stroke-width='6' stroke-linecap='round'/>
+<path d='M-22-14C-10-20 10-20 22-14C28-8 18-2 8-2C-6-2-18-2-22 6C-26 14-12 14 0 12C12 10 22 12 24 20C20 28 6 26-6 26C-16 26-22 28-24 24' fill='none' stroke='#ffc9bd' stroke-width='1.6' stroke-linecap='round' opacity='.7'/></g>
+<g id='r-kidney' stroke='rgba(0,0,0,.3)' stroke-width='1.2' stroke-linejoin='round'>
+<path d='M-10-2C-22-6-30-8-36-6' fill='none' stroke='#c4283c' stroke-width='4' stroke-linecap='round'/>
+<path d='M-10 4C-22 8-30 8-36 12' fill='none' stroke='#4f74c4' stroke-width='5' stroke-linecap='round'/>
+<path d='M-8 8C-12 18-12 28-14 38' fill='none' stroke='#e8d49c' stroke-width='3.5' stroke-linecap='round'/>
+<path d='M0-35C25-35 30-10 18 0C28 12 20 35 0 35C-20 35-25 10-10 0C-22-10-20-35 0-35Z' fill='url(#gKid)'/>
+<path d='M10-24L0-8L16-8Z M18 2L0 0L16 14Z M8 26L-2 10L14 10Z' fill='#6e1f22' opacity='.55' stroke='none'/>
+<path d='M-10 0C-2-8 4-4 6 0C4 6-2 8-10 0Z' fill='#f0d49a'/>
+<ellipse cx='6' cy='-26' rx='6' ry='4' fill='#fff' opacity='.3' stroke='none'/></g>
+<g id='r-pancreas' stroke='rgba(0,0,0,.3)' stroke-width='1.2' stroke-linejoin='round'>
+<path d='M-48 6C-40-8-20-10-4-4C10 0 22-14 38-14C50-14 54-2 44 4C32 12 12 16-4 16C-20 16-36 24-46 16C-50 12-50 8-48 6Z' fill='url(#gPanc)'/>
+<path d='M-44 10C-20 4 10 6 40-6' fill='none' stroke='#b9792a' stroke-width='2.4' stroke-dasharray='2 3' stroke-linecap='round'/>
+<ellipse cx='-18' cy='-1' rx='14' ry='3' fill='#fff' opacity='.3' stroke='none'/></g>
+<g id='r-spleen' stroke='rgba(0,0,0,.3)' stroke-width='1.2' stroke-linejoin='round'>
+<path d='M-22-30C10-40 30-10 22 22C16 38-8 38-16 20C-26-2-30-22-22-30Z' fill='url(#gSpl)'/>
+<path d='M-14-10C-6-2 0 8 4 20M-20 4C-12 8-6 14-4 24' fill='none' stroke='#4c2552' stroke-width='1.6' stroke-linecap='round' opacity='.7'/>
+<ellipse cx='-6' cy='-20' rx='9' ry='5' fill='#fff' opacity='.28' stroke='none'/></g>
+<g id='r-gall' stroke='rgba(0,0,0,.3)' stroke-width='1.2' stroke-linejoin='round'>
+<path d='M0-35C18-35 22-5 12 15C8 28 0 36 0 36C0 36-8 28-12 15C-22-5-18-35 0-35Z' fill='url(#gGall)'/>
+<ellipse cx='-6' cy='-14' rx='4' ry='12' fill='#fff' opacity='.35' stroke='none'/></g>
+<g id='r-bladder' stroke='rgba(0,0,0,.3)' stroke-width='1.2' stroke-linejoin='round'>
+<path d='M-14-26C-16-36-22-42-26-46M14-26C16-36 22-42 26-46M0 34V46' fill='none' stroke='#e8c88a' stroke-width='5' stroke-linecap='round'/>
+<path d='M-30-10C-30-35 30-35 30-10C30 20 15 35 0 35C-15 35-30 20-30-10Z' fill='url(#gBlad)'/>
+<path d='M-22 0C-10 8 10 8 22 0M-18 12C-8 18 8 18 18 12' fill='none' stroke='#a47a22' stroke-width='1.4' opacity='.45'/>
+<ellipse cx='-12' cy='-14' rx='8' ry='6' fill='#fff' opacity='.35' stroke='none'/></g>
+<g id="o-brain"><path d="M-40 5C-48-25-20-45 0-40C20-45 48-25 40 5C38 25 15 32 0 28C-15 32-38 25-40 5Z"/><path d="M0-38V26M-26-16C-14-6-22 8-10 16M26-16C14-6 22 8 10 16" fill="none" stroke-width="2"/></g>
+<g id="o-lungs"><path d="M-8-40C-32-42-46-10-44 25C-43 42-20 42-10 30Z"/><path d="M8-40C32-42 46-10 44 25C43 42 20 42 10 30Z"/></g>
+<g id="o-heart"><path d="M0 35C-45 5-40-30-18-30C-6-30 0-20 0-15C0-20 6-30 18-30C40-30 45 5 0 35Z"/></g>
+<g id="o-liver"><path d="M-45-10C-20-30 30-30 45-5C40 20 10 30-10 25C-25 22-40 15-45-10Z"/></g>
+<g id="o-stomach"><path d="M-12-38C4-42 10-28 16-16C42-12 42 30 10 32C-16 34-26 10-18-10C-22-22-22-32-12-38Z"/></g>
+<g id="o-gut"><rect x="-45" y="-35" width="90" height="70" rx="24"/><path d="M-30-18H30M30-18V0H-30M-30 0V18H30" fill="none" stroke-width="6" stroke-linecap="round" style="stroke:rgba(0,0,0,.3)"/></g>
+<g id="o-kidney"><path d="M0-35C25-35 30-10 18 0C28 12 20 35 0 35C-20 35-25 10-10 0C-22-10-20-35 0-35Z"/></g>
+<g id="o-pancreas"><path d="M-48 8C-40-6-20-8-5-4C10 0 25-14 40-14C50-14 52-4 44 2C30 12 10 14-5 14C-22 14-38 22-46 16C-50 14-50 10-48 8Z"/></g>
+<g id="o-spleen"><path d="M-22-30C10-40 30-10 22 22C16 38-8 38-16 20C-26-2-30-22-22-30Z"/></g>
+<g id="o-gall"><path d="M0-35C18-35 22-5 12 15C8 28 0 36 0 36C0 36-8 28-12 15C-22-5-18-35 0-35Z"/></g>
+<g id="o-bladder"><path d="M-30-10C-30-35 30-35 30-10C30 20 15 35 0 35C-15 35-30 20-30-10Z"/></g>
+</defs>
+<g id="skin" style="fill:var(--body);stroke:var(--line);stroke-width:2">
+<circle cx="150" cy="42" r="30"/><rect x="138" y="68" width="24" height="24" rx="8"/>
+<path d="M100 88Q150 80 200 88L206 130Q201 230 196 312L104 312Q99 230 94 130Z"/>
+<path d="M96 100L52 262M204 100L248 262M126 308L120 462M174 308L180 462" fill="none" stroke="var(--body)" stroke-width="22" stroke-linecap="round"/>
+</g>
+<g id="skel"></g><g id="organs"></g>
+</svg>
+<p class="sub" id="cap" style="text-align:center;margin:10px 0 0"></p><div class="chips" id="chips"></div>
+</section>
+<section class="card" id="detail"><div class="hint">👆 “Dıştan içini göster” düğmesine bas, sonra bir organa dokun. “İskeleti göster” ile sadece kemikleri görebilirsin.</div></section>
+</div>
+</main>
+<script>
+var O=[
+{id:"brain",n:"Beyin",c:"#e8a0b4",sys:"Sinir sistemi",x:150,y:38,s:.42,
+ fn:"Düşünmeyi, hafızayı, duyuları yorumlamayı ve vücudun hareketlerini kontrol eder.",
+ where:"Kafatasının içinde, kemikle korunur.",
+ size:"Yetişkinde yaklaşık 1,3–1,4 kg.",
+ fact:"Yaklaşık 86 milyar sinir hücresi (nöron) vardır. Vücut ağırlığının %2’si kadar olsa da enerjinin yaklaşık %20’sini kullanır.",
+ parts:"Büyük beyin, beyincik, omurilik soğanı.",
+ ex:'<text class="lbl" x="-14" y="-6">Büyük beyin</text><text class="lbl" x="22" y="30">Beyincik</text>'},
+{id:"lungs",n:"Akciğerler",c:"#f0a49a",sys:"Solunum sistemi",x:150,y:135,s:.75,anim:"breathe",
+ fn:"Soluduğumuz havadan oksijeni kana verir, kandaki karbondioksiti dışarı atar (gaz alışverişi).",
+ where:"Göğüs kafesinde, kalbin iki yanında.",
+ size:"Sağ akciğer 3, sol akciğer 2 loptan oluşur.",
+ fact:"İçlerinde yüz milyonlarca küçük hava kesesi (alveol) bulunur. Dinlenirken dakikada yaklaşık 12–20 kez nefes alırız.",
+ parts:"Soluk borusu, bronşlar, bronşçuklar, alveoller.",
+ ex:'<text class="lbl" x="0" y="-47">Soluk borusu</text><text class="lbl" x="-27" y="38">Bronşlar</text>'},
+{id:"heart",n:"Kalp",c:"#d9344a",sys:"Dolaşım sistemi",x:160,y:152,s:.4,anim:"beat",
+ fn:"Kanı pompalayarak vücudun her yerine oksijen ve besin taşır.",
+ where:"Göğüs boşluğunda, iki akciğerin arasında, hafifçe sola eğimli.",
+ size:"Yaklaşık yumruk büyüklüğünde, 250–350 g.",
+ fact:"Dinlenirken dakikada 60–100 kez atar; bir günde yaklaşık 100 bin kez. 4 odacığı vardır.",
+ parts:"2 kulakçık (üstte), 2 karıncık (altta), kalp kapakçıkları.",
+ ex:'<text class="lbl" x="0" y="-9">Kulakçıklar</text><text class="lbl" x="0" y="16">Karıncıklar</text>'},
+{id:"liver",n:"Karaciğer",c:"#a8503a",sys:"Sindirim sistemi",x:128,y:197,s:.62,
+ fn:"Yağların sindirimi için safra üretir, kandaki zararlı maddeleri temizler ve besinleri depolar.",
+ where:"Karnın üst kısmında, sağ tarafta.",
+ size:"Vücudun en büyük iç organıdır, yaklaşık 1,4–1,6 kg.",
+ fact:"Zarar gördüğünde kendini yenileyebilen nadir organlardandır.",
+ parts:"Sağ ve sol lob, safra kesesi ile bağlantılıdır.",ex:""},
+{id:"stomach",n:"Mide",c:"#e59a6b",sys:"Sindirim sistemi",x:173,y:200,s:.5,
+ fn:"Yemekleri mide özsuyu ve enzimlerle parçalayıp lapa haline getirir.",
+ where:"Karnın üst kısmında, sol tarafta.",
+ size:"Boşken yaklaşık yumruk kadar; 1–1,5 litre hacme ulaşabilir.",
+ fact:"Mide özsuyu çok asidiktir. Mide duvarını koruyan mukus (sümüksü) tabaka yoksa mide kendini sindirirdi. Yemek midede birkaç saat kalır.",
+ parts:"Yemek borusu girişi, mide gövdesi, bağırsağa açılan çıkış.",ex:""},
+{id:"gut",n:"Bağırsaklar",c:"#f0b8a0",sys:"Sindirim sistemi",x:150,y:262,s:.85,
+ fn:"İnce bağırsak besinlerin kana geçmesini (emilim), kalın bağırsak ise suyun geri emilmesini sağlar.",
+ where:"Karın boşluğunun alt kısmında.",
+ size:"İnce bağırsak yaklaşık 6 m, kalın bağırsak yaklaşık 1,5 m uzunluğundadır.",
+ fact:"İç yüzeyindeki parmak şeklindeki çıkıntılar (villus) emilim yüzeyini çok artırır.",
+ parts:"İnce bağırsak (onikiparmak, boş, kıvrım bağırsak) ve kalın bağırsak.",ex:""},
+{id:"kidney",n:"Böbrekler",c:"#b5485d",sys:"Boşaltım sistemi",x:112,y:230,s:.28,two:1,
+ fn:"Kanı süzer, atık maddeleri idrar olarak uzaklaştırır, vücudun su ve tuz dengesini ayarlar.",
+ where:"Belin iki yanında, omurganın yakınında; iki tanedir.",
+ size:"Fasulye şeklinde, her biri yaklaşık 10–12 cm.",
+ fact:"Her böbrekte yaklaşık 1 milyon süzme birimi (nefron) vardır. Günde yaklaşık 1–2 litre idrar oluşur.",
+ parts:"Böbrek kabuğu, öz kısım, böbrek lejeni, idrar borusu (üreter).",
+ ex:'<text class="lbl" x="8" y="-27">Korteks</text><text class="lbl" x="10" y="3">Öz</text>'},
+{id:"pancreas",n:"Pankreas",c:"#e8c07a",sys:"Sindirim ve hormon sistemi",x:152,y:224,s:.4,
+ fn:"Besinleri parçalayan sindirim enzimlerini üretir; ayrıca kandaki şekeri dengeleyen insülin ve glukagon hormonlarını salgılar.",
+ where:"Karnın üst kısmında, midenin arkasında.",size:"Yaklaşık 15 cm uzunluğunda, 70–100 g.",
+ fact:"Hem sindirime hem hormonlara hizmet eden çift görevli bir organdır.",ex:""},
+{id:"spleen",n:"Dalak",c:"#9a5f9e",sys:"Bağışıklık ve dolaşım sistemi",x:199,y:188,s:.26,
+ fn:"Yaşlanmış kan hücrelerini yok eder, kan depolar ve bağışıklık sistemine yardımcı olur.",
+ where:"Karnın üst kısmında, sol tarafta, midenin yanında.",size:"Yaklaşık 11–12 cm, 150–200 g.",
+ fact:"Darbe alırsa zarar görebilir; yine de dalak olmadan yaşamak mümkündür.",ex:""},
+{id:"gall",n:"Safra kesesi",c:"#6f9e4f",sys:"Sindirim sistemi",x:131,y:224,s:.18,
+ fn:"Karaciğerin ürettiği safrayı depolayıp koyulaştırır; yağlı yemek gelince bağırsağa bırakır.",
+ where:"Karaciğerin alt yüzünde.",size:"Armut şeklinde, yaklaşık 7–10 cm; yaklaşık 50 mL safra tutar.",
+ fact:"Safra, yağları küçük damlacıklara bölerek sindirimini kolaylaştırır. Safra kesesi alınsa da yaşam sürdürülebilir.",ex:""},
+{id:"bladder",n:"Mesane",c:"#e2c26a",sys:"Boşaltım sistemi",x:150,y:301,s:.24,
+ fn:"Böbreklerden gelen idrarı biriktirir ve uygun zamanda dışarı atılmasını sağlar.",
+ where:"Karnın alt kısmında, leğen kemiklerinin arasında.",size:"Dolunca yaklaşık 400–500 mL idrar tutar.",
+ fact:"Duvarı kaslıdır; dolduğunda sinirler beyne ‘tuvalete git’ sinyali gönderir.",ex:""}
+];
+var g=document.getElementById("organs"),ch=document.getElementById("chips"),d=document.getElementById("detail"),cur=null;
+function use(o,t){return '<use href="#r-'+o.id+'" transform="'+t+'"/>'}
+O.forEach(function(o){
+ var e=document.createElementNS("http://www.w3.org/2000/svg","g");
+ e.setAttribute("class","organ");e.setAttribute("tabindex","0");e.setAttribute("role","button");e.setAttribute("aria-label",o.n);e.id="g-"+o.id;
+ var t="translate("+o.x+" "+o.y+") scale("+o.s+")";
+ e.innerHTML=use(o,t)+(o.two?use(o,"translate("+(300-o.x)+" "+o.y+") scale("+(-o.s)+" "+o.s+")"):"");
+ e.onclick=function(){sel(o.id)};
+ e.onkeydown=function(k){if(k.key==="Enter"||k.key===" "){k.preventDefault();sel(o.id)}};
+ g.appendChild(e);
+ var b=document.createElement("button");b.className="chip";b.textContent=o.n;b.id="c-"+o.id;b.setAttribute("aria-pressed","false");
+ b.onclick=function(){sel(o.id)};ch.appendChild(b);
+});
+var X={
+brain:{pl:[["Büyük beyin","Düşünme, konuşma, hafıza ve istemli hareketlerin merkezi; kıvrımlı yüzeyi (korteks) alanı artırır."],["Beyincik","Dengeyi ve hareketlerin düzgün, koordineli olmasını sağlar."],["Omurilik soğanı (beyin sapı)","Solunum ve kalp atışı gibi kendiliğinden olan işleri yönetir."]],num:[["~86 milyar","nöron"],["~%20","enerji kullanımı"],["~1,4 kg","ağırlık"]],care:"Yeterli uyku, düzenli hareket, bisiklet ve skuterde kask, dengeli beslenme."},
+lungs:{pl:[["Soluk borusu","Havayı akciğerlere taşıyan, kıkırdak halkalı tüp."],["Bronşlar","Soluk borusunun ikiye ayrılarak akciğerlere girmesiyle oluşur; ağaç gibi dallanır."],["Alveoller","Oksijenin kana, karbondioksitin havaya geçtiği ince duvarlı küçük hava keseleri."],["Diyafram","Akciğerlerin altındaki kas; kasılınca hava içeri çekilir."]],num:[["12–20","nefes/dakika"],["5 lob","sağda 3, solda 2"],["~500 mL","tek nefeste hava"]],care:"Sigaradan ve dumanlı ortamlardan uzak durmak, temiz havada egzersiz yapmak."},
+heart:{pl:[["Kulakçıklar (2)","Kanı toplayan üst odacıklar."],["Karıncıklar (2)","Kanı güçlüce pompalayan alt odacıklar; sol karıncık vücuda, sağ karıncık akciğerlere gönderir."],["Kapakçıklar","Kanın yalnızca tek yönde akmasını sağlar."],["Damarlar","Atardamarlar kalpten kan götürür, toplardamarlar kalbe kan getirir."]],num:[["60–100","atım/dakika"],["~100 bin","atım/gün"],["~5 L","dakikada pompalanan kan"]],care:"Düzenli egzersiz, tuzu ve doymuş yağı azaltmak, sigara içmemek."},
+liver:{pl:[["Sağ ve sol lob","Karaciğerin iki ana bölümü."],["Safra yolları","Üretilen safrayı safra kesesine ve bağırsağa taşır."],["Kapı toplardamarı","Bağırsaklardan emilen besinleri karaciğere getirir."]],num:[["~1,5 kg","ağırlık"],["yüzlerce","görev"],["~1,5 L","dakikada geçen kan"]],care:"Dengeli beslenmek, ilaçları doktor önerisine göre kullanmak, alkolden ve aşırı yağlı yiyeceklerden kaçınmak."},
+stomach:{pl:[["Mide girişi (kardiya)","Yemek borusundan gelen lokmanın girdiği yer."],["Mide gövdesi","Yemeği karıştırıp mide özsuyuyla parçalar."],["Mide çıkışı (pilor)","Lapa hâline gelen yemeği az az bağırsağa bırakan kas halkası."]],num:[["1–1,5 L","hacim"],["2–4 saat","yemeğin kalış süresi"],["pH 1,5–3,5","mide asidi"]],care:"Yavaş ve iyice çiğneyerek yemek, öğünleri atlamamak, çok baharatlı ve asitli içeceklerden kaçınmak."},
+gut:{pl:[["Onikiparmak bağırsağı","İnce bağırsağın ilk kısmı; safra ve pankreas özsuyu burada yemeğe karışır."],["Boş ve kıvrım bağırsak","Besinlerin büyük kısmı burada kana geçer."],["Kalın bağırsak","Su ve mineralleri emer, artıkları dışkıya çevirir."]],num:[["~6 m","ince bağırsak"],["~1,5 m","kalın bağırsak"],["trilyonlarca","yararlı bakteri"]],care:"Lifli besinler (sebze, meyve, tam tahıl), bol su ve düzenli hareket."},
+kidney:{pl:[["Böbrek kabuğu (korteks)","Süzme işleminin başladığı dış kısım; nefronlar burada yer alır."],["Öz (medulla)","İdrarı toplayıp yoğunlaştıran iç kısım."],["Böbrek lejeni (pelvis)","İdrarın toplandığı huni şeklindeki boşluk."],["Üreter","İdrarı mesaneye taşıyan ince tüp."]],num:[["~1 milyon","nefron/böbrek"],["~180 L","günlük süzülen sıvı"],["1–2 L","idrar/gün"]],care:"Yeterli su içmek, tuzu azaltmak, ağrı kesicileri gereksiz kullanmamak."},
+pancreas:{pl:[["Pankreas özsuyu","Sindirim enzimleri içerir; onikiparmak bağırsağına akar."],["Langerhans adacıkları","İnsülin ve glukagon hormonlarını üreten hücre kümeleri."]],num:[["~15 cm","uzunluk"],["2","hormon: insülin, glukagon"]],care:"Şekerli ve aşırı yağlı gıdaları azaltmak, kiloyu dengede tutmak."},
+spleen:{pl:[["Kırmızı öz","Eski ve hasarlı alyuvarları süzüp yok eder."],["Beyaz öz","Mikroplarla savaşan akyuvarları (lenfosit) barındırır."]],num:[["~12 cm","uzunluk"],["~150 g","ağırlık"]],care:"Temaslı sporlarda karın bölgesini korumak, aşıları zamanında yaptırmak."},
+gall:{pl:[["Safra","Yeşilimsi sarı sıvı; yağların sindirimine yardım eder."],["Safra kanalları","Safrayı karaciğerden keseye ve bağırsağa taşır."]],num:[["~50 mL","depolama"],["7–10 cm","uzunluk"]],care:"Aşırı yağlı yemeklerden kaçınmak ve kiloyu dengede tutmak."},
+bladder:{pl:[["Kas duvar","Genişleyip büzülerek idrarı biriktirir ve dışarı iter."],["Üretra","İdrarı vücut dışına taşıyan kanal."]],num:[["400–500 mL","hacim"],["4–8","kez/gün tuvalete gitme"]],care:"Gün boyu yeterli su içmek, idrarı uzun süre tutmamak."}};
+function N(i){return X[i].num.map(function(a){return '<div class="num"><b>'+a[0]+'</b><span>'+a[1]+'</span></div>'}).join("")}
+function P(i){return X[i].pl.map(function(a){return '<li><b>'+a[0]+'</b>'+a[1]+'</li>'}).join("")}
+var BC='#f0e8d6',BS='#a39777';
+function bone(d,w){return `<path d='${d}' fill='none' stroke='${BS}' stroke-width='${w+2}' stroke-linecap='round'/><path d='${d}' fill='none' stroke='${BC}' stroke-width='${w}' stroke-linecap='round'/>`}
+function bx(s,x){return 150+s*(x-150)}
+function bl(s,a,b,c,e,w){return bone(`M${bx(s,a)} ${b}L${bx(s,c)} ${e}`,w)}
+function both(f){return f(1)+f(-1)}
+(function(){
+ var S=`<g style='fill:${BC};stroke:${BS};stroke-width:1.3'>`,i,W=[34,42,48,52,54,54,52,48,42,36,28,22];
+ S+=both(function(s){return bl(s,125,310,122,380,10)+bl(s,121,390,119,448,7)+bl(s,128,390,126,446,3)+`<circle cx='${bx(s,126)}' cy='308' r='7'/><circle cx='${bx(s,122)}' cy='385' r='5'/><ellipse cx='${bx(s,118)}' cy='459' rx='14' ry='6'/>`});
+ S+=both(function(s){return bl(s,96,104,75,180,8)+bl(s,77,184,62,256,4.5)+bl(s,70,184,54,254,4.5)+`<circle cx='${bx(s,96)}' cy='103' r='6'/><circle cx='${bx(s,74)}' cy='182' r='4.5'/><ellipse cx='${bx(s,56)}' cy='266' rx='9' ry='8'/>`+bl(s,48,270,44,293,3)+bl(s,52,272,50,297,3)+bl(s,56,273,56,299,3)+bl(s,60,272,62,296,3)+bl(s,64,268,71,284,3)});
+ S+=`<path d='M108 268C100 276 100 300 112 318L132 324C140 314 144 304 150 300C156 304 160 314 168 324L188 318C200 300 200 276 192 268C176 272 164 280 150 286C136 280 124 272 108 268Z'/><ellipse cx='127' cy='314' rx='6' ry='7' style='fill:#6a604a'/><ellipse cx='173' cy='314' rx='6' ry='7' style='fill:#6a604a'/>`;
+ var sp='M150 72C147 110 153 150 150 190C147 230 153 262 150 292';
+ S+=`<path d='${sp}' fill='none' stroke='${BS}' stroke-width='12' stroke-dasharray='9 2'/><path d='${sp}' fill='none' stroke='${BC}' stroke-width='9.5' stroke-dasharray='9 2'/>`;
+ for(i=0;i<12;i++){(function(y,w0){S+=both(function(s){var w=w0*s,d=`M${150+4*s} ${y}C${150+w*.6} ${y-14},${150+w} ${y-2},${150+w} ${y+12}C${150+w} ${y+24},${150+14*s} ${y+26},${150+6*s} ${y+20}`;return bone(d,2.6)})})(102+i*8.3,W[i])}
+ S+=`<rect x='145.5' y='98' width='9' height='56' rx='4'/><path d='M147 154H153L150 168Z'/>`;
+ S+=both(function(s){return bone(`M${bx(s,148)} 98C${bx(s,130)} 91,${bx(s,112)} 94,${bx(s,98)} 103`,4.5)});
+ S+=`<path d='M131 52C131 70 140 79 150 79C160 79 169 70 169 52Z'/><ellipse cx='150' cy='37' rx='25' ry='26'/><ellipse cx='141' cy='45' rx='5.5' ry='4.5' style='fill:#5b5340'/><ellipse cx='159' cy='45' rx='5.5' ry='4.5' style='fill:#5b5340'/><path d='M150 52L146 62H154Z' style='fill:#5b5340'/><path d='M141 70H159' fill='none'/>`;
+ document.getElementById('skel').innerHTML=S+'</g>';
+})();
+g.insertBefore(document.getElementById('g-kidney'),document.getElementById('g-gut'));
+var MODE='out',CAP={'out':'Dıştan görünüm: organlar ve kemikler cildin altında gizli.','in':'Organlar kendi yerlerinde, arkada iskelet var. Kaburgalar kalbi ve akciğerleri korur.','sk':'Yetişkin insanda 206 kemik vardır. Kafatası beyni, kaburgalar kalp ve akciğerleri korur.'};
+function setMode(m){
+ MODE=m;document.getElementById('body').setAttribute('class','m-'+m);
+ ['out','in','sk'].forEach(function(k){document.getElementById('m-'+k).setAttribute('aria-pressed',k===m?'true':'false')});
+ document.getElementById('cap').textContent=CAP[m];
+ var os=g.children,i;
+ for(i=0;i<os.length;i++)os[i].style.transitionDelay=m==='in'?(0.25+i*0.14)+'s':'0s';
+ if(m==='in')setTimeout(function(){if(MODE==='in')for(var j=0;j<os.length;j++)os[j].style.transitionDelay='0s'},2600)
+}
+['out','in','sk'].forEach(function(k){document.getElementById('m-'+k).onclick=function(){setMode(k)}});
+setMode('out');
+function sel(id){if(MODE!=='in')setMode('in');
+ var o=O.filter(function(x){return x.id===id})[0];cur=id;
+ O.forEach(function(x){
+  document.getElementById("g-"+x.id).classList.toggle("sel",x.id===id);
+  document.getElementById("c-"+x.id).setAttribute("aria-pressed",x.id===id?"true":"false");
+ });
+ var z=1.15;if(o.id==="kidney")z=1.5;if(o.id==="gut")z=1.1;
+ d.innerHTML='<h2>'+o.n+'</h2><span class="tag">'+o.sys+'</span>'+
+ '<svg id="zoom" viewBox="-60 -60 120 120" role="img" aria-label="'+o.n+' yakın görünüm"><g class="'+(o.anim||"")+'">'+use(o,"scale("+z+")")+'<g transform="scale('+z+')">'+o.ex+'</g></g></svg>'+
+ '<div class="nums">'+N(o.id)+'</div><dl><dt>Görevi</dt><dd>'+o.fn+'</dd><dt>Konumu</dt><dd>'+o.where+'</dd><dt>Boyut / ağırlık</dt><dd>'+o.size+'</dd><dt>Bölümleri</dt><dd><ul class="pl">'+P(o.id)+'</ul></dd><dt>İlginç bilgi</dt><dd>'+o.fact+'</dd></dl><div class="care">🌿 <b>Sağlıklı kalması için:</b> '+X[o.id].care+'</div>';
+ if(window.matchMedia("(max-width:719px)").matches){d.scrollIntoView({behavior:"smooth",block:"start"})}
+}
+</script>
+</body></html>
