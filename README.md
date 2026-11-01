@@ -58,3 +58,8 @@ Bu klasörlerin her biri ayrı bir uygulamadır; sayfa `src/main/assets/index.ht
 `hamamboceki` (Dancing Cockroaches), `organlar` (İnsan Vücudu), `denemeatolyesi` (Deneme Atölyesi),
 `gunessistemi` (Güneş Sistemi), `yikimustasi` (Yıkım Ustası 3D). Modülde `libs.txt` varsa derleme sırasında
 oradaki dosyalar (url dosyaadı) indirilip uygulamanın içine konur.
+
+## Sayfa uygulamaları (v1)
+Her HTML sayfası kendi klasöründe ayrı bir uygulamadır (WebView, sayfa assets/index.html içinde, internetsiz çalışır):
+hamamboceki, organlar, denemeatolyesi, gunessistemi, yikimustasi. Her birinin kendi logosu var.
+Bir klasörde libs.txt varsa (satır: `adres dosyaadi`) GitHub derlemesi o dosyaları indirip uygulamanın içine koyar.

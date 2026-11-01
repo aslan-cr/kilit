@@ -33,6 +33,18 @@ jobs:
               test -s "$dir/src/main/assets/$name"
             done < "$f"
           done
+      - name: Kitaplıkları indir (libs.txt olan uygulamalar için)
+        run: |
+          for f in */libs.txt; do
+            [ -f "$f" ] || continue
+            dir=$(dirname "$f")
+            mkdir -p "$dir/src/main/assets"
+            while read -r url name; do
+              [ -z "$url" ] && continue
+              curl -fsSL --retry 3 "$url" -o "$dir/src/main/assets/$name"
+              test -s "$dir/src/main/assets/$name"
+            done < "$f"
+          done
       - name: APK derle
         run: gradle assembleDebug
       - name: APK dosyalarini topla
