@@ -47,3 +47,8 @@ kurulu sürümle karşılaştırır, yeni olanı kurar. Depo herkese açık (pub
   Parmakla sürüklenir, üstünde kapatma düğmesi yoktur. Dokununca kullanıcının rengi değişir (8 renk).
   Ödev saatinde turuncu geri sayım, kimse girişli değilken gri "SIRA" gösterir.
 - Servis kapanırsa nöbetçi alarm dakikada bir yeniden başlatır. Ebeveyn panelinde "Koruma servisi" durumu görünür.
+
+## Yeni uygulama eklemek (otomatik)
+Kök klasöre içinde build.gradle.kts olan yeni bir klasör eklenirse otomatik bir uygulama (modül) sayılır.
+GitHub derlemesi bütün uygulamaları derler ve Release'e koyar. Güncelleyici açılınca Release'i kendiliğinden
+kontrol eder, yeni uygulamaları listeye ekler (kurulum için kullanıcı Android onayı verir).

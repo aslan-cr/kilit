@@ -26,8 +26,17 @@ jobs:
       - name: APK dosyalarini topla
         run: |
           mkdir out
-          cp app/build/outputs/apk/debug/app-debug.apk out/kilit.apk
-          cp updater/build/outputs/apk/debug/updater-debug.apk out/guncelle.apk
+          for f in $(find . -path "*/build/outputs/apk/debug/*-debug.apk"); do
+            mod=${f#./}
+            mod=${mod%%/*}
+            case "$mod" in
+              app) name=kilit ;;
+              updater) name=guncelle ;;
+              *) name="$mod" ;;
+            esac
+            cp "$f" "out/$name.apk"
+          done
+          ls -l out
       - uses: actions/upload-artifact@v4
         with:
           name: kilit-apk
@@ -36,5 +45,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "build-${{ github.run_number }}" out/kilit.apk out/guncelle.apk \
+          gh release create "build-${{ github.run_number }}" out/*.apk \
             --title "Build ${{ github.run_number }}" --notes "Otomatik derleme"

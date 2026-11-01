@@ -98,6 +98,9 @@ class MainActivity : Activity() {
             ).apply { topMargin = dp(12) }
         )
         setContentView(root)
+
+        // Açılınca kendiliğinden yeni uygulama/sürüm var mı diye bakar (internet varsa).
+        checkUpdates(true)
     }
 
     override fun onResume() {
@@ -281,8 +284,8 @@ class MainActivity : Activity() {
 
     // ---------- Otomatik güncelleme (GitHub Release) ----------
 
-    private fun checkUpdates() {
-        toast("Güncellemeler kontrol ediliyor...")
+    private fun checkUpdates(silent: Boolean = false) {
+        if (!silent) toast("Güncellemeler kontrol ediliyor...")
         Thread {
             try {
                 val con = URL("https://api.github.com/repos/$REPO/releases/latest")
@@ -293,11 +296,11 @@ class MainActivity : Activity() {
                 con.setRequestProperty("User-Agent", "guncelle-app")
                 val code = con.responseCode
                 if (code == 404) {
-                    toastUi("Yayınlanmış sürüm bulunamadı. Depo herkese açık mı, derleme bitti mi?")
+                    if (!silent) toastUi("Yayınlanmış sürüm bulunamadı. Depo herkese açık mı, derleme bitti mi?")
                     return@Thread
                 }
                 if (code != 200) {
-                    toastUi("Sunucu hatası: $code")
+                    if (!silent) toastUi("Sunucu hatası: $code")
                     return@Thread
                 }
                 val body = con.inputStream.bufferedReader().use { it.readText() }
@@ -309,7 +312,7 @@ class MainActivity : Activity() {
                 if (tag == prefs.getString("tag", "") && entries().isNotEmpty()) {
                     runOnUiThread {
                         refresh()
-                        toast("En son yayın zaten indirilmiş ($tag). Listeden kurabilirsin.")
+                        if (!silent) toast("En son yayın zaten indirilmiş ($tag). Listeden kurabilirsin.")
                     }
                     return@Thread
                 }
@@ -333,18 +336,25 @@ class MainActivity : Activity() {
                 prefs.edit().putString("tag", tag).apply()
                 runOnUiThread {
                     refresh()
-                    afterCheck(added)
+                    afterCheck(added, silent)
                 }
             } catch (ex: Exception) {
-                toastUi("Kontrol edilemedi: ${ex.message}")
+                if (!silent) toastUi("Kontrol edilemedi: ${ex.message}")
             }
         }.start()
     }
 
-    private fun afterCheck(added: List<Entry>) {
+    private fun afterCheck(added: List<Entry>, silent: Boolean) {
         val need = added.filter { e ->
             val inst = installed(e.pkg)
             inst == null || e.vCode > versionCodeOf(inst)
+        }
+        if (silent) {
+            // Açılışta otomatik kontrol: listeye eklenir, kurulum için kullanıcı dokunur.
+            if (need.isNotEmpty()) {
+                toast("${need.size} uygulama kurulmaya/güncellenmeye hazır, listeden bas")
+            }
+            return
         }
         when {
             need.isEmpty() -> toast("Her şey güncel")
