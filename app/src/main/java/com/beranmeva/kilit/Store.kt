@@ -152,6 +152,10 @@ class Store(context: Context) {
         get() = p.getLong("parentUntil", 0L)
         set(v) = p.edit().putLong("parentUntil", v).apply()
 
+    var screenOffAt: Long
+        get() = p.getLong("screenOffAt", 0L)
+        set(v) = p.edit().putLong("screenOffAt", v).apply()
+
     var shortcutUntil: Long
         get() = p.getLong("shortcutUntil", 0L)
         set(v) = p.edit().putLong("shortcutUntil", v).apply()

@@ -74,3 +74,7 @@ Veri koda bağlı anahtarla şifrelenir, sunucuda yaklaşık 12 saat kalır. İn
 Kilit ekranında (şifre girişi ve ödev zamanı dahil) "Ara" ve "WhatsApp" düğmeleri şifresiz açılır.
 Ebeveyn panelinde 4) Kullanım erişimi verilirse kilit yalnızca ön planda arama/WhatsApp varken devreye girmez;
 başka uygulamaya geçilince hemen geri gelir. Erişim verilmezse düğmeye basınca 3 dakikalık serbest süre tanınır.
+
+## Süre sadece uygulamadayken akar (v1.5)
+Ekran kapalıyken, cihaz kilit ekranındayken, ana ekranda/son uygulamalarda ya da kilit-ebeveyn ekranındayken süre durur.
+Ekran kapalı süre her zaman geri eklenir. Ana ekran/uygulama dışı tespiti için Kullanım erişimi (panel 4) gerekir.

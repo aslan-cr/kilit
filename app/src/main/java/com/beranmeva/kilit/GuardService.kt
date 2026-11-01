@@ -37,6 +37,21 @@ class GuardService : Service() {
     private var lastArm = 0L
     private lateinit var overlay: TimerOverlay
     private val fg = Foreground()
+    private var paused = false
+    private var homeCache: String? = null
+
+    private fun homePkg(): String? {
+        if (homeCache == null) {
+            homeCache = try {
+                packageManager.resolveActivity(
+                    Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
+                )?.activityInfo?.packageName ?: ""
+            } catch (_: Exception) {
+                ""
+            }
+        }
+        return homeCache
+    }
 
     private val tick = object : Runnable {
         override fun run() {
@@ -78,9 +93,33 @@ class GuardService : Service() {
         val now = System.currentTimeMillis()
         val hw = store.homeworkActive()
 
-        // Ödev saatinde aktif kullanıcının süresi akmasın: bitişi geçen süre kadar ileri al.
-        if (hw != null && store.current.isNotEmpty()) {
-            store.sessionEnd += (now - lastTick).coerceIn(0L, 5000L)
+        val prevTick = lastTick
+        val pm0 = getSystemService(PowerManager::class.java)
+        val interactive = pm0.isInteractive
+        val hasSession = store.current.isNotEmpty()
+
+        // Ekran kapalıyken süre akmasın: kapalı kalınan süre oturuma geri eklenir.
+        if (!interactive) {
+            if (store.screenOffAt == 0L) store.screenOffAt = prevTick
+        } else if (store.screenOffAt > 0L) {
+            val off = store.screenOffAt
+            if (hasSession && store.sessionEnd > off) store.sessionEnd += (now - off).coerceAtLeast(0L)
+            store.screenOffAt = 0L
+        }
+
+        // Uygulamaların dışındayken (ana ekran, son uygulamalar, kilit/ebeveyn ekranı) süre akmasın.
+        paused = hasSession && interactive && getSystemService(KeyguardManager::class.java).isKeyguardLocked
+        if (hasSession && interactive && hw == null && !paused && Shortcuts.hasUsageAccess(this)) {
+            fg.update(this)
+            val cur = fg.current
+            if (cur != null && (cur == homePkg() || cur == "com.android.systemui" || cur == packageName)) {
+                paused = true
+            }
+        }
+
+        // Ödev saatinde ya da uygulama dışındayken aktif kullanıcının süresi akmasın.
+        if ((hw != null || paused) && hasSession && interactive) {
+            store.sessionEnd += (now - prevTick).coerceIn(0L, 5000L)
         }
         lastTick = now
 
@@ -97,7 +136,8 @@ class GuardService : Service() {
         val text = when {
             hw != null -> "ÖDEV ZAMANI — ${Store.hm(hw.end)} saatine kadar kilitli"
             store.isActive() ->
-                "${Store.label(store.current)} kullanıyor — kalan ${Store.fmt(store.remainingMs())}"
+                "${Store.label(store.current)} kullanıyor — kalan ${Store.fmt(store.remainingMs())}" +
+                    (if (paused) " (uygulama dışında, süre durdu)" else "")
             else -> "Kilit ekranı bekliyor — sıradaki: ${Store.label(store.next)}"
         }
         if (text != lastText) {
