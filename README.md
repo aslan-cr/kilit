@@ -63,3 +63,9 @@ oradaki dosyalar (url dosyaadı) indirilip uygulamanın içine konur.
 Her HTML sayfası kendi klasöründe ayrı bir uygulamadır (WebView, sayfa assets/index.html içinde, internetsiz çalışır):
 hamamboceki, organlar, denemeatolyesi, gunessistemi, yikimustasi. Her birinin kendi logosu var.
 Bir klasörde libs.txt varsa (satır: `adres dosyaadi`) GitHub derlemesi o dosyaları indirip uygulamanın içine koyar.
+
+## Kullanım takibi (v1)
+- kullanimtakip ("Kullanım Kaydı"): çocuğun cihazına kurulur, cihaza özel rastgele kodu gösterir, 5 dakikada bir
+  son 7 günün uygulama sürelerini (Google, Chrome, kilit uygulaması hariç) şifreleyip ntfy.sh üzerinden gönderir.
+- kullanimizle ("Kullanım İzle"): başka cihazda kod girilir, o cihazın kullanımı görünür.
+Veri koda bağlı anahtarla şifrelenir, sunucuda yaklaşık 12 saat kalır. İnternet gerekir.
