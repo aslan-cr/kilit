@@ -41,3 +41,9 @@ GitHub derlemesi artık `kilit.apk` ve `guncelle.apk` dosyalarını birlikte ür
 GitHub derlemesi bitince kilit.apk ve guncelle.apk bir Release olarak yayınlanır.
 Güncelleyici'de "Güncellemeleri kontrol et" düğmesi en son Release'teki APK'ları indirir,
 kurulu sürümle karşılaştırır, yeni olanı kurar. Depo herkese açık (public) olmalıdır.
+
+## Yuvarlak sayaç ve koruma (v1.2)
+- Ekranda her uygulamanın üstünde yuvarlak bir sayaç durur: kalan süre, kullanıcı adı ve ilerleme halkası.
+  Parmakla sürüklenir, üstünde kapatma düğmesi yoktur. Dokununca kullanıcının rengi değişir (8 renk).
+  Ödev saatinde turuncu geri sayım, kimse girişli değilken gri "SIRA" gösterir.
+- Servis kapanırsa nöbetçi alarm dakikada bir yeniden başlatır. Ebeveyn panelinde "Koruma servisi" durumu görünür.

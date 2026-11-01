@@ -21,6 +21,14 @@ class Store(context: Context) {
         const val PARENT = "parent"
         const val MIN_LEN = 4
 
+        /** Sayaç renkleri: mavi, yeşil, turuncu, kırmızı, mor, pembe, sarı, turkuaz. */
+        val COLORS = intArrayOf(
+            0xFF2D9CDB.toInt(), 0xFF27AE60.toInt(), 0xFFF2994A.toInt(), 0xFFEB5757.toInt(),
+            0xFFBB6BD9.toInt(), 0xFFE91E8C.toInt(), 0xFFF2C94C.toInt(), 0xFF2EC4B6.toInt()
+        )
+        val IDLE_COLOR = 0xFF607D8B.toInt()
+        val HW_COLOR = 0xFFD35400.toInt()
+
         fun other(u: String) = if (u == BERAN) MEVA else BERAN
 
         fun label(u: String) = when (u) {
@@ -167,6 +175,7 @@ class Store(context: Context) {
     fun startSession(u: String) {
         current = u
         sessionEnd = System.currentTimeMillis() + durationMin * 60_000L
+        sessionTotal = durationMin * 60_000L
         lastDay = LocalDate.now().toString()
         next = other(u)
     }
@@ -178,6 +187,33 @@ class Store(context: Context) {
         current = ""
         sessionEnd = 0L
     }
+
+    // ---------- Sayaç (ekrandaki yuvarlak) ----------
+
+    var sessionTotal: Long
+        get() = p.getLong("sessionTotal", 0L)
+        set(v) = p.edit().putLong("sessionTotal", v).apply()
+
+    /** Kullanıcının seçtiği renk sırası. Beran mavi, Meva pembe ile başlar. */
+    fun colorIndex(u: String): Int =
+        p.getInt("ci_$u", if (u == MEVA) 5 else 0).mod(COLORS.size)
+
+    fun nextColor(u: String) {
+        p.edit().putInt("ci_$u", (colorIndex(u) + 1) % COLORS.size).apply()
+    }
+
+    var overlayX: Int
+        get() = p.getInt("ox", -1)
+        set(v) = p.edit().putInt("ox", v).apply()
+
+    var overlayY: Int
+        get() = p.getInt("oy", -1)
+        set(v) = p.edit().putInt("oy", v).apply()
+
+    /** Koruma servisinin son çalıştığı an (ebeveyn panelinde durumunu göstermek için). */
+    var beat: Long
+        get() = p.getLong("beat", 0L)
+        set(v) = p.edit().putLong("beat", v).apply()
 
     // ---------- Ödev saatleri ----------
 

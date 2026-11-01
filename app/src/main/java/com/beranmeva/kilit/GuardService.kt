@@ -14,6 +14,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
+import java.time.LocalDateTime
 
 /**
  * Arka planda çalışan, bildirimi HER ZAMAN görünen servis.
@@ -33,6 +34,8 @@ class GuardService : Service() {
     private lateinit var store: Store
     private var lastText = ""
     private var lastTick = System.currentTimeMillis()
+    private var lastArm = 0L
+    private lateinit var overlay: TimerOverlay
 
     private val tick = object : Runnable {
         override fun run() {
@@ -47,6 +50,7 @@ class GuardService : Service() {
     override fun onCreate() {
         super.onCreate()
         store = Store(this)
+        overlay = TimerOverlay(this, store)
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(CH, "Kilit durumu", NotificationManager.IMPORTANCE_LOW)
         )
@@ -65,6 +69,7 @@ class GuardService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacks(tick)
+        overlay.hide()
         super.onDestroy()
     }
 
@@ -79,6 +84,14 @@ class GuardService : Service() {
         lastTick = now
 
         store.refresh()
+
+        // Servis çalıştığının işareti + nöbetçi alarmı yenile + ekrandaki sayacı güncelle.
+        store.beat = now
+        if (now - lastArm > 30_000L) {
+            Watchdog.arm(this)
+            lastArm = now
+        }
+        updateOverlay(hw)
 
         val text = when {
             hw != null -> "ÖDEV ZAMANI — ${Store.hm(hw.end)} saatine kadar kilitli"
@@ -106,6 +119,44 @@ class GuardService : Service() {
             Intent(this, LockActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         )
+    }
+
+    /** Yuvarlak sayaç: ödevde turuncu geri sayım, girişliyken kalan süre, değilse "SIRA". */
+    private fun updateOverlay(hw: Store.Hw?) {
+        if (MainActivity.visible || !Settings.canDrawOverlays(this)) {
+            overlay.hide()
+            return
+        }
+        val main: String
+        val sub: String
+        val prog: Float
+        val color: Int
+        if (hw != null) {
+            val n = LocalDateTime.now()
+            val left = (hw.end - (n.hour * 60 + n.minute)).coerceAtLeast(0)
+            val total = (hw.end - hw.start).coerceAtLeast(1)
+            main = "$left dk"
+            sub = "ÖDEV"
+            prog = left / total.toFloat()
+            color = Store.HW_COLOR
+        } else if (store.isActive()) {
+            val rem = store.remainingMs()
+            main = if (rem >= 60_000L) "${(rem + 59_999L) / 60_000L} dk" else "${rem / 1000L} sn"
+            sub = Store.label(store.current)
+            val total = maxOf(store.sessionTotal, rem)
+            prog = if (total > 0L) rem.toFloat() / total.toFloat() else 0f
+            color = Store.COLORS[store.colorIndex(store.current)]
+        } else {
+            main = "SIRA"
+            sub = Store.label(store.next)
+            prog = 0f
+            color = Store.IDLE_COLOR
+        }
+        try {
+            overlay.update(main, sub, prog.coerceIn(0f, 1f), color)
+        } catch (_: Exception) {
+            overlay.hide()
+        }
     }
 
     private fun notif(text: String): Notification =

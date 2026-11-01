@@ -17,6 +17,7 @@ class BootReceiver : BroadcastReceiver() {
                 )
             } catch (_: Exception) {
             }
+            Watchdog.arm(context)
         }
     }
 }

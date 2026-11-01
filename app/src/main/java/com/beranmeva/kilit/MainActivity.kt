@@ -256,7 +256,21 @@ class MainActivity : Activity() {
         } else {
             "\nÖdev saati sayısı: ${store.homeworkSlots().size}"
         }
-        status?.text = "$now\n$pws\nSüre: ${store.durationMin} dk$hwLine"
+        val beat = store.beat
+        val age = (System.currentTimeMillis() - beat) / 1000L
+        val stale = beat == 0L || age >= 5L
+        val svc = when {
+            beat == 0L -> "Koruma servisi: henüz başlamadı"
+            stale -> "Koruma servisi: DURMUŞ ($age sn) — yeniden başlatılıyor"
+            else -> "Koruma servisi: ÇALIŞIYOR"
+        }
+        if (stale) {
+            try {
+                ContextCompat.startForegroundService(this, Intent(this, GuardService::class.java))
+            } catch (_: Exception) {
+            }
+        }
+        status?.text = "$now\n$pws\nSüre: ${store.durationMin} dk$hwLine\n$svc"
     }
 
     private fun updatePerms() {
