@@ -22,3 +22,22 @@ Servis her zaman görünür bir bildirim gösterir (kimin ne kadar süresi kald�
 - Android, bir uygulamanın kendi kendini kaldırılmaya karşı korumasına izin vermez (cihaz sahibi / Family Link gerekir). Çocuklar için Ayarlar'dan uygulama kaldırmayı Family Link ile kısıtlayabilirsin.
 - Güvenli mod ve tarih/saat değiştirme kilidi aşabilir. Ayarlar'da "Otomatik tarih ve saat"i açık tutmak yardımcı olur.
 - Kilit, ekran açıldıktan yaklaşık 1 saniye sonra devreye girer.
+
+## Ödev saati (v1.1)
+Ebeveyn panelinde **Ödev saatleri** bölümünden gün ve saat aralığı eklenir (örn. Pzt-Cum 16:00-18:00).
+- Bu saatlerde sıra kimde olursa olsun **ÖDEV ZAMANI** ekranı çıkar, hiçbir uygulama açılamaz.
+- Ödev sırasında aktif kullanıcının süresi akmaz, ödev bitince kaldığı yerden devam eder.
+- Sadece Ebeveyn düğmesi ve ebeveyn şifresiyle çıkılır.
+- Aralık gece yarısını geçemez (örn. 23:00-01:00 yerine iki ayrı aralık ekle).
+- APK artık sabit imzayla derlenir, yeni sürüm eskisinin üstüne kurulur.
+
+## Güncelleyici (ikinci uygulama)
+`updater` modülü ayrı bir uygulama üretir (guncelle.apk). İçine eklediğin APK dosyalarını listeler,
+kurulu sürümle karşılaştırır, Kur/Güncelle düğmesi verir. Yeni sürümü tekrar eklersen eskisinin yerine geçer.
+Android her kurulumda onay ister, sessiz kurulum mümkün değil.
+GitHub derlemesi artık `kilit.apk` ve `guncelle.apk` dosyalarını birlikte üretir.
+
+## Otomatik güncelleme
+GitHub derlemesi bitince kilit.apk ve guncelle.apk bir Release olarak yayınlanır.
+Güncelleyici'de "Güncellemeleri kontrol et" düğmesi en son Release'teki APK'ları indirir,
+kurulu sürümle karşılaştırır, yeni olanı kurar. Depo herkese açık (public) olmalıdır.

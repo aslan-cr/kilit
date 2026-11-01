@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   push:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,7 +23,18 @@ jobs:
           gradle-version: 8.7
       - name: APK derle
         run: gradle assembleDebug
+      - name: APK dosyalarini topla
+        run: |
+          mkdir out
+          cp app/build/outputs/apk/debug/app-debug.apk out/kilit.apk
+          cp updater/build/outputs/apk/debug/updater-debug.apk out/guncelle.apk
       - uses: actions/upload-artifact@v4
         with:
           name: kilit-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: out
+      - name: Release yayinla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" out/kilit.apk out/guncelle.apk \
+            --title "Build ${{ github.run_number }}" --notes "Otomatik derleme"

@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "BeranMevaKilit"
 include(":app")
+include(":updater")
