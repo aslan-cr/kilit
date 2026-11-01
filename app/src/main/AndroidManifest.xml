@@ -9,7 +9,8 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@android:drawable/ic_lock_lock"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="Beran-Meva Kilit"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 

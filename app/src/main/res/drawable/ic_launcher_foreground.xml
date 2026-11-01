@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Zamanlayıcı halkasının silik zemini -->
+    <path
+        android:pathData="M54,20 A34,34 0 1 1 54,88 A34,34 0 1 1 54,20"
+        android:strokeWidth="4"
+        android:strokeColor="#33FFFFFF" />
+
+    <!-- Kalan süreyi gösteren turkuaz yay -->
+    <path
+        android:pathData="M54,20 A34,34 0 1 1 20,54"
+        android:strokeWidth="4"
+        android:strokeColor="#2EC4B6"
+        android:strokeLineCap="round" />
+
+    <!-- Kilidin kancası -->
+    <path
+        android:pathData="M43,52 V44 A11,11 0 0 1 65,44 V52"
+        android:strokeWidth="6"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+
+    <!-- Kilidin gövdesi -->
+    <path
+        android:fillColor="#F2C94C"
+        android:pathData="M42,52 H66 A6,6 0 0 1 72,58 V74 A6,6 0 0 1 66,80 H42 A6,6 0 0 1 36,74 V58 A6,6 0 0 1 42,52 Z" />
+
+    <!-- Anahtar deliği -->
+    <path
+        android:fillColor="#1B2A41"
+        android:pathData="M50,63 A4,4 0 1 0 58,63 A4,4 0 1 0 50,63 Z" />
+    <path
+        android:fillColor="#1B2A41"
+        android:pathData="M52.5,65 H55.5 L56.5,74 H51.5 Z" />
+</vector>

@@ -161,7 +161,7 @@ class GuardService : Service() {
 
     private fun notif(text: String): Notification =
         NotificationCompat.Builder(this, CH)
-            .setSmallIcon(android.R.drawable.ic_lock_lock)
+            .setSmallIcon(R.drawable.ic_stat_lock)
             .setContentTitle("Tablet kilidi")
             .setContentText(text)
             .setOngoing(true)

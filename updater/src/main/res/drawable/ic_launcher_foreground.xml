@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Aşağı inen ok -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M51,28 H57 V54 H66 L54,68 L42,54 H51 Z" />
+
+    <!-- Altındaki tepsi -->
+    <path
+        android:pathData="M37,68 V77 H71 V68"
+        android:strokeWidth="5"
+        android:strokeColor="#F2C94C"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
