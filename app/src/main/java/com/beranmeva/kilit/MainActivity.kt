@@ -199,6 +199,13 @@ class MainActivity : Activity() {
         add("3) Pil kısıtlamasını kaldır (arka planda kalsın)") {
             startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         }
+        add("4) Kullanım erişimi ver (Arama/WhatsApp kısayolu için)") {
+            try {
+                startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            } catch (_: Exception) {
+            }
+            toast("Listeden \"Beran-Meva Kilit\"i bulup aç")
+        }
         add("Beran'ın şifresini sıfırla") { confirmReset(Store.BERAN) }
         add("Meva'nın şifresini sıfırla") { confirmReset(Store.MEVA) }
         add("Ebeveyn şifresini değiştir") {
@@ -278,7 +285,7 @@ class MainActivity : Activity() {
         val notif = Build.VERSION.SDK_INT < 33 ||
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
-        perms?.text = "Üstte gösterme izni: ${yn(overlay)} | Bildirim izni: ${yn(notif)}"
+        perms?.text = "Üstte gösterme izni: ${yn(overlay)} | Bildirim izni: ${yn(notif)} | Kullanım erişimi: ${yn(Shortcuts.hasUsageAccess(this))}"
     }
 
     private fun yn(b: Boolean) = if (b) "VAR" else "YOK"

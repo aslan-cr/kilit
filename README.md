@@ -69,3 +69,8 @@ Bir klasörde libs.txt varsa (satır: `adres dosyaadi`) GitHub derlemesi o dosya
   son 7 günün uygulama sürelerini (Google, Chrome, kilit uygulaması hariç) şifreleyip ntfy.sh üzerinden gönderir.
 - kullanimizle ("Kullanım İzle"): başka cihazda kod girilir, o cihazın kullanımı görünür.
 Veri koda bağlı anahtarla şifrelenir, sunucuda yaklaşık 12 saat kalır. İnternet gerekir.
+
+## Güvenlik kısayolları (v1.4)
+Kilit ekranında (şifre girişi ve ödev zamanı dahil) "Ara" ve "WhatsApp" düğmeleri şifresiz açılır.
+Ebeveyn panelinde 4) Kullanım erişimi verilirse kilit yalnızca ön planda arama/WhatsApp varken devreye girmez;
+başka uygulamaya geçilince hemen geri gelir. Erişim verilmezse düğmeye basınca 3 dakikalık serbest süre tanınır.

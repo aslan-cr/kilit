@@ -36,6 +36,7 @@ class GuardService : Service() {
     private var lastTick = System.currentTimeMillis()
     private var lastArm = 0L
     private lateinit var overlay: TimerOverlay
+    private val fg = Foreground()
 
     private val tick = object : Runnable {
         override fun run() {
@@ -109,6 +110,8 @@ class GuardService : Service() {
         if (hw == null && store.isActive()) return
         if (store.parentGraceActive()) return
         if (LockActivity.visible || MainActivity.visible) return
+        // Arama / WhatsApp açıkken kilit araya girmez (güvenlik kısayolu).
+        if (Shortcuts.skipLock(this, store, fg)) return
 
         val pm = getSystemService(PowerManager::class.java)
         val km = getSystemService(KeyguardManager::class.java)

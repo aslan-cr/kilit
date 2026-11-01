@@ -122,6 +122,7 @@ class LockActivity : Activity() {
                 },
                 Ui.lp(this, topDp = 48)
             )
+            addShortcuts(root)
             setContentView(root)
             return
         }
@@ -182,8 +183,26 @@ class LockActivity : Activity() {
             },
             Ui.lp(this, topDp = 48)
         )
+        addShortcuts(root)
 
         setContentView(root)
+    }
+
+    /** Güvenlik: Arama ve WhatsApp şifresiz, ödev saatinde de açılır. */
+    private fun addShortcuts(root: LinearLayout) {
+        root.addView(
+            Ui.tv(this, "Şifresiz açılır (güvenlik):", 14f, Ui.MUTED),
+            Ui.lp(this, widthDp = 0, topDp = 32)
+        )
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        val lp = LinearLayout.LayoutParams(Ui.dp(this, 150), LinearLayout.LayoutParams.WRAP_CONTENT)
+        lp.setMargins(Ui.dp(this, 6), 0, Ui.dp(this, 6), 0)
+        row.addView(Ui.button(this, "📞 Ara") { Shortcuts.open(this, store, "call") }, lp)
+        row.addView(Ui.button(this, "💬 WhatsApp") { Shortcuts.open(this, store, "wa") }, lp)
+        root.addView(row, Ui.lp(this, widthDp = 0, topDp = 8))
     }
 
     private fun updateLockout() {
