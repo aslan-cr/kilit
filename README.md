@@ -89,3 +89,7 @@ Kilit uygulamasından Kullanım İzle ekranı ve INTERNET izni kaldırıldı; ki
 ## Sayaç boyutu ve kenara yapışma (v2.0)
 Ebeveyn panelinde "Sayaç boyutunu değiştir" (56-200). Sayaç ekranın bir kenarına (24 dp yakınına) bırakılırsa
 küçülür, yarı saydam olur ve yarısı ekran dışında kalır. Dokununca açılır, 4 sn sonra tekrar yapışır; sürüklenince serbest kalır.
+
+## Sayaçta elle boyut (v2.1)
+İki parmakla sayacı büyüt/küçült (56-200), ya da sayacı basılı tut: her uzun basışta küçük, orta, büyük, çok büyük boyutlar arasında geçer.
+Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.

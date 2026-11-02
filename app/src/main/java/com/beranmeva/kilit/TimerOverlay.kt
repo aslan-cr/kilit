@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
@@ -22,7 +23,8 @@ import kotlin.math.min
  * - Parmakla istenen yere sürüklenir (konum kaydedilir).
  * - Üstünde kapatma düğmesi yoktur, kapatılamaz.
  * - Dokununca sıradaki kullanıcının rengi değişir.
- * - Boyut ebeveyn panelinden ayarlanır.
+ * - Boyut: iki parmakla büyütüp küçült, ya da basılı tutunca hazır boyutlar arasında geç
+ *   (ebeveyn panelinden de ayarlanır).
  * - Ekranın bir kenarına bırakılınca küçülür, yarı saydam olur ve yarısı ekran dışında kalır;
  *   dokununca açılır, 4 sn sonra tekrar kenara çekilir.
  * Servis tarafından yönetilir (GuardService).
@@ -81,6 +83,27 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
         }
     }
 
+    private var curDp = 96f
+
+    /** Boyutu değiştirir, merkezi korur. Kenarda yapışıkken çağrılmaz. */
+    private fun setSizeDp(dp: Float) {
+        val p = params ?: return
+        val v = view ?: return
+        curDp = dp.coerceIn(56f, 200f)
+        val ndp = curDp.toInt()
+        val nsize = (ndp * density).toInt()
+        if (nsize == size) return
+        p.x += (size - nsize) / 2
+        p.y += (size - nsize) / 2
+        size = nsize
+        appliedDp = ndp
+        store.overlaySizeDp = ndp
+        p.width = size
+        p.height = size
+        clampFree(p)
+        push(v, p)
+    }
+
     /** Kenara yapış: küçül, saydamlaş, yarısı ekran dışında. */
     private fun applyDock(edge: Int) {
         val p = params ?: return
@@ -127,6 +150,7 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
     private fun create(): CircleView {
         val dm = ctx.resources.displayMetrics
         appliedDp = store.overlaySizeDp
+        curDp = appliedDp.toFloat()
         size = (appliedDp * density).toInt()
         val p = WindowManager.LayoutParams(
             size,
@@ -183,12 +207,43 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
         private var downX = 0f
         private var downY = 0f
         private var moved = false
+        private var scaling = false
+        private var longFired = false
+
+        private val presets = intArrayOf(64, 96, 140, 190)
+        private val longPress = Runnable {
+            if (!moved && !scaling && docked == 0) {
+                longFired = true
+                // Hazır boyutlar arasında geç: küçük, orta, büyük, çok büyük.
+                val next = presets.firstOrNull { it > appliedDp + 4 } ?: presets[0]
+                setSizeDp(next.toFloat())
+            }
+        }
+
+        private val detector = ScaleGestureDetector(ctx, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(d: ScaleGestureDetector): Boolean {
+                if (docked != 0) return true
+                handler.removeCallbacks(longPress)
+                setSizeDp(curDp * d.scaleFactor)
+                return true
+            }
+        })
 
         override fun onTouch(v: View, e: MotionEvent): Boolean {
             val p = params ?: return false
-            when (e.action) {
+            detector.onTouchEvent(e)
+            when (e.actionMasked) {
+                MotionEvent.ACTION_POINTER_DOWN -> {
+                    scaling = true
+                    moved = true
+                    handler.removeCallbacks(longPress)
+                }
                 MotionEvent.ACTION_DOWN -> {
                     handler.removeCallbacks(redock)
+                    longFired = false
+                    scaling = false
+                    handler.removeCallbacks(longPress)
+                    handler.postDelayed(longPress, 650L)
                     startX = p.x
                     startY = p.y
                     downX = e.rawX
@@ -196,10 +251,12 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
                     moved = false
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    if (scaling || e.pointerCount > 1) return true
                     val dx = (e.rawX - downX).toInt()
                     val dy = (e.rawY - downY).toInt()
                     if (!moved && (abs(dx) > slop || abs(dy) > slop)) {
                         moved = true
+                        handler.removeCallbacks(longPress)
                         if (docked != 0) {
                             // Kenardan sürüklenince tam boyuta dönüp parmağı takip eder.
                             docked = 0
@@ -226,8 +283,13 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
                     }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (moved) {
+                    handler.removeCallbacks(longPress)
+                    if (longFired) {
+                        longFired = false
+                        if (store.overlayDock != 0) handler.postDelayed(redock, 4000L)
+                    } else if (moved) {
                         drop(p)
+                        scaling = false
                     } else if (docked != 0) {
                         expand(docked)
                     } else {
@@ -245,6 +307,8 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
                     }
                 }
                 MotionEvent.ACTION_CANCEL -> {
+                    handler.removeCallbacks(longPress)
+                    scaling = false
                     if (store.overlayDock != 0 && docked == 0) handler.postDelayed(redock, 4000L)
                 }
             }
