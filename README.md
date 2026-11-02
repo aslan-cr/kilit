@@ -93,3 +93,7 @@ küçülür, yarı saydam olur ve yarısı ekran dışında kalır. Dokununca a�
 ## Sayaçta elle boyut (v2.1)
 İki parmakla sayacı büyüt/küçült (56-200), ya da sayacı basılı tut: her uzun basışta küçük, orta, büyük, çok büyük boyutlar arasında geçer.
 Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
+
+## Yıkım Ustası: otomatik çok oyunculu (v1.1)
+Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
+otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.

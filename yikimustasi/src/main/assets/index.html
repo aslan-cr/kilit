@@ -39,7 +39,7 @@ button{background:var(--ac);color:#1a1200;border:0;padding:12px 28px;border-radi
 <div id="help">WASD yürü · Fare bak (sağ tık basılı da olur) · Boşluk zıpla · Sol tık bomba fırlat · F patlat · E vinç/yükleyiciye bin/in · Yükleyici: W/S sür, A/D dön, Q/C kaldır, T/G devir, tık dök · X son bombayı al · R yeniden başla</div>
 <div id="mob"><div id="joy"><div id="knob"></div></div><div class="mb" id="bP">💣<br>Fırlat</div><div class="mb" id="bB">💥<br>Patlat</div><div class="mb" id="bJ">⬆<br>Zıpla</div><div class="mb" id="bU">Geri al</div><div class="mb" id="bC" style="right:204px;bottom:calc(env(safe-area-inset-bottom,0px) + 40px);width:62px;height:62px;background:rgba(190,140,20,.78)">🏗<br>Vinç</div><div class="mb" id="bL" style="right:204px;bottom:calc(env(safe-area-inset-bottom,0px) + 112px);width:62px;height:62px;background:rgba(220,120,30,.8);font-size:11px">🚜<br>Yükleyici</div></div>
 <div id="rc" style="display:none;position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;background:var(--pn);padding:8px 12px;border-radius:12px;font-weight:700;letter-spacing:2px;z-index:4"></div>
-<div id="ov"><div id="ovw"><div id="ovb"></div><div id="lobby"><div style="font-weight:700;margin-bottom:8px">Çok oyunculu</div><button id="mkRoom">Oda oluştur</button><div style="margin-top:6px"><input id="rcode" maxlength="12" placeholder="KOD" autocomplete="off"><button id="jnRoom">Katıl</button></div><div id="lmsg" style="margin-top:8px;font-size:14px;opacity:.95"></div><details id="p2p" style="margin-top:10px;text-align:left"><summary style="cursor:pointer;font-weight:700">Doğrudan bağlan (dosyayı ayrı çalıştırıyorsanız)</summary><div style="font-size:13px;opacity:.9;margin:6px 0">Aynı kodla farklı odalara düşüyorsanız bunu kullanın. Biri "Oda kur" der, çıkan kodu arkadaşına yollar. Arkadaşı "Katıl"a yapıştırıp çıkan yanıt kodunu geri yollar. Sonra yanıtı yapıştırıp Bağlan'a basın.</div><button id="pHost">Oda kur</button><button id="pJoin">Katıl</button><div id="pArea" style="font-size:13px"></div></details><button id="lvRoom" style="display:none">Odadan ayrıl</button></div></div></div>
+<div id="ov"><div id="ovw"><div id="ovb"></div><div id="lobby"><div style="font-weight:700;margin-bottom:8px">Çok oyunculu</div><button id="autoPlay">Arkadaşlarla oyna</button><div id="lmsg" style="margin-top:8px;font-size:14px;opacity:.95">Arkadaşların da aynı tuşa bassın, otomatik eşleşirsiniz. İnternet gerekir.</div><button id="lvRoom" style="display:none">Ayrıl</button></div></div></div>
 <script src="three.min.js"></script>
 <script src="cannon.min.js"></script>
 <script>
@@ -414,7 +414,7 @@ function mkAv(id){let h=0;for(const c of id)h=(h*31+c.charCodeAt(0))%360;const g
  const vz=new THREE.Mesh(new THREE.BoxGeometry(.3,.1,.1),new THREE.MeshBasicMaterial({color:0x222222}));vz.position.set(0,1.52,-.2);g.add(vz);
  const cvn=document.createElement('canvas');cvn.width=128;cvn.height=40;const x=cvn.getContext('2d');x.fillStyle='rgba(0,0,0,.6)';x.fillRect(0,0,128,40);x.fillStyle='#fff';x.font='bold 22px sans-serif';x.textAlign='center';x.fillText('Oyuncu '+id.slice(-3).toUpperCase(),64,28);
  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cvn),depthTest:false}));sp.scale.set(1.8,.56,1);sp.position.y=2.1;g.add(sp);return{g,init:0}}
-function netTick(now,dt){if(!room)return;if(now-ccnt>500){ccnt=now;$('rc').textContent='Oda: '+roomCode.toUpperCase()+' · '+(netOn()?Math.max(1,vps().length)+' oyuncu':'bağlanıyor...')}
+function netTick(now,dt){if(!room)return;if(now-ccnt>500){ccnt=now;$('rc').textContent='Çok oyunculu · '+(netOn()?Math.max(1,vps().length)+' oyuncu':'bağlanıyor...')}
  if(now-pcd>100){pcd=now;const f=v=>+v.toFixed(2),o={x:f(cam.position.x),y:f(cam.position.y),z:f(cam.position.z),yw:f(yaw),pt:f(pitch),s:rideL?'L':riding?'C':0,gn:gen,lv:lvl,A:acts,lx:null,lz:null,ly:null,llt:null,ltt:null,ca:null,cr:null,cl:null,bx:null,by:null,bz:null,tz:null,ts:null,tp:null};
   if(rideL&&LD){o.lx=f(LD.x);o.lz=f(LD.z);o.ly=f(LD.yaw);o.llt=f(LD.lt);o.ltt=f(LD.tt)}
   if(riding&&CR){const b=CR.ball.position;o.ca=f(CR.a);o.cr=f(CR.r);o.cl=f(CR.L);o.bx=f(b.x);o.by=f(b.y);o.bz=f(b.z)}
@@ -426,25 +426,9 @@ function netTick(now,dt){if(!room)return;if(now-ccnt>500){ccnt=now;$('rc').textC
   if(!a.init){a.init=1;a.g.position.set(q.x,Math.max(0,q.y-1.7),q.z);a.g.rotation.y=q.yw||0}
   a.g.position.x+=(q.x-a.g.position.x)*k;a.g.position.z+=(q.z-a.g.position.z)*k;a.g.position.y+=(Math.max(0,q.y-1.7)-a.g.position.y)*k;a.g.rotation.y+=((q.yw||0)-a.g.rotation.y)*k});
  for(const id in AV)if(!seen[id]){AG.remove(AV[id].g);delete AV[id]}}
-let lobby=null,roomCode='',offs=[];
-(async()=>{try{if(window.claude&&claude.use)lobby=await claude.use('room')}catch(e){lobby=null}
- if(!lobby)$('lmsg').textContent='Çok oyunculu bağlanamadı. Sayfayı Paylaş menüsünden davet edilen hesapla aç (herkese açık bağlantı çalışmaz).'})();
-function leaveRoom(){offs.forEach(f=>{try{f()}catch(e){}});offs=[];if(room){try{room.leave().catch(()=>{})}catch(e){}room=null}for(const id in AV){AG.remove(AV[id].g);delete AV[id]}roomCode='';p2p=null;$('rc').style.display='none';$('lvRoom').style.display='none'}
-async function joinRoom(code){code=(code||'').toLowerCase().replace(/[^a-z0-9]/g,'');
- if(code.length<3){$('lmsg').textContent='Geçerli bir oda kodu gir.';return}
- if(!lobby){$('lmsg').textContent='Çok oyunculu bağlanamadı. Sayfayı Paylaş menüsünden davet edilen hesapla aç (herkese açık bağlantı çalışmaz).';return}
- $('lmsg').textContent='Bağlanıyor...';leaveRoom();
- try{room=await lobby.join(code)}catch(e){room=null;$('lmsg').textContent='Odaya bağlanılamadı ('+((e&&e.code)||'hata')+'). Sayfayı Paylaş bağlantısından açtığından emin ol.';return}
- roomCode=code;needSync=true;syncCnt=0;
- lastSeq={};acts=[];aseq=0;
- room.presence({}).catch(()=>{});
- 
- $('lmsg').innerHTML='Oda kodu: <b style="font-size:24px;letter-spacing:4px">'+code.toUpperCase()+'</b><br>Arkadaşların aynı bağlantıyı açıp bu kodu girsin, sonra hepiniz Başla\'ya basın.';
- $('rc').textContent='Oda: '+code.toUpperCase();$('rc').style.display='block';$('lvRoom').style.display='inline-block'}
-$('mkRoom').onclick=()=>{const al='abcdefghjkmnpqrstuvwxyz23456789';let c='';for(let i=0;i<5;i++)c+=al[(Math.random()*al.length)|0];joinRoom(c)};
-$('jnRoom').onclick=()=>joinRoom($('rcode').value);
-$('lvRoom').onclick=()=>{leaveRoom();$('lmsg').textContent='Odadan ayrıldın, tek başına oynuyorsun.'};
-$('rc').onclick=()=>{try{navigator.clipboard.writeText(roomCode.toUpperCase())}catch(e){}hint('Oda kodu: '+roomCode.toUpperCase())};
+let roomCode='',offs=[];
+function resetRoom(){offs.forEach(f=>{try{f()}catch(e){}});offs=[];if(room){try{room.leave().catch(()=>{})}catch(e){}room=null}for(const id in AV){AG.remove(AV[id].g);delete AV[id]}roomCode='';p2p=null;$('rc').style.display='none';$('lvRoom').style.display='none'}
+function leaveRoom(){stopAuto();resetRoom()}
 let p2p=null;
 const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]};
 const b64=b=>{let t='';b.forEach(x=>t+=String.fromCharCode(x));return btoa(t)},unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
@@ -465,22 +449,76 @@ function setupConn(st,cid,pc,dc){const c=st.conns[cid]=st.conns[cid]||{};c.pc=pc
  const gone=()=>{if(st.role==='host'){delete st.remote[cid];st.bc({k:'left',id:cid})}else st.remote={}};
  dc.onclose=gone;pc.onconnectionstatechange=()=>{if(['failed','closed'].includes(pc.connectionState))gone()}}
 function p2pShow(){roomCode='direkt';$('rc').style.display='block';$('lvRoom').style.display='inline-block'}
-async function hostOffer(){if(!p2p||p2p.role!=='host'){leaveRoom();p2p=mkP2P('host');room=p2p;needSync=false}p2pShow();
+async function hostOffer(){if(!p2p||p2p.role!=='host'){resetRoom();p2p=mkP2P('host');room=p2p;needSync=false}p2pShow();
  const cid='p'+(++p2p.n),pc=new RTCPeerConnection(ICE),dc=pc.createDataChannel('g');setupConn(p2p,cid,pc,dc);
  await pc.setLocalDescription(await pc.createOffer());await waitICE(pc);p2p.pend=cid;return enc({t:'offer',id:cid,sdp:pc.localDescription.sdp})}
 async function hostAccept(code){const a=await dec(code),c=p2p.conns[p2p.pend];await c.pc.setRemoteDescription({type:'answer',sdp:a.sdp})}
-async function joinOffer(code){const o=await dec(code);leaveRoom();p2p=mkP2P('join');room=p2p;p2p.me=o.id;needSync=false;const pc=new RTCPeerConnection(ICE);p2p.conns.h={pc,dc:null};
+async function joinOffer(code){const o=await dec(code);resetRoom();p2p=mkP2P('join');room=p2p;p2p.me=o.id;needSync=false;const pc=new RTCPeerConnection(ICE);p2p.conns.h={pc,dc:null};
  pc.ondatachannel=e=>setupConn(p2p,'h',pc,e.channel);await pc.setRemoteDescription({type:'offer',sdp:o.sdp});await pc.setLocalDescription(await pc.createAnswer());await waitICE(pc);p2pShow();return enc({t:'answer',sdp:pc.localDescription.sdp})}
-const cpy=t=>{try{navigator.clipboard.writeText(t)}catch(e){}hint('Kopyalandı')},TAS='style="width:100%;box-sizing:border-box;font:11px monospace;margin:4px 0;background:rgba(0,0,0,.5);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px" rows="3"';
-$('pHost').onclick=async()=>{const A=$('pArea');A.textContent='Kod hazırlanıyor...';
- try{const c=await hostOffer();A.innerHTML='<div>1) Bu kodu arkadaşına gönder:</div><textarea id="pOut" readonly '+TAS+' onclick="this.select()">'+c+'</textarea><button id="pCp">Kopyala</button><div>2) Arkadaşının yanıt kodunu yapıştır:</div><textarea id="pIn" '+TAS+'></textarea><button id="pOk">Bağlan</button><button id="pMore">Başka arkadaş ekle</button>';
-  $('pCp').onclick=()=>cpy(c);$('pMore').onclick=()=>$('pHost').onclick();
-  $('pOk').onclick=async()=>{try{await hostAccept($('pIn').value);$('pIn').value='';hint('Yanıt alındı, bağlanıyor...')}catch(e){hint('Yanıt kodu geçersiz')}}}
- catch(e){A.textContent='Bu ortamda doğrudan bağlantı kurulamadı.'}};
-$('pJoin').onclick=()=>{const A=$('pArea');A.innerHTML='<div>Kurucunun kodunu yapıştır:</div><textarea id="pIn" '+TAS+'></textarea><button id="pGo">Yanıt üret</button><div id="pRes"></div>';
- $('pGo').onclick=async()=>{const R=$('pRes');R.textContent='Hazırlanıyor...';
-  try{const a=await joinOffer($('pIn').value);R.innerHTML='<div>Bu yanıtı kurucuya gönder:</div><textarea id="pOut" readonly '+TAS+' onclick="this.select()">'+a+'</textarea><button id="pCp2">Kopyala</button>';$('pCp2').onclick=()=>cpy(a)}
-  catch(e){R.textContent='Kod geçersiz ya da bağlantı kurulamadı.'}}};
+
+// ---------- Otomatik eşleşme (oda kodu yok) ----------
+// Herkes aynı ortak lobiye düşer. İlk gelen kurucu olur, sonrakiler ona otomatik bağlanır.
+// Teklif/yanıt mesajları ntfy.sh üzerinden gider; oyun verisi doğrudan cihazlar arasında (WebRTC).
+const LURL='https://ntfy.sh/bmyikim3d-lobi-k9x2w7q4',NID=Math.random().toString(36).slice(2,8);
+let auto=null;
+function stopAuto(){if(!auto)return;auto.dead=true;auto.timers.forEach(t=>clearInterval(t));try{auto.es&&auto.es.close()}catch(e){}auto=null}
+async function pub(m){m.f=NID;const t=JSON.stringify(m);if(t.length>3800)return;try{await fetch(LURL,{method:'POST',body:t})}catch(e){}}
+function setMsg(t){const e=$('lmsg');if(e)e.textContent=t}
+async function startAuto(){
+ leaveRoom();setMsg('Oyuncular aranıyor...');
+ const A=auto={dead:false,role:null,offers:{},seen:new Set(),timers:[],es:null,opened:false,was:false};
+ try{A.es=new EventSource(LURL+'/sse?since=30s')}catch(e){setMsg('Bağlanılamadı (internet?)');auto=null;return}
+ A.es.onopen=()=>{A.opened=true};
+ A.es.onmessage=async ev=>{
+  if(A.dead)return;let j,m;try{j=JSON.parse(ev.data);if(j.event!=='message')return;if(A.seen.has(j.id))return;A.seen.add(j.id);m=JSON.parse(j.message)}catch(e){return}
+  if(!m||m.f===NID)return;
+  if(m.k==='offer'){A.offers[m.f]={f:m.f,o:m.o,c:m.c,at:Date.now()}}
+  else if(m.k==='answer'&&A.role==='host'&&m.to===NID&&p2p&&p2p.role==='host'&&m.o===p2p.pend){try{await hostAccept(m.c)}catch(e){}}
+ };
+ A.timers.push(setTimeout(()=>{if(!A.opened&&!A.dead)setMsg('Bağlanılamadı. İnternetini kontrol et.')},9000));
+ await new Promise(r=>setTimeout(r,3000+Math.random()*1000));
+ if(A.dead)return;
+ const hs=Object.values(A.offers).filter(o=>Date.now()-o.at<45000).sort((x,y)=>y.at-x.at);
+ if(hs.length)await tryJoin(hs[0]);else await becomeHost();
+ if(A.dead)return;
+ A.timers.push(setInterval(()=>{
+  if(A.dead)return;const on=netOn();
+  if(on)A.was=true;
+  if(A.role==='host')setMsg(on?'Kurucusun · bağlı oyuncular: '+Math.max(0,vps().length-1)+'. Hepiniz Başla\'ya basın.':'Oyuncular bekleniyor... Arkadaşların da "Arkadaşlarla oyna"ya bassın.');
+  else if(A.role==='join'){if(on)setMsg('Bağlandın · oyuncular: '+Math.max(1,vps().length)+'. Hepiniz Başla\'ya basın.');else if(A.was){setMsg('Bağlantı koptu, yeniden aranıyor...');startAuto()}}
+ },1500))
+}
+async function tryJoin(of,n){
+ n=n||0;const A=auto;A.role='join';A.tried=A.tried||new Set();A.tried.add(of.f+of.o);setMsg('Bağlanıyor...');
+ try{const ans=await joinOffer(of.c);await pub({k:'answer',to:of.f,o:of.o,c:ans})}catch(e){setMsg('Bağlanılamadı, kurucu olunuyor...');return becomeHost()}
+ // 7 sn içinde bağlanamazsa (teklif başkasına gitmiş olabilir) yeni teklifle tekrar dene; olmazsa kurucu ol.
+ const check=w=>A.timers.push(setTimeout(()=>{
+  if(auto!==A||A.dead||netOn())return;
+  const nx=Object.values(A.offers).filter(o=>Date.now()-o.at<45000&&!A.tried.has(o.f+o.o)).sort((x,y)=>y.at-x.at)[0];
+  if(nx&&n<4)return tryJoin(nx,n+1);
+  if(w<2)return check(w+1);
+  becomeHost()
+ },7000));
+ check(0)
+}
+async function becomeHost(){
+ const A=auto;if(!A||A.dead)return;
+ A.role='host';A.cur=null;setMsg('Oda kuruluyor...');
+ const fresh=async()=>{
+  if(A.dead||A.role!=='host')return;
+  const pc=p2p&&p2p.conns[p2p.pend];
+  const waiting=pc&&pc.pc&&pc.pc.signalingState==='have-local-offer'&&A.cur&&Date.now()-A.cur.at<25000;
+  const connecting=pc&&pc.pc&&pc.pc.signalingState==='stable'&&!(pc.dc&&pc.dc.readyState==='open')&&A.cur&&Date.now()-A.cur.at<20000;
+  if(waiting||connecting)return;
+  if(pc&&!(pc.dc&&pc.dc.readyState==='open')){try{pc.pc.close()}catch(e){}delete p2p.conns[p2p.pend]}
+  try{const c=await hostOffer();A.cur={at:Date.now(),c,o:p2p.pend};await pub({k:'offer',o:A.cur.o,c})}catch(e){}
+ };
+ await fresh();
+ A.timers.push(setInterval(fresh,2000));
+ A.timers.push(setInterval(()=>{if(A.cur&&!A.dead)pub({k:'offer',o:A.cur.o,c:A.cur.c})},10000))
+}
+$('autoPlay').onclick=()=>startAuto();
+$('lvRoom').onclick=()=>{leaveRoom();setMsg('Ayrıldın, tek başına oynuyorsun.')};
 
 function evaluate(){
  if(prog()>=.7&&RL()>0){hint('Enkazı kamyona yükle! Kalan enkaz: '+RL())}
