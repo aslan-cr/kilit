@@ -7,18 +7,24 @@ import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import kotlin.math.abs
+import kotlin.math.min
 
 /**
  * Ekranda her uygulamanın üstünde duran yuvarlak sayaç.
  * - Parmakla istenen yere sürüklenir (konum kaydedilir).
  * - Üstünde kapatma düğmesi yoktur, kapatılamaz.
  * - Dokununca sıradaki kullanıcının rengi değişir.
+ * - Boyut ebeveyn panelinden ayarlanır.
+ * - Ekranın bir kenarına bırakılınca küçülür, yarı saydam olur ve yarısı ekran dışında kalır;
+ *   dokununca açılır, 4 sn sonra tekrar kenara çekilir.
  * Servis tarafından yönetilir (GuardService).
  */
 class TimerOverlay(private val ctx: Context, private val store: Store) {
@@ -27,15 +33,29 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
     private var view: CircleView? = null
     private var params: WindowManager.LayoutParams? = null
     private val density = ctx.resources.displayMetrics.density
-    private val size = (96 * density).toInt()
+    private var appliedDp = 0
+    private var size = (96 * density).toInt()
     private val slop = ViewConfiguration.get(ctx).scaledTouchSlop
+    private val handler = Handler(Looper.getMainLooper())
+
+    /** Şu an görünüşte kenara yapışık mı (0 = değil). */
+    private var docked = 0
+
+    private val dockSize get() = (size * 0.55f).toInt()
+
+    private val redock = Runnable {
+        val p = params
+        if (p != null && store.overlayDock != 0 && docked == 0) applyDock(store.overlayDock)
+    }
 
     fun update(main: String, sub: String, progress: Float, color: Int) {
+        if (view != null && appliedDp != store.overlaySizeDp) hide()
         val v = view ?: create()
         v.set(main, sub, progress, color)
     }
 
     fun hide() {
+        handler.removeCallbacks(redock)
         val v = view
         if (v != null) {
             try {
@@ -45,21 +65,75 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
         }
         view = null
         params = null
+        docked = 0
     }
 
-    private fun clamp(p: WindowManager.LayoutParams) {
+    private fun clampFree(p: WindowManager.LayoutParams) {
         val dm = ctx.resources.displayMetrics
         p.x = p.x.coerceIn(0, (dm.widthPixels - size).coerceAtLeast(0))
         p.y = p.y.coerceIn(0, (dm.heightPixels - size).coerceAtLeast(0))
     }
 
+    private fun push(v: View, p: WindowManager.LayoutParams) {
+        try {
+            wm.updateViewLayout(v, p)
+        } catch (_: Exception) {
+        }
+    }
+
+    /** Kenara yapış: küçül, saydamlaş, yarısı ekran dışında. */
+    private fun applyDock(edge: Int) {
+        val p = params ?: return
+        val v = view ?: return
+        val dm = ctx.resources.displayMetrics
+        val w = dm.widthPixels
+        val h = dm.heightPixels
+        val ds = dockSize
+        p.width = ds
+        p.height = ds
+        when (edge) {
+            1 -> { p.x = -ds / 2; p.y = p.y.coerceIn(0, (h - ds).coerceAtLeast(0)) }
+            2 -> { p.x = w - ds / 2; p.y = p.y.coerceIn(0, (h - ds).coerceAtLeast(0)) }
+            3 -> { p.y = -ds / 2; p.x = p.x.coerceIn(0, (w - ds).coerceAtLeast(0)) }
+            else -> { p.y = h - ds / 2; p.x = p.x.coerceIn(0, (w - ds).coerceAtLeast(0)) }
+        }
+        v.alpha = 0.5f
+        docked = edge
+        store.overlayDock = edge
+        push(v, p)
+    }
+
+    /** Kenardaki sayacı tam boyuta aç (ekranın içinde), kısa süre sonra tekrar yapışır. */
+    private fun expand(edge: Int) {
+        val p = params ?: return
+        val v = view ?: return
+        val dm = ctx.resources.displayMetrics
+        p.width = size
+        p.height = size
+        when (edge) {
+            1 -> p.x = 0
+            2 -> p.x = dm.widthPixels - size
+            3 -> p.y = 0
+            else -> p.y = dm.heightPixels - size
+        }
+        clampFree(p)
+        v.alpha = 1f
+        docked = 0
+        push(v, p)
+        handler.removeCallbacks(redock)
+        handler.postDelayed(redock, 4000L)
+    }
+
     private fun create(): CircleView {
         val dm = ctx.resources.displayMetrics
+        appliedDp = store.overlaySizeDp
+        size = (appliedDp * density).toInt()
         val p = WindowManager.LayoutParams(
             size,
             size,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         )
         p.gravity = Gravity.TOP or Gravity.START
@@ -67,14 +141,40 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
         val sy = store.overlayY
         p.x = if (sx >= 0) sx else dm.widthPixels - size - (16 * density).toInt()
         p.y = if (sy >= 0) sy else (80 * density).toInt()
-        clamp(p)
+        clampFree(p)
 
         val v = CircleView(ctx)
         v.setOnTouchListener(DragListener())
         wm.addView(v, p)
         view = v
         params = p
+        docked = 0
+        if (store.overlayDock != 0) applyDock(store.overlayDock)
         return v
+    }
+
+    /** Sürükleme bitince: kenara yakınsa yapıştır, değilse olduğu yerde bırak. */
+    private fun drop(p: WindowManager.LayoutParams) {
+        clampFree(p)
+        store.overlayX = p.x
+        store.overlayY = p.y
+        val dm = ctx.resources.displayMetrics
+        val dl = p.x
+        val dr = dm.widthPixels - (p.x + size)
+        val dt = p.y
+        val db = dm.heightPixels - (p.y + size)
+        val m = min(min(dl, dr), min(dt, db))
+        if (m <= (24 * density).toInt()) {
+            val edge = when (m) {
+                dl -> 1
+                dr -> 2
+                dt -> 3
+                else -> 4
+            }
+            applyDock(edge)
+        } else {
+            store.overlayDock = 0
+        }
     }
 
     private inner class DragListener : View.OnTouchListener {
@@ -88,6 +188,7 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
             val p = params ?: return false
             when (e.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    handler.removeCallbacks(redock)
                     startX = p.x
                     startY = p.y
                     downX = e.rawX
@@ -97,29 +198,54 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
                 MotionEvent.ACTION_MOVE -> {
                     val dx = (e.rawX - downX).toInt()
                     val dy = (e.rawY - downY).toInt()
-                    if (abs(dx) > slop || abs(dy) > slop) moved = true
+                    if (!moved && (abs(dx) > slop || abs(dy) > slop)) {
+                        moved = true
+                        if (docked != 0) {
+                            // Kenardan sürüklenince tam boyuta dönüp parmağı takip eder.
+                            docked = 0
+                            store.overlayDock = 0
+                            p.width = size
+                            p.height = size
+                            p.x = (e.rawX - size / 2f).toInt()
+                            p.y = (e.rawY - size / 2f).toInt()
+                            v.alpha = 1f
+                            startX = p.x
+                            startY = p.y
+                            downX = e.rawX
+                            downY = e.rawY
+                            clampFree(p)
+                            push(v, p)
+                            return true
+                        }
+                    }
                     if (moved) {
                         p.x = startX + dx
                         p.y = startY + dy
-                        clamp(p)
-                        try {
-                            wm.updateViewLayout(v, p)
-                        } catch (_: Exception) {
-                        }
+                        clampFree(p)
+                        push(v, p)
                     }
                 }
                 MotionEvent.ACTION_UP -> {
                     if (moved) {
-                        store.overlayX = p.x
-                        store.overlayY = p.y
-                    } else if (store.current.isNotEmpty()) {
-                        // Dokununca renk değişir (sadece kullanıcı girişliyken).
-                        store.nextColor(store.current)
-                        view?.set(
-                            null, null, null,
-                            Store.COLORS[store.colorIndex(store.current)]
-                        )
+                        drop(p)
+                    } else if (docked != 0) {
+                        expand(docked)
+                    } else {
+                        if (store.current.isNotEmpty()) {
+                            // Dokununca renk değişir (sadece kullanıcı girişliyken).
+                            store.nextColor(store.current)
+                            view?.set(
+                                null, null, null,
+                                Store.COLORS[store.colorIndex(store.current)]
+                            )
+                        }
+                        if (store.overlayDock != 0) {
+                            handler.postDelayed(redock, 4000L)
+                        }
                     }
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    if (store.overlayDock != 0 && docked == 0) handler.postDelayed(redock, 4000L)
                 }
             }
             return true
@@ -183,6 +309,11 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
         override fun onDraw(canvas: Canvas) {
             val w = width.toFloat()
             val h = height.toFloat()
+            val f = w / (96 * d)
+            track.strokeWidth = 7 * d * f
+            arc.strokeWidth = 7 * d * f
+            t1.textSize = 21 * d * f
+            t2.textSize = 11 * d * f
             fill.color = (color and 0x00FFFFFF) or (0xE6 shl 24)
             canvas.drawCircle(w / 2, h / 2, w / 2 - 1, fill)
             val sw = arc.strokeWidth

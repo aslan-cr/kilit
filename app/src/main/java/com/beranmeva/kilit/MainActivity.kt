@@ -230,6 +230,17 @@ class MainActivity : Activity() {
                 }
             }
         }
+        add("Sayaç boyutunu değiştir") {
+            ask("Boyut (56-200, şu an ${store.overlaySizeDp})", "Örn. 96", false) { s ->
+                val m = s.toIntOrNull()
+                if (m == null) {
+                    toast("Sayı gir")
+                } else {
+                    store.overlaySizeDp = m.coerceIn(56, 200)
+                    toast("Sayaç boyutu: ${store.overlaySizeDp}")
+                }
+            }
+        }
         add("Ödev saatleri (gün ve saat ekle / sil)") { showHomework() }
         add("Oturumu şimdi bitir") {
             store.endSessionNow()

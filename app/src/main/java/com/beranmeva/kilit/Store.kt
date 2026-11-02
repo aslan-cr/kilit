@@ -218,6 +218,16 @@ class Store(context: Context) {
         get() = p.getInt("oy", -1)
         set(v) = p.edit().putInt("oy", v).apply()
 
+    /** Sayaç boyutu (dp). */
+    var overlaySizeDp: Int
+        get() = p.getInt("osz", 96)
+        set(v) = p.edit().putInt("osz", v).apply()
+
+    /** Sayaç hangi kenara yapışık: 0 yok, 1 sol, 2 sağ, 3 üst, 4 alt. */
+    var overlayDock: Int
+        get() = p.getInt("odock", 0)
+        set(v) = p.edit().putInt("odock", v).apply()
+
     /** Koruma servisinin son çalıştığı an (ebeveyn panelinde durumunu göstermek için). */
     var beat: Long
         get() = p.getLong("beat", 0L)

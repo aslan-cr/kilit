@@ -85,3 +85,7 @@ Bunun için kilit uygulamasına INTERNET izni eklendi; yalnızca bu ekran kullan
 
 ## v1.9
 Kilit uygulamasından Kullanım İzle ekranı ve INTERNET izni kaldırıldı; kilit yine tamamen internetsiz. İzleme sadece ayrı "Kullanım İzle" uygulamasında.
+
+## Sayaç boyutu ve kenara yapışma (v2.0)
+Ebeveyn panelinde "Sayaç boyutunu değiştir" (56-200). Sayaç ekranın bir kenarına (24 dp yakınına) bırakılırsa
+küçülür, yarı saydam olur ve yarısı ekran dışında kalır. Dokununca açılır, 4 sn sonra tekrar yapışır; sürüklenince serbest kalır.
