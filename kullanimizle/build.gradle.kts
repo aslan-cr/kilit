@@ -4,17 +4,15 @@ plugins {
 }
 
 android {
-    // Kaynak kodu kilit uygulamasıyla ortak (../app); R sınıfı için namespace aynı.
-    namespace = "com.beranmeva.kilit"
+    namespace = "com.beranmeva.kullanimizle"
     compileSdk = 34
 
     defaultConfig {
         applicationId = "com.beranmeva.kullanimizle"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "2.0"
-        manifestPlaceholders["appLabel"] = "Kullanım İzle"
+        versionCode = 3
+        versionName = "2.1"
     }
 
     // Kilit ve Güncelleyici ile aynı sabit imza (yeni sürüm eskisinin üstüne kurulur).
@@ -24,13 +22,6 @@ android {
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
-        }
-    }
-
-    sourceSets {
-        getByName("main") {
-            java.srcDir("../app/src/main/java")
-            manifest.srcFile("../app/src/main/AndroidManifest.xml")
         }
     }
 

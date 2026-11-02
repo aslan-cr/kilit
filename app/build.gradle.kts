@@ -11,9 +11,8 @@ android {
         applicationId = "com.beranmeva.kilit"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "1.7"
-        manifestPlaceholders["appLabel"] = "Bera-Meva Kilit"
+        versionCode = 9
+        versionName = "1.8"
     }
 
     // Sabit imza: her derlemede aynı anahtar kullanılır, böylece yeni APK eskinin üstüne kurulur.
