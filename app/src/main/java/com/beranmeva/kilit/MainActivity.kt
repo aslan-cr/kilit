@@ -206,9 +206,6 @@ class MainActivity : Activity() {
             }
             toast("Listeden \"Bera-Meva Kilit\"i bulup aç")
         }
-        add("Kullanım izle (diğer cihazların kullanımı)") {
-            startActivity(Intent(this, UsageViewActivity::class.java))
-        }
         add("Bera'nın şifresini sıfırla") { confirmReset(Store.BERAN) }
         add("Meva'nın şifresini sıfırla") { confirmReset(Store.MEVA) }
         add("Ebeveyn şifresini değiştir") {

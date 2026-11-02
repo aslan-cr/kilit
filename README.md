@@ -82,3 +82,6 @@ Ekran kapalı süre her zaman geri eklenir. Ana ekran/uygulama dışı tespiti i
 ## Kullanım İzle kilide katıldı, ad Bera (v1.6)
 Ebeveyn panelindeki "Kullanım izle" düğmesi, ayrı uygulamayla aynı ekranı açar (kullanimizle ayrı uygulama olarak da durur).
 Bunun için kilit uygulamasına INTERNET izni eklendi; yalnızca bu ekran kullanır. Çocuğun adı ekranlarda BERA olarak yazılır.
+
+## v1.9
+Kilit uygulamasından Kullanım İzle ekranı ve INTERNET izni kaldırıldı; kilit yine tamamen internetsiz. İzleme sadece ayrı "Kullanım İzle" uygulamasında.

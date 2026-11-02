@@ -149,7 +149,7 @@ class GuardService : Service() {
         if (!store.hasPassword(Store.PARENT)) return
         if (hw == null && store.isActive()) return
         if (store.parentGraceActive()) return
-        if (LockActivity.visible || MainActivity.visible || UsageViewActivity.visible) return
+        if (LockActivity.visible || MainActivity.visible) return
         // Arama / WhatsApp açıkken kilit araya girmez (güvenlik kısayolu).
         if (Shortcuts.skipLock(this, store, fg)) return
 
