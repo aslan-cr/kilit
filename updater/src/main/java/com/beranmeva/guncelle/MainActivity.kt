@@ -319,23 +319,33 @@ class MainActivity : Activity() {
 
                 val assets = json.getJSONArray("assets")
                 val added = mutableListOf<Entry>()
+                var failed = 0
                 for (i in 0 until assets.length()) {
                     val a = assets.getJSONObject(i)
                     if (!a.getString("name").endsWith(".apk")) continue
-                    val dl = URL(a.getString("browser_download_url"))
-                        .openConnection() as HttpURLConnection
-                    dl.connectTimeout = 15000
-                    dl.readTimeout = 60000
-                    dl.instanceFollowRedirects = true
-                    if (dl.responseCode == 200) {
-                        val e = dl.inputStream.use { importStream(it) }
-                        if (e != null) added.add(e)
+                    // Bir APK inmezse diğerleri yine denensin; hiçbiri sessizce atlanmasın.
+                    try {
+                        val dl = URL(a.getString("browser_download_url"))
+                            .openConnection() as HttpURLConnection
+                        dl.connectTimeout = 15000
+                        dl.readTimeout = 60000
+                        dl.instanceFollowRedirects = true
+                        if (dl.responseCode == 200) {
+                            val e = dl.inputStream.use { importStream(it) }
+                            if (e != null) added.add(e)
+                        } else {
+                            failed++
+                        }
+                        dl.disconnect()
+                    } catch (_: Exception) {
+                        failed++
                     }
-                    dl.disconnect()
                 }
-                prefs.edit().putString("tag", tag).apply()
+                // Etiket yalnızca hepsi indiyse kaydedilir; yoksa sonraki açılışta yeniden denenir.
+                if (failed == 0) prefs.edit().putString("tag", tag).apply()
                 runOnUiThread {
                     refresh()
+                    if (failed > 0 && !silent) toast("$failed dosya indirilemedi, tekrar dene")
                     afterCheck(added, silent)
                 }
             } catch (ex: Exception) {
