@@ -97,3 +97,8 @@ Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
 ## Yıkım Ustası: otomatik çok oyunculu (v1.1)
 Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
+
+## Göz Kırpma Kurbağası (gozkirpma)
+Kamerayla göz kırpmayı algılayan oyun: sen göz kırpınca kurbağa da kırpar ve sinek yakalar (60 sn).
+`gozkirpma` modülü ayrı bir uygulama üretir (gozkirpma.apk). Yüz modeli ilk açılışta internetten indirilir, kamera izni ister.
+Klavyesiz tablette kamera modu kullanılır; kamerasız deneme için oyundaki "Kamerasız dene" düğmesi vardır.

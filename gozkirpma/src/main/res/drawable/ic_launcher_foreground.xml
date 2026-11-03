@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Kafa -->
+    <path
+        android:pathData="M54,50m-26,0a26,22 0 1,0 52,0a26,22 0 1,0 -52,0"
+        android:fillColor="#4CC46A" />
+    <!-- Gözler -->
+    <path
+        android:pathData="M40,38m-9,0a9,9 0 1,0 18,0a9,9 0 1,0 -18,0"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M68,38m-9,0a9,9 0 1,0 18,0a9,9 0 1,0 -18,0"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M41,40m-4,0a4,4 0 1,0 8,0a4,4 0 1,0 -8,0"
+        android:fillColor="#111111" />
+    <path
+        android:pathData="M67,40m-4,0a4,4 0 1,0 8,0a4,4 0 1,0 -8,0"
+        android:fillColor="#111111" />
+    <!-- Göz kırpan sol göz kapağı -->
+    <path
+        android:pathData="M31,38L49,38L49,35Q40,29 31,35Z"
+        android:fillColor="#3FAE5A" />
+    <!-- Gülümseme -->
+    <path
+        android:pathData="M42,56Q54,66 66,56"
+        android:strokeColor="#1F6B35"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+</vector>

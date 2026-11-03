@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Göz Kırpma Kurbağası</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>🐸 Göz Kırpma Kurbağası</h1>
+    <p class="sub">Sen göz kırpınca kurbağa da göz kırpar ve dilini fırlatıp sinek yakalar.</p>
+
+    <div class="stage">
+      <canvas id="game" width="800" height="500"></canvas>
+      <video id="cam" playsinline muted></video>
+      <div id="hud">
+        <span>Skor: <b id="score">0</b></span>
+        <span>Süre: <b id="time">60</b></span>
+        <span>Rekor: <b id="best">0</b></span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="start">Kamerayı aç ve başla</button>
+      <button id="keyboard" class="ghost">Kamerasız dene (klavye)</button>
+    </div>
+    <p id="status" class="status">Hazır. Kamera görüntüsü hiçbir yere gönderilmez, her şey tarayıcında çalışır.</p>
+    <p class="hint">Klavye modu: <kbd>Boşluk</kbd> = göz kırp, <kbd>Z</kbd> = sol göz, <kbd>X</kbd> = sağ göz.</p>
+  </main>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
