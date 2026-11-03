@@ -243,25 +243,30 @@ class MainActivity : Activity() {
         return stream.use { importStream(it) }
     }
 
-    private fun importStream(ins: InputStream): Entry? {
+    /** warn=false: otomatik kontrolde APK olmayan/bozuk dosya sessizce atlanır, uyarı çıkmaz. */
+    private fun importStream(ins: InputStream, warn: Boolean = true): Entry? {
         val tmp = File(cacheDir, "yeni.apk")
         try {
             FileOutputStream(tmp).use { out -> ins.copyTo(out) }
-            val e = parse(tmp)
+            // APK bir zip dosyasıdır ("PK" ile başlar); değilse hiç deneme.
+            val magic = ByteArray(2)
+            val okMagic = tmp.inputStream().use { it.read(magic) == 2 } &&
+                magic[0] == 'P'.code.toByte() && magic[1] == 'K'.code.toByte()
+            val e = if (okMagic) parse(tmp) else null
             if (e == null) {
-                toastUi("Bu dosya geçerli bir APK değil")
+                if (warn) toastUi("Bu dosya geçerli bir APK değil")
                 return null
             }
             val dest = File(dir, "${e.pkg}.apk")
             val old = if (dest.exists()) parse(dest) else null
             if (old != null && old.vCode > e.vCode) {
-                toastUi("${e.label}: dosya eski sürüm, atlandı")
+                if (warn) toastUi("${e.label}: dosya eski sürüm, atlandı")
                 return null
             }
             tmp.copyTo(dest, overwrite = true)
             return parse(dest)
         } catch (ex: Exception) {
-            toastUi("Dosya eklenemedi: ${ex.message}")
+            if (warn) toastUi("Dosya eklenemedi: ${ex.message}")
             return null
         } finally {
             tmp.delete()
@@ -322,7 +327,7 @@ class MainActivity : Activity() {
                 var failed = 0
                 for (i in 0 until assets.length()) {
                     val a = assets.getJSONObject(i)
-                    if (!a.getString("name").endsWith(".apk")) continue
+                    if (!a.getString("name").lowercase().endsWith(".apk")) continue
                     // Bir APK inmezse diğerleri yine denensin; hiçbiri sessizce atlanmasın.
                     try {
                         val dl = URL(a.getString("browser_download_url"))
@@ -331,7 +336,7 @@ class MainActivity : Activity() {
                         dl.readTimeout = 60000
                         dl.instanceFollowRedirects = true
                         if (dl.responseCode == 200) {
-                            val e = dl.inputStream.use { importStream(it) }
+                            val e = dl.inputStream.use { importStream(it, warn = false) }
                             if (e != null) added.add(e)
                         } else {
                             failed++
