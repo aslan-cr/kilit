@@ -7,10 +7,10 @@ const MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
 const GAME_SECONDS = 60;
-const CLOSE_AT = 0.55; // bu değerin üstü: göz kapalı
-const OPEN_AT = 0.3;   // bu değerin altı: göz açık (histerezis)
-const TONGUE_OUT_AT = 0.5; // dil çıkarma: bu değerin üstü dil dışarıda
-const TONGUE_IN_AT = 0.25; // bu değerin altı dil içeride
+const CLOSE_AT = 0.32; // bu değerin üstü: göz kapalı (düşük = daha hassas)
+const OPEN_AT = 0.18;  // bu değerin altı: göz açık (histerezis)
+const TONGUE_OUT_AT = 0.22; // dil çıkarma: bu değerin üstü dil dışarıda
+const TONGUE_IN_AT = 0.1;  // bu değerin altı dil içeride
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -78,7 +78,7 @@ async function startCamera() {
     landmarker = await loadLandmarker();
     setStatus("Kamera izni bekleniyor…");
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 640, height: 480, facingMode: "user" },
+      video: { width: 640, height: 480, frameRate: { ideal: 60, min: 30 }, facingMode: "user" },
       audio: false,
     });
     video.srcObject = stream;
@@ -169,8 +169,9 @@ function spawnFly() {
 function updateBlink(dt) {
   // Göz kapağını hedefe yumuşakça yaklaştır
   for (const k of ["left", "right"]) {
-    const speed = state.target[k] > state.lid[k] ? 30 : 18;
-    state.lid[k] += (state.target[k] - state.lid[k]) * Math.min(1, speed * dt);
+    const goal = Math.min(1, state.target[k] * 1.8);
+    const speed = goal > state.lid[k] ? 60 : 30;
+    state.lid[k] += (goal - state.lid[k]) * Math.min(1, speed * dt);
     if (!state.closed[k] && state.target[k] > CLOSE_AT) state.closed[k] = true;
     else if (state.closed[k] && state.target[k] < OPEN_AT) state.closed[k] = false;
   }
