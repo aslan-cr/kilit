@@ -9,6 +9,8 @@ const MODEL_URL =
 const GAME_SECONDS = 60;
 const CLOSE_AT = 0.55; // bu değerin üstü: göz kapalı
 const OPEN_AT = 0.3;   // bu değerin altı: göz açık (histerezis)
+const TONGUE_OUT_AT = 0.5; // dil çıkarma: bu değerin üstü dil dışarıda
+const TONGUE_IN_AT = 0.25; // bu değerin altı dil içeride
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -31,17 +33,18 @@ const state = {
   timeLeft: GAME_SECONDS,
   best: Number(safeGet("gk_best") || 0),
   // Hedef (kameradan gelen) göz kapanma değerleri: 0 açık, 1 kapalı
-  target: { left: 0, right: 0 },
+  target: { left: 0, right: 0, tongue: 0 },
   // Ekrandaki göz kapağı (yumuşatılmış)
   lid: { left: 0, right: 0 },
   closed: { left: false, right: false },
   wasBothClosed: false,
+  tongueIsOut: false, // kullanıcı dilini çıkarmış mı
   tongue: null, // {t, tx, ty, fly}
   tongueCooldown: 0,
   flies: [],
   particles: [],
   mode: "idle", // idle | camera | keyboard
-  keys: { space: false, z: false, x: false },
+  keys: { space: false, z: false, x: false, c: false },
 };
 bestEl.textContent = state.best;
 
@@ -102,20 +105,23 @@ function readCamera() {
     setStatus("Yüzün görünmüyor, kameraya dön 🙂");
     return;
   }
-  let l = 0, r = 0;
+  let l = 0, r = 0, tg = 0;
   for (const c of shapes.categories) {
     if (c.categoryName === "eyeBlinkLeft") l = c.score;
     else if (c.categoryName === "eyeBlinkRight") r = c.score;
+    else if (c.categoryName === "tongueOut") tg = c.score;
   }
   // Ayna görüntüsünde kişinin sol gözü ekranın solunda görünür.
   state.target.left = l;
   state.target.right = r;
+  state.target.tongue = tg;
 }
 
 function readKeyboard() {
   const both = state.keys.space;
   state.target.left = both || state.keys.z ? 1 : 0;
   state.target.right = both || state.keys.x ? 1 : 0;
+  state.target.tongue = state.keys.c ? 1 : 0;
 }
 
 addEventListener("keydown", (e) => setKey(e, true));
@@ -124,6 +130,7 @@ function setKey(e, down) {
   if (e.code === "Space") { state.keys.space = down; e.preventDefault(); }
   else if (e.code === "KeyZ") state.keys.z = down;
   else if (e.code === "KeyX") state.keys.x = down;
+  else if (e.code === "KeyC") state.keys.c = down;
 }
 
 // ---------- Oyun mantığı ----------
@@ -172,6 +179,15 @@ function updateBlink(dt) {
     fireTongue();
   }
   state.wasBothClosed = both;
+
+  // Dil çıkarma: dil dışarı çıktığı an kurbağa da dilini fırlatır
+  if (!state.tongueIsOut && state.target.tongue > TONGUE_OUT_AT) {
+    state.tongueIsOut = true;
+    if (state.running && state.tongueCooldown <= 0) fireTongue();
+  } else if (state.tongueIsOut && state.target.tongue < TONGUE_IN_AT) {
+    state.tongueIsOut = false;
+  }
+
   state.tongueCooldown -= dt;
 }
 
@@ -339,7 +355,7 @@ function drawOverlay() {
   ctx.font = "700 30px system-ui, sans-serif";
   ctx.fillText(state.mode === "idle" ? "Başlamak için butona bas" : "Oyun bitti", W / 2, 110);
   ctx.font = "20px system-ui, sans-serif";
-  ctx.fillText("Göz kırp → kurbağa da kırpar ve sinek yakalar", W / 2, 150);
+  ctx.fillText("Göz kırp veya dil çıkar → kurbağa sinek yakalar", W / 2, 150);
 }
 
 // ---------- Döngü ----------

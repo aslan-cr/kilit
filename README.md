@@ -99,6 +99,6 @@ Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; 
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
 
 ## Göz Kırpma Kurbağası (gozkirpma)
-Kamerayla göz kırpmayı algılayan oyun: sen göz kırpınca kurbağa da kırpar ve sinek yakalar (60 sn).
+Kamerayla göz kırpmayı algılayan oyun: sen göz kırpınca ya da dilini çıkarınca kurbağa da kırpar/dil atar ve sinek yakalar (60 sn).
 `gozkirpma` modülü ayrı bir uygulama üretir (gozkirpma.apk). Yüz modeli ilk açılışta internetten indirilir, kamera izni ister.
 Klavyesiz tablette kamera modu kullanılır; kamerasız deneme için oyundaki "Kamerasız dene" düğmesi vardır.
