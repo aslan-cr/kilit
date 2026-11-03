@@ -245,7 +245,7 @@ class MainActivity : Activity() {
 
     /** warn=false: otomatik kontrolde APK olmayan/bozuk dosya sessizce atlanır, uyarı çıkmaz. */
     private fun importStream(ins: InputStream, warn: Boolean = true): Entry? {
-        val tmp = File(cacheDir, "yeni.apk")
+        val tmp = File.createTempFile("yeni", ".apk", cacheDir)
         try {
             FileOutputStream(tmp).use { out -> ins.copyTo(out) }
             // APK bir zip dosyasıdır ("PK" ile başlar); değilse hiç deneme.
@@ -289,7 +289,13 @@ class MainActivity : Activity() {
 
     // ---------- Otomatik güncelleme (GitHub Release) ----------
 
+    private val checking = java.util.concurrent.atomic.AtomicBoolean(false)
+
     private fun checkUpdates(silent: Boolean = false) {
+        if (!checking.compareAndSet(false, true)) {
+            if (!silent) toast("Kontrol zaten sürüyor, biraz bekle")
+            return
+        }
         if (!silent) toast("Güncellemeler kontrol ediliyor...")
         Thread {
             try {
@@ -314,7 +320,7 @@ class MainActivity : Activity() {
                 val json = JSONObject(body)
                 val tag = json.optString("tag_name")
                 val prefs = getSharedPreferences("guncelle", MODE_PRIVATE)
-                if (tag == prefs.getString("tag", "") && entries().isNotEmpty()) {
+                if (tag == prefs.getString("tag2", "") && entries().isNotEmpty()) {
                     runOnUiThread {
                         refresh()
                         if (!silent) toast("En son yayın zaten indirilmiş ($tag). Listeden kurabilirsin.")
@@ -347,7 +353,7 @@ class MainActivity : Activity() {
                     }
                 }
                 // Etiket yalnızca hepsi indiyse kaydedilir; yoksa sonraki açılışta yeniden denenir.
-                if (failed == 0) prefs.edit().putString("tag", tag).apply()
+                if (failed == 0) prefs.edit().putString("tag2", tag).apply()
                 runOnUiThread {
                     refresh()
                     if (failed > 0 && !silent) toast("$failed dosya indirilemedi, tekrar dene")
@@ -355,6 +361,8 @@ class MainActivity : Activity() {
                 }
             } catch (ex: Exception) {
                 if (!silent) toastUi("Kontrol edilemedi: ${ex.message}")
+            } finally {
+                checking.set(false)
             }
         }.start()
     }
@@ -380,7 +388,26 @@ class MainActivity : Activity() {
 
     // ---------- Kurulum ----------
 
+    /** APK'nın zip içeriği okunabiliyor mu (bozuk indirme tespiti). */
+    private fun intact(f: File): Boolean = try {
+        java.util.zip.ZipFile(f).use { z ->
+            val buf = ByteArray(8192)
+            for (en in z.entries()) {
+                z.getInputStream(en).use { while (it.read(buf) > 0) { /* CRC doğrulanır */ } }
+            }
+        }
+        true
+    } catch (_: Exception) {
+        false
+    }
+
     private fun install(e: Entry) {
+        if (!intact(e.file)) {
+            e.file.delete()
+            refresh()
+            toast("${e.label} dosyası bozuk inmiş, silindi. \"Güncellemeleri kontrol et\"e basıp yeniden indir.")
+            return
+        }
         if (!packageManager.canRequestPackageInstalls()) {
             toast("Önce açılan ekranda bu uygulamaya yükleme izni ver, sonra tekrar dene")
             startActivity(
