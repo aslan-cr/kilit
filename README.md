@@ -98,7 +98,11 @@ Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
 Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
 
-## Göz Kırpma Kurbağası (gozkirpma)
-Kamerayla göz kırpmayı algılayan oyun: sen göz kırpınca ya da dilini çıkarınca kurbağa da kırpar/dil atar ve sinek yakalar (60 sn).
-`gozkirpma` modülü ayrı bir uygulama üretir (gozkirpma.apk). Yüz modeli ilk açılışta internetten indirilir, kamera izni ister.
-Klavyesiz tablette kamera modu kullanılır; kamerasız deneme için oyundaki "Kamerasız dene" düğmesi vardır.
+## Karanlık Bataklık (gozkirpma, v2.0)
+Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık bir bataklık labirentinde ilerlersin,
+etrafta gölgeler (düşmanlar) var. Kural: gözlerin AÇIKKEN gölgeler donar; gözünü kapattığın an yalnızca onlar hareket eder.
+5 ışık böceğini topla, yakalanma. Ses: kalp atışı, adım sesleri, yakalanınca çığlık.
+- Kamera modu: iki göz de kapanınca "göz kapalı" sayılır. Dil algılama kaldırıldı. Göz hassasiyeti düşürüldü (CLOSE_AT 0.5, OPEN_AT 0.3; game.js başında).
+- Dokunmatik: ekranın SOL yarısında parmağın nerede değerse hareket joystick'i orada belirir, uzaklık sınırı yoktur. SAĞ yarı yalnızca bakışı döndürür, hareket ettirmez, sol yarıdayken ekran dönmez.
+- Kamerasız mod: sağ altta basılı tutulan "GÖZÜ KAPAT" düğmesi (klavyede Boşluk). Klavye: WASD yürü, ok tuşları/fare ile bak.
+Yatay ve tam ekran çalışır. Yüz modeli ilk açılışta internetten indirilir, kamera izni ister.

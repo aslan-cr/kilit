@@ -6,6 +6,7 @@ import android.app.Activity
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
+import android.view.View
 import android.view.WindowManager
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
@@ -36,12 +37,16 @@ class MainActivity : Activity() {
         web = WebView(this)
         web.setBackgroundColor(Color.parseColor("#0F1A14"))
         setContentView(web)
+        goImmersive()
 
         val s = web.settings
         s.javaScriptEnabled = true
         s.domStorageEnabled = true
         s.mediaPlaybackRequiresUserGesture = false
         s.setSupportZoom(false)
+        web.isLongClickable = false
+        web.setOnLongClickListener { true }
+        web.isHapticFeedbackEnabled = false
 
         web.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
@@ -96,6 +101,22 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         web.onResume()
+        goImmersive()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) goImmersive()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun goImmersive() {
+        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            or View.SYSTEM_UI_FLAG_FULLSCREEN
+            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
     }
 
     override fun onPause() {

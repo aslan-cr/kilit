@@ -2,32 +2,45 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Göz Kırpma Kurbağası</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Göz Kırpma Kurbağası: Karanlık Bataklık</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main>
-    <h1>🐸 Göz Kırpma Kurbağası</h1>
-    <p class="sub">Göz kırp ya da dilini çıkar: kurbağa da göz kırpar ve dilini fırlatıp sinek yakalar.</p>
+  <canvas id="game"></canvas>
+  <video id="cam" playsinline muted></video>
 
-    <div class="stage">
-      <canvas id="game" width="800" height="500"></canvas>
-      <video id="cam" playsinline muted></video>
-      <div id="hud">
-        <span>Skor: <b id="score">0</b></span>
-        <span>Süre: <b id="time">60</b></span>
-        <span>Rekor: <b id="best">0</b></span>
+  <!-- Dokunma katmanı: sol yarı = hareket joystick'i, sağ yarı = sadece bakış -->
+  <div id="touch"></div>
+  <div id="joy"><div id="knob"></div></div>
+
+  <div id="hud">
+    <span>🪰 <b id="flies">0</b>/<b id="need">5</b></span>
+    <span>⏱ <b id="time">0</b> sn</span>
+    <span>👁 <b id="eyes">açık</b></span>
+  </div>
+  <div id="msg"></div>
+  <button id="eyeBtn" class="hidden">GÖZÜ<br>KAPAT</button>
+
+  <div id="menu">
+    <div class="box">
+      <h1>🐸 Karanlık Bataklık</h1>
+      <p class="story">Bataklığın labirentinde mahsur kaldın. Etraf zifiri karanlık ve seni bekleyen gölgeler var.</p>
+      <ul class="rules">
+        <li><b>Gözlerin açıkken</b> gölgeler donar, kıpırdayamaz.</li>
+        <li><b>Gözünü kapattığın an</b> yalnızca sana doğru hareket ederler.</li>
+        <li>Tüm ışık böceklerini (🪰) topla, hayatta kal.</li>
+        <li>Sol yarı ekran: hareket. Sağ yarı ekran: sadece etrafa bakma.</li>
+      </ul>
+      <p id="result" class="result"></p>
+      <div class="controls">
+        <button id="start">Kamerayı aç ve başla</button>
+        <button id="keyboard" class="ghost">Kamerasız dene (dokunmatik / klavye)</button>
       </div>
+      <p id="status" class="status">Kamera görüntüsü hiçbir yere gönderilmez, her şey cihazında çalışır.</p>
+      <p class="hint">Klavye: <kbd>W A S D</kbd> yürü, fareyle sürükle bak, <kbd>Boşluk</kbd> basılı = gözünü kapat.</p>
     </div>
-
-    <div class="controls">
-      <button id="start">Kamerayı aç ve başla</button>
-      <button id="keyboard" class="ghost">Kamerasız dene (klavye)</button>
-    </div>
-    <p id="status" class="status">Hazır. Kamera görüntüsü hiçbir yere gönderilmez, her şey tarayıcında çalışır.</p>
-    <p class="hint">Klavye modu: <kbd>Boşluk</kbd> = göz kırp, <kbd>Z</kbd> = sol göz, <kbd>X</kbd> = sağ göz, <kbd>C</kbd> = dil çıkar.</p>
-  </main>
+  </div>
   <script type="module" src="game.js"></script>
 </body>
 </html>
