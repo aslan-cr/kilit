@@ -75,7 +75,7 @@ export const RULES = {
     },
   },
   danger: { range: 8 },                      // bu kadar yakında düşman varsa kalp atışı hızlanır
-  scare: { seconds: 1.5 },
+  scare: { seconds: 3.0 },                   // yakalanma sahnesi süresi (karanlık + saldırı + kararma)
 };
 
 // URL'den kural değiştirme: ?r.enemies.count=6

@@ -188,7 +188,7 @@ function endGame(win) {
 }
 
 function enterScare() {
-  ui.phase = "scare"; ui.scareT = 0; resetTouch();
+  ui.phase = "scare"; ui.scareT = 0; ui.scareHit = false; resetTouch();
   hudEl.style.display = "none"; msgEl.classList.remove("on");
   for (const b of [eyeBtn, fireBtn, swapBtn]) b.classList.add("hidden");
 }
@@ -206,7 +206,7 @@ function onEvents() {
       case "gun": A.playGunPick(); showMsg(`Yeni silah: ${R.weapons[ev.weapon].name}`, 2400); break;
       case "switch": A.playGunPick(); showMsg(R.weapons[ev.weapon].name, 1200); break;
       case "forcedBlink": A.playForcedBlink(); showMsg("Gözlerin yandı! Kırpmak zorundasın, gölgeler geliyor.", 2600); break;
-      case "caught": enterScare(); A.playScream(); safeVibrate([80, 40, 160]); break;
+      case "caught": enterScare(); A.playScareStart(); break;
       case "win": endGame(true); break;
     }
   }
@@ -218,6 +218,7 @@ function safeVibrate(p) { if (navigator.vibrate) { try { navigator.vibrate(p); }
 const hudCache = {};
 function setText(key, node, v) { if (hudCache[key] !== v) { hudCache[key] = v; node.textContent = v; } }
 function updateHud() {
+  if (ui.phase === "scare") return;
   setText("f", el.flies, String(g.collected));
   setText("t", el.time, String(Math.floor(g.time)));
   setText("s", el.shells, String(g.shells));
@@ -261,6 +262,7 @@ function frame(now) {
       else renderer.renderScare(g, fx());
     } else if (ui.phase === "scare") {
       ui.scareT += dt;
+      if (!ui.scareHit && ui.scareT >= 0.55) { ui.scareHit = true; A.playScream(); safeVibrate([150, 40, 200, 40, 400]); }   // göz kapakları açıldığı an
       renderer.renderScare(g, fx());
       if (ui.scareT > R.scare.seconds) endGame(false);
     } else {

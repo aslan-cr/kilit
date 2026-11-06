@@ -127,26 +127,85 @@ export class Renderer {
     this.post(g, fx);
   }
 
-  // Yakalanma sahnesi: yakalayan gölge ekrana fırlar, ekran sarsılır, kızıl kenar
+  // Yakalanma sahnesi (≈3 sn): 1) karanlıkta yaklaşan parlak gözler 2) göz kapakları aniden açılır, canavarın suratı
+  // 3) saldırı: büyür, titrer, ekran bozulur, strobe 4) kan kırmızısı sızar, ani kararma
+  noiseOverlay(alpha) {
+    const ctx = this.ctx, RW = this.RW, RH = this.RH;
+    if (!this._nz) { this._nz = document.createElement("canvas"); this._nz.width = 96; this._nz.height = 54; this._nzI = this._nz.getContext("2d").createImageData(96, 54); }
+    const d = this._nzI.data;
+    for (let i = 0; i < d.length; i += 4) { const v = (Math.random() * 255) | 0; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+    this._nz.getContext("2d").putImageData(this._nzI, 0, 0);
+    ctx.save(); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = alpha; ctx.drawImage(this._nz, 0, 0, RW, RH); ctx.restore();
+  }
+
+  eyeGlow(cx, cy, spread, r, a) {
+    const ctx = this.ctx;
+    for (const sx of [-1, 1]) {
+      const x = cx + sx * spread, gr = ctx.createRadialGradient(x, cy, 0, x, cy, r);
+      gr.addColorStop(0, `rgba(255,250,150,${Math.min(1, a).toFixed(3)})`); gr.addColorStop(0.25, `rgba(255,220,40,${(a * 0.8).toFixed(3)})`); gr.addColorStop(1, "rgba(255,120,0,0)");
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, cy, r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
   renderScare(g, fx) {
-    const ctx = this.ctx, RW = this.RW, RH = this.RH, t = fx.scareT;
-    const killer = g.enemies[g.killer];
-    if (!killer || t < 0.07) { ctx.fillStyle = t < 0.07 ? "#fff" : "#050000"; ctx.fillRect(0, 0, RW, RH); return; }
+    const ctx = this.ctx, RW = this.RW, RH = this.RH, t = fx.scareT, total = g.rules.scare.seconds;
+    const killer = g.enemies[g.killer], T_OPEN = 0.55;
+    // 1) Göz kapalı karanlık: iki parlak göz yaklaşır
+    if (!killer || t < T_OPEN) {
+      ctx.fillStyle = "#030000"; ctx.fillRect(0, 0, RW, RH);
+      const k = t / T_OPEN, flick = Math.random() < 0.15 ? 0.3 : 1;
+      this.eyeGlow(RW / 2, RH * 0.46, RW * (0.03 + 0.08 * k * k), RW * (0.012 + 0.05 * k * k), (0.2 + 0.8 * k) * flick);
+      this.noiseOverlay(0.06 + 0.1 * k);
+      return;
+    }
+    const u = t - T_OPEN;
+    // 2) Beyaz parlama: göz kapakları açılır
+    if (u < 0.07) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, RW, RH); return; }
+    // 3) Saldırı
+    const k = Math.min(1, u / 0.8), ease = k * k;
     const ang = Math.atan2(killer.y - g.py, killer.x - g.px);
-    const k = Math.min(1, t / 0.3);
-    const room = Math.max(0.5, rayWall(g, g.px, g.py, Math.cos(ang), Math.sin(ang), 3) - 0.2);   // duvarın içine girmesin
-    const dist = Math.min(room, 1.6 - 0.85 * k);   // 1.6 karodan 0.75 karoya fırlar: yüz ve gözler okunur kalır
-    const shake = (1 - Math.min(1, t / 1.3)) * 0.05;
-    const e2 = { ...killer, alive: true, x: g.px + Math.cos(ang) * dist, y: g.py + Math.sin(ang) * dist, yaw: ang + Math.PI, hit: 0.5 + 0.3 * Math.sin(t * 40), walk: t * 9 };
-    const g2 = { ...g, enemies: [e2], bob: 0, danger: 0, dry: 0 };
-    const cam = { x: g.px + (Math.random() - 0.5) * shake, y: g.py + (Math.random() - 0.5) * shake, yaw: ang + (Math.random() - 0.5) * shake * 2, eye: g.rules.player.eyeHeight, bob: 0, time: fx.time };
-    this.flick = 0.95 + Math.random() * 0.3;
+    const room = Math.max(0.45, rayWall(g, g.px, g.py, Math.cos(ang), Math.sin(ang), 3) - 0.2);   // duvarın içine girmesin
+    const dist = Math.min(room, 1.0 - 0.32 * ease);
+    const twitch = u > 0.8 ? (Math.random() - 0.5) : 0;
+    const T = g.rules.enemies.types[killer.type];
+    const rules2 = { ...g.rules, enemies: { ...g.rules.enemies, types: { ...g.rules.enemies.types, [killer.type]: { ...T, scale: T.scale * (1 + 0.35 * ease) } } } };
+    const e2 = { ...killer, alive: true, x: g.px + Math.cos(ang) * dist, y: g.py + Math.sin(ang) * dist, yaw: ang + Math.PI + twitch * 0.5, hit: 0.35 + 0.35 * Math.sin(u * 50), walk: u * 14 };
+    const g2 = { ...g, rules: rules2, enemies: [e2], bob: 0, danger: 0, dry: 0 };
+    const shake = (0.02 + 0.07 * ease) * (u < 1.5 ? 1 : Math.max(0.2, 1 - (u - 1.5)));
+    const cam = { x: g.px + (Math.random() - 0.5) * shake, y: g.py + (Math.random() - 0.5) * shake, yaw: ang + (Math.random() - 0.5) * shake * 2.2, eye: g.rules.player.eyeHeight + (Math.random() - 0.5) * shake * 0.6, bob: 0, time: fx.time };
+    this.flick = 0.8 + Math.random() * 0.6;
     this.world(g2, cam, { ...fx, flick: this.flick });
     ctx.putImageData(this.img, 0, 0);
-    const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * 0.2, RW / 2, RH / 2, RH);
-    gr.addColorStop(0, "rgba(120,0,0,0)"); gr.addColorStop(1, "rgba(120,0,0,.85)");
+    // Parlayan gözler
+    const unit = this.SC / dist;
+    this.eyeGlow(RW / 2, RH / 2 - unit * 0.05, unit * 0.07, unit * (0.05 + 0.04 * ease), 0.55 + 0.35 * Math.random());
+    // Görüntü bozulması: kayan şeritler
+    const slices = 2 + Math.floor(6 * ease);
+    for (let i = 0; i < slices; i++) {
+      const sy = Math.random() * RH, h = 3 + Math.random() * RH * 0.1, off = (Math.random() - 0.5) * RW * 0.2 * (0.3 + ease);
+      ctx.drawImage(this.canvas, 0, sy, RW, h, off, sy, RW, h);
+    }
+    // Strobe: negatif kareler
+    if (u < 1.5 && Math.floor(u * 16) % 3 === 0) { ctx.save(); ctx.globalCompositeOperation = "difference"; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, RW, RH); ctx.restore(); }
+    // Kan kırmızısı kenar (zamanla içeri sızar) + çatlak damarlar
+    const bl = Math.min(1, 0.45 + u * 0.35);
+    const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * (0.5 - 0.3 * Math.min(1, u / 1.6)), RW / 2, RH / 2, RH * 0.95);
+    gr.addColorStop(0, "rgba(140,0,0,0)"); gr.addColorStop(1, `rgba(110,0,0,${bl.toFixed(3)})`);
     ctx.fillStyle = gr; ctx.fillRect(0, 0, RW, RH);
-    if (t > 0.9) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, (t - 0.9) / 0.6).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+    if (u > 0.5) {
+      ctx.strokeStyle = "rgba(150,0,0,.8)"; ctx.lineWidth = Math.max(1, RW / 260);
+      for (let i = 0; i < 7; i++) {
+        let x = Math.random() < 0.5 ? 0 : RW, y = Math.random() * RH;
+        ctx.beginPath(); ctx.moveTo(x, y);
+        const dir = x === 0 ? 1 : -1, len = 3 + Math.floor(Math.min(6, (u - 0.5) * 6));
+        for (let j = 0; j < len; j++) { x += dir * (RW * 0.04 + Math.random() * RW * 0.05); y += (Math.random() - 0.5) * RH * 0.18; ctx.lineTo(x, y); }
+        ctx.stroke();
+      }
+    }
+    this.noiseOverlay(0.08 + 0.08 * ease);
+    // 4) Son: ani kararma (son 0.6 sn), sonra tam siyah
+    const left = total - t;
+    if (left < 0.6) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.6).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
   }
 
   setCam(cam) {
