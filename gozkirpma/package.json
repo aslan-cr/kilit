@@ -1,0 +1,13 @@
+{
+  "name": "karanlik-bataklik",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/sim.test.mjs test/promises.test.mjs",
+    "balance": "node test/balance.mjs 40",
+    "serve": "node tools/serve.mjs 5151",
+    "shot": "node tools/shot.mjs",
+    "touch": "node tools/touch-test.mjs",
+    "bake": "node tools/bake-models.mjs"
+  }
+}

@@ -98,11 +98,27 @@ Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
 Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
 
-## Karanlık Bataklık (gozkirpma, v2.0)
-Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık bir bataklık labirentinde ilerlersin,
-etrafta gölgeler (düşmanlar) var. Kural: gözlerin AÇIKKEN gölgeler donar; gözünü kapattığın an yalnızca onlar hareket eder.
-5 ışık böceğini topla, yakalanma. Ses: kalp atışı, adım sesleri, yakalanınca çığlık.
-- Kamera modu: iki göz de kapanınca "göz kapalı" sayılır. Dil algılama kaldırıldı. Göz hassasiyeti düşürüldü (CLOSE_AT 0.5, OPEN_AT 0.3; game.js başında).
-- Dokunmatik: ekranın SOL yarısında parmağın nerede değerse hareket joystick'i orada belirir, uzaklık sınırı yoktur. SAĞ yarı yalnızca bakışı döndürür, hareket ettirmez, sol yarıdayken ekran dönmez.
-- Kamerasız mod: sağ altta basılı tutulan "GÖZÜ KAPAT" düğmesi (klavyede Boşluk). Klavye: WASD yürü, ok tuşları/fare ile bak.
-Yatay ve tam ekran çalışır. Yüz modeli ilk açılışta internetten indirilir, kamera izni ister.
+## Karanlık Bataklık (gozkirpma, v3.0)
+Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık, mezarlık dekorlu bir bataklık labirentinde ilerlersin.
+Kural: gözlerin AÇIKKEN gölgeler (cadı, kabak kafa) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
+6 ışık böceğini topla, yakalanma. Ayrıntılı tasarım: `gozkirpma/DESIGN.md`.
+- **Silahlar (PSX Shotgun Pack):** Pompalı tüfekle başlarsın. Labirentte Kısa Çifte, Çifte Namlu ve Üst Üste Çifte var; kırmızı mermi kutuları mermi verir. Vurulan gölge birkaç saniye kıpırdayamaz, ölen gölge uzakta yeniden doğar.
+- **Dekor (KayKit Spooktober, CC0):** mezar taşı, ölü ağaç, kabak, mum, fener direği, tabut, kazan, mihrap. Mum, kabak fener ve lamba etraflarına ışık verir.
+- **Göz kuruluğu:** gözlerini 6.5 sn'den uzun açık tutarsan göz kendiliğinden kapanır (gölgeler o an hareket eder), 4 sn'den sonra görüş kararır.
+- Kamera modu: iki göz de kapanınca "göz kapalı" sayılır. Dil algılama yok. Göz hassasiyeti düşük (`eyes.closeAt` 0.5, `eyes.openAt` 0.3).
+- **Dokunmatik:** Ekranın SOL yarısında parmağın nerede değerse hareket joystick'i orada belirir, uzaklık sınırı yoktur. SAĞ yarı yalnızca ekranı (bakışı) döndürür, hareket ettirmez; sol yarıdayken ekran dönmez. Sağ yarıya kısa dokunuş ve sağ alttaki ATEŞ düğmesi ateş eder.
+- Kamerasız mod: "GÖZÜ KAPAT" düğmesi (klavyede Boşluk). Klavye: WASD yürü, Q/E ya da ok tuşları bak, F ateş, R silah değiş.
+- Yüz modeli ilk açılışta internetten iniyor (kamera modu için). Modeller internetsiz çalışır: `assets/models/models.json` içine önceden pişirildi.
+
+Geliştirme (goat-game-creator yöntemi): bütün sayılar `assets/js/rules.js`'te, mantık DOM'suz `assets/js/sim.js`'te, `bot.js` oyuncuyla aynı girdiyle oynar.
+```
+cd gozkirpma
+npm test                                  # sim kuralları + söz testleri (metindeki her iddia kontrol edilir)
+node test/balance.mjs 40                  # bot dengesi, 40 seed
+node tools/serve.mjs 5151                 # tarayıcıda dene: ?play  ?autoplay&speed=4  ?sim=30&seed=7  ?gallery=0..3  ?r.enemies.count=3
+node tools/shot.mjs "?sim=30" shots/a.png # headless ekran görüntüsü (+ sayfa hataları)
+node tools/touch-test.mjs                 # dokunmatik kurallarını gerçek dokunma olaylarıyla sınar
+node tools/bake-models.mjs <Spooktober klasörü> <PSXShotgunPack/Files>   # modelleri yeniden pişir
+```
+Varlık lisansları: KayKit Spooktober Seasonal Pack 1.1 (Kay Lousberg, CC0). PSX Shotgun Pack: paketin içinde lisans dosyası yok, yayımlamadan önce kaynağındaki koşullara bak.
+
