@@ -23,6 +23,7 @@
     <span id="dry" title="Göz kuruluğu"><i id="dryFill"></i></span>
   </div>
   <div id="msg"></div>
+  <div id="lobbyBar" class="hidden"><span id="lobbyInfo"></span><button id="lobbyStart" class="hidden" type="button">Oyunu başlat</button><button id="lobbyExit" class="ghost small" type="button">Lobiden çık</button></div>
   <button id="eyeBtn" class="hidden">GÖZÜ<br>KAPAT</button>
   <button id="swapBtn" class="hidden">SİLAH<br>DEĞİŞ</button>
   <button id="fireBtn" class="hidden">ATEŞ</button>
@@ -57,6 +58,11 @@
         <div class="controls">
           <button id="start">Kamerayı aç ve başla</button>
           <button id="keyboard" class="ghost">Kamerasız dene (dokunmatik / klavye)</button>
+        </div>
+        <div class="lobbyBox">
+          <input id="serverUrl" placeholder="Sunucu adresi (örn. 192.168.1.5:8080)" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="120">
+          <label class="chk"><input type="checkbox" id="useCam"> Kamerayla oyna</label>
+          <button id="lobbyBtn">🌐 Lobiye gir</button>
         </div>
         <p id="status" class="status">Yükleniyor…</p>
         <p class="hint">Klavye: <kbd>W A S D</kbd> yürü, <kbd>Q</kbd>/<kbd>E</kbd> ya da ok tuşları bak, <kbd>F</kbd> ateş, <kbd>R</kbd> silah değiş, <kbd>Boşluk</kbd> basılı = gözünü kapat.</p>

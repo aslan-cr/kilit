@@ -13,6 +13,7 @@ export const RULES = {
     turnKeys: 2.0,                           // rad/sn (klavye ok tuşları)
   },
   eyes: {
+    detectMs: 66,               // yüz algılama en sık bu aralıkla (ms) çalışır; küçültmek daha duyarlı ama daha yavaş
     closeAt: 0.5,                            // kameradan göz kapanma değeri bunu aşınca kapalı (düşük hassasiyet; eskiden 0.32)
     openAt: 0.3,                             // bunun altına inince açık (eskiden 0.18)
     dryWarn: 4,                              // sn: gözler bu kadar açık kalırsa görüş kararıp titremeye başlar
@@ -78,6 +79,17 @@ export const RULES = {
   },
   danger: { range: 8 },                      // bu kadar yakında düşman varsa kalp atışı hızlanır
   scare: { seconds: 3.0 },                   // yakalanma sahnesi süresi (karanlık + saldırı + kararma)
+  // Lobi: kuzey duvarında yan yana oda kurma yerleri (kabinler), altında ortak salon
+  lobby: {
+    rooms: 4,                                // oda kurma yeri sayısı
+    maxPerRoom: 10,                          // bir odadaki en fazla kişi
+    maxPlayers: 80,                          // sunucudaki en fazla kişi (lobi + odalar)
+    size: 26,                                // harita kenarı (karo)
+    cubW: 5, cubGap: 1, cubDepth: 4,         // kabin genişliği, kabinler arası duvar, kabin derinliği
+    hallRows: 11,                            // kabinlerin altındaki salon satırı
+    sendHz: 10,                              // konumumu sunucuya yollama sıklığı
+    net: { url: "" },                        // varsayılan sunucu adresi (ws://… ya da wss://…); boşsa oyuncu girer
+  },
 };
 
 // URL'den kural değiştirme: ?r.enemies.count=6

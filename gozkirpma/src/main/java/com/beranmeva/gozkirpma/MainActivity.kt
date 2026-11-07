@@ -18,7 +18,7 @@ import androidx.webkit.WebViewAssetLoader
 
 /**
  * Oyun assets içinden güvenli (https) bir sahte adresle açılır; böylece kamera
- * (getUserMedia) çalışır. Yüz modeli ilk açılışta internetten indirilir.
+ * (getUserMedia) çalışır. Yüz modeli uygulamanın içindedir (derlemede gömülür); gömülemediyse internetten indirilir.
  */
 class MainActivity : Activity() {
 
@@ -44,6 +44,8 @@ class MainActivity : Activity() {
         s.domStorageEnabled = true
         s.mediaPlaybackRequiresUserGesture = false
         s.setSupportZoom(false)
+        // Lobi sunucusu yerel ağda ws:// olabilir; sayfa kendi uygulama dosyalarıdır (güvenilir)
+        s.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         web.isLongClickable = false
         web.setOnLongClickListener { true }
         web.isHapticFeedbackEnabled = false

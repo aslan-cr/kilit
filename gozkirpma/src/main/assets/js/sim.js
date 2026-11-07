@@ -210,7 +210,7 @@ export function nearestEnemyDist(g) {
 function emit(g, e) { g.events.push(e); }
 
 // ---------- Oyuncu ----------
-function movePlayer(g, dt, input) {
+export function movePlayer(g, dt, input) {
   const R = g.rules.player;
   g.yaw += (input.yaw || 0) + (input.turn || 0) * dt;
   let fwd = input.fwd || 0, str = input.str || 0;

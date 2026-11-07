@@ -333,6 +333,7 @@ export class Renderer {
     this.labels = [];
     this.drawEnemies(g, cam, fx);
     this.drawPlayers(g, cam);
+    this.drawSigns(g, cam);
     if (!noEnv) this.drawGlows(g, cam, fx);
   }
 
@@ -522,6 +523,19 @@ export class Renderer {
   }
 
   // Diğer oyuncular (çok oyunculu için): Hazmat karakteri, yürürken kol ve bacak sallar, üstünde isim etiketi
+  // Sabit yazılar (lobi odalarının tabelaları): g.signs = [{x,y,z,text,c}]
+  drawSigns(g, cam) {
+    if (!g.signs) return;
+    for (const sg of g.signs) {
+      if (!sg.text) continue;
+      const rx = sg.x - cam.x, ry = sg.y - cam.y, d = rx * cam.dirX + ry * cam.dirY, l = -rx * cam.dirY + ry * cam.dirX;
+      if (d < 0.3 || d > 14) continue;
+      const col = Math.max(0, Math.min(this.RW - 1, Math.round(this.RW / 2 + (l / d) * this.SC)));
+      if (d > this.zbuf[col] + 0.25) continue;
+      this.labels.push({ t: sg.text, c: sg.c, big: 1, x: this.RW / 2 + (l / d) * this.SC, y: cam.horizon - ((sg.z - cam.eye) / d) * this.SC, d });
+    }
+  }
+
   drawPlayers(g, cam) {
     const P = g.players;
     if (!P || !P.length) return;
@@ -683,9 +697,10 @@ export class Renderer {
     if (this.labels && this.labels.length) {            // diğer oyuncuların isimleri
       ctx.save(); ctx.textAlign = "center"; ctx.font = `bold ${Math.max(9, Math.round(RW / 34))}px system-ui, sans-serif`;
       for (const L of this.labels) {
-        const a = Math.max(0.25, Math.min(1, 1.4 - L.d / 8));
-        ctx.fillStyle = `rgba(0,0,0,${(a * 0.6).toFixed(2)})`; ctx.fillText(L.t, L.x + 1, L.y + 1);
-        ctx.fillStyle = `rgba(210,255,220,${a.toFixed(2)})`; ctx.fillText(L.t, L.x, L.y);
+        const a = L.big ? Math.max(0.5, Math.min(1, 1.6 - L.d / 14)) : Math.max(0.25, Math.min(1, 1.4 - L.d / 8));
+        if (L.big) ctx.font = `bold ${Math.max(10, Math.round(RW / 26))}px system-ui, sans-serif`;
+        ctx.fillStyle = `rgba(0,0,0,${(a * 0.7).toFixed(2)})`; ctx.fillText(L.t, L.x + 1, L.y + 1);
+        ctx.fillStyle = `rgba(${L.c || "210,255,220"},${a.toFixed(2)})`; ctx.fillText(L.t, L.x, L.y);
       }
       ctx.restore();
     }

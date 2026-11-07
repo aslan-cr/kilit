@@ -181,3 +181,10 @@ kbd { background: #17281d; padding: 1px 6px; border-radius: 5px; border: 1px sol
 .acct #statline { color: #7fa588; font-size: .8rem; }
 button.small { padding: 5px 12px; font-size: .8rem; }
 @media (max-height: 420px) { .login { margin: 4px 0; } #avatar { width: 72px; height: 96px; } h1 { font-size: 1.3rem; } #authForm input { padding: 7px 10px; } }
+
+/* Lobi */
+.lobbyBox { margin-top: 8px; display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.lobbyBox input[type=text], #serverUrl { flex: 1 1 200px; max-width: 280px; padding: 8px 10px; border-radius: 8px; border: 1px solid #36563f; background: #0b140f; color: #cfe8d4; font-size: .9rem; }
+.chk { color: #9fc4a6; font-size: .85rem; display: flex; align-items: center; gap: 4px; }
+#lobbyBar { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; gap: 10px; align-items: center; padding: 6px 12px; border-radius: 12px; background: rgba(8, 16, 11, .72); color: #cfe8d4; font-weight: 600; font-size: 14px; max-width: 94vw; flex-wrap: wrap; justify-content: center; }
+#lobbyBar button { touch-action: manipulation; }

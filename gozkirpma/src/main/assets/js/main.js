@@ -1,6 +1,6 @@
 // Karanlık Bataklık: giriş noktası. Sim (sim.js) + çizici (render.js) + girdiler + ses + göz algılama.
 // Hata ayıklama kancaları: ?seed=N  ?play  ?sim=N (bot N sn oynar, son kare çizilir)  ?autoplay&speed=4
-//                          ?scare  ?gallery=0..3  ?r.enemies.count=3 (rules.js'teki sayıyı değiştir)
+//                          ?scare  ?gallery=0..3  ?lobby&server=127.0.0.1:8080 (lobiye doğrudan gir)  ?r.enemies.count=3 (rules.js'teki sayıyı değiştir)
 import { RULES, applyOverrides } from "./rules.js";
 import { createGame, step, rng, setPlayer } from "./sim.js";
 import { makeBot } from "./bot.js";
@@ -9,6 +9,9 @@ import * as A from "./audio.js";
 import { makeEyeTracker, loadLandmarker, openCamera } from "./eyes.js";
 import { ruleLines, HINT_FIRST } from "./texts.js";
 import { createAuth } from "./auth.js";
+import { createLobby, stepLobby, applySnapshot, smoothPlayers, updateSigns } from "./lobby.js";
+import { connectLobby, normalizeUrl } from "./net.js";
+import { cabin } from "./rooms.js";
 
 const Q = new URLSearchParams(location.search);
 const R = applyOverrides(RULES, location.search);
@@ -48,7 +51,11 @@ const ui = {
 };
 let g = null, renderer = null, bot = null, acc = 0, last = performance.now();
 const eyesT = makeEyeTracker(R);
-window.GAME = { get g() { return g; }, get renderer() { return renderer; }, R, ui, fx: () => fx() };
+// Lobi / çok oyunculu durum
+const lobbyBar = $("lobbyBar"), lobbyInfo = $("lobbyInfo"), lobbyStart = $("lobbyStart"), lobbyExit = $("lobbyExit");
+const serverIn = $("serverUrl"), useCam = $("useCam"), lobbyBtn = $("lobbyBtn");
+const mp = { net: null, id: null, lobby: null, snap: null, room: -1, inGame: false, sendT: 0 };
+window.GAME = { get mp() { return mp; }, get g() { return g; }, get renderer() { return renderer; }, R, ui, fx: () => fx() };
 
 // ---------- Girdiler: klavye ----------
 addEventListener("keydown", (e) => setKey(e, true));
@@ -77,10 +84,11 @@ function setKey(e, down) {
 const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const look = { id: null, x: 0, y: 0, x0: 0, y0: 0, t0: 0, moved: 0 };
 const half = () => (window.innerWidth || 800) / 2;
+const isLive = () => ui.phase === "play" || ui.phase === "lobby";
 
 touchLayer.addEventListener("pointerdown", (e) => {
   e.preventDefault();
-  if (ui.phase !== "play") return;
+  if (!isLive()) return;
   try { touchLayer.setPointerCapture(e.pointerId); } catch { /* yoksay */ }
   if (e.clientX < half()) {
     if (joy.id === null) {
@@ -100,7 +108,7 @@ touchLayer.addEventListener("pointermove", (e) => {
     knobEl.style.transform = `translate(${dx * k}px,${dy * k}px)`;   // topuz halkada kalır, hareket mesafesi sınırsızdır
   } else if (e.pointerId === look.id) {
     // yalnızca sağ yarıdayken döner; parmak sol yarıya geçerse dönmez
-    if (e.clientX >= half() && ui.phase === "play") ui.lookAcc += (e.clientX - look.x) * R.player.lookSens;
+    if (e.clientX >= half() && isLive()) ui.lookAcc += (e.clientX - look.x) * R.player.lookSens;
     look.moved = Math.max(look.moved, Math.hypot(e.clientX - look.x0, e.clientY - look.y0));
     look.x = e.clientX; look.y = e.clientY;
   }
@@ -163,6 +171,7 @@ function startGame(seed = newSeed()) {
   eyesT.closedL = eyesT.closedR = false;
   resetTouch();
   menuEl.classList.add("off");
+  lobbyBar.classList.add("hidden");
   startBtn.disabled = false;
   hudEl.style.display = "flex";
   const manual = ui.mode === "keyboard";
@@ -195,6 +204,12 @@ function endGame(win) {
   }
   showView();
   setStatus(ui.mode === "camera" ? "Tekrar denemek için butona bas." : "Tekrar denemek için bir mod seç.");
+  if (mp.net && mp.inGame) {                          // çok oyunculu: sonuç yazısı kalır, odanın kabinine geri dön
+    mp.net.send({ t: "back" });
+    const line = resultEl.textContent;
+    returnToLobby();
+    showMsg(line, 5000);
+  }
 }
 
 function enterScare() {
@@ -262,6 +277,7 @@ function frame(now) {
       }
       if (ui.phase === "menu") { ui.lid = 0; ui.flick = 1; renderer.render(g, fx()); requestAnimationFrame(frame); return; }   // kazanıldı: menü açıldı
       adaptQuality(dt);
+      if (mp.inGame) { smoothPlayers(g, dt); netTick(dt); }
       ui.lid += ((g.eyesClosed ? 1 : 0) - ui.lid) * Math.min(1, dt * 22);
       if (Math.random() < 0.02 + g.danger * 0.1) ui.dip = 0.35 + Math.random() * 0.4;
       ui.dip *= Math.pow(0.02, dt);
@@ -271,6 +287,12 @@ function frame(now) {
       updateHud();
       if (ui.phase === "play") renderer.render(g, fx());
       else renderer.renderScare(g, fx());
+    } else if (ui.phase === "lobby") {
+      ui.lid = 0; ui.flick = 1;
+      acc += dt; let n = 0, first = true;
+      while (acc >= STEP && n++ < 10) { stepLobby(g, STEP, humanInput(first)); first = false; acc -= STEP; }
+      smoothPlayers(g, dt); updateSigns(g); lobbyEvents(); netTick(dt); updateLobbyBar();
+      renderer.render(g, fx());
     } else if (ui.phase === "scare") {
       ui.scareT += dt;
       if (!ui.scareHit && ui.scareT >= 0.55) { ui.scareHit = true; A.playScream(); safeVibrate([150, 40, 200, 40, 400]); }   // göz kapakları açıldığı an
@@ -328,6 +350,106 @@ authForm.addEventListener("submit", async (e) => {
 });
 $("guestBtn").addEventListener("click", () => { auth.guest(); showView(); });
 $("logout").addEventListener("click", () => { auth.logout(); resultEl.textContent = ""; setMode(false); showView(); });
+
+// ---------- Lobi (çok oyunculu) ----------
+// Lobide dolaşırsın; kuzeydeki 4 kabinden birine girince o odaya katılırsın (oda başına en fazla 10 kişi).
+// Oda sahibi "Oyunu başlat"a basınca odadakilerin hepsi aynı labirentte (aynı seed) başlar; birbirini görür.
+// Gölgeler henüz her oyuncuda ayrı hesaplanır (ağ üzerinden eşitlenmiyor).
+function onSnap(m) {
+  mp.snap = m;
+  const me = m.players.find((p) => p.id === mp.id);
+  mp.room = me ? me.room : -1;
+  if (mp.inGame && g) applySnapshot(g, m, mp.id, (p) => p.g && p.room === mp.room);
+  else if (mp.lobby) applySnapshot(mp.lobby, m, mp.id);
+}
+function startNetGame(m) {
+  if (!mp.net || mp.inGame) return;
+  mp.inGame = true; mp.room = m.room;
+  lobbyBar.classList.add("hidden");
+  startGame(m.seed);
+}
+function returnToLobby() {
+  mp.inGame = false;
+  g = mp.lobby;
+  if (mp.room >= 0) { const c = cabin(R, mp.room); Object.assign(g, { px: c.cx, py: c.cy }); }   // oyundan dönünce odanın kabinine
+  Object.assign(g, { myRoom: mp.room, state: "lobby" });
+  if (mp.snap) applySnapshot(g, mp.snap, mp.id);
+  ui.phase = "lobby"; ui.lid = 0; ui.flick = 1;
+  menuEl.classList.add("off"); hudEl.style.display = "none";
+  for (const b of [eyeBtn, fireBtn, swapBtn]) b.classList.add("hidden");
+  lobbyBar.classList.remove("hidden");
+  resetTouch();
+}
+function leaveLobby(statusText) {
+  if (mp.net) { const n = mp.net; mp.net = null; n.close(); }
+  Object.assign(mp, { id: null, lobby: null, snap: null, room: -1, inGame: false });
+  lobbyBar.classList.add("hidden"); lobbyBtn.disabled = false;
+  g = createGame(newSeed(), R);
+  ui.phase = "menu"; ui.lid = 0; resetTouch();
+  menuEl.classList.remove("off");
+  showView();
+  if (statusText) setStatus(statusText);
+}
+function onNetClose() {
+  if (!mp.net) return;
+  if (mp.inGame) { mp.net = null; mp.inGame = false; if (g) g.players = []; showMsg("Sunucu bağlantısı koptu, tek başına devam ediyorsun.", 4000); return; }
+  leaveLobby("Sunucu bağlantısı koptu.");
+}
+async function enterLobby() {
+  const url = normalizeUrl(serverIn.value || Q.get("server") || R.lobby.net.url);
+  if (!url) { setStatus("Önce sunucu adresini yaz (örn. 192.168.1.5:8080)."); serverIn.focus(); return; }
+  safeSet("gk_server", serverIn.value);
+  lobbyBtn.disabled = true; A.initAudio();
+  try {
+    if (useCam.checked) {
+      setStatus("Yüz modeli yükleniyor…"); await loadLandmarker();
+      setStatus("Kamera izni bekleniyor…"); await openCamera(video);
+      video.style.display = "block"; ui.mode = "camera";
+    } else { ui.mode = "keyboard"; video.style.display = "none"; }
+    setStatus("Sunucuya bağlanılıyor…");
+    const me = auth.current();
+    mp.net = await connectLobby(url, me ? me.name : "Misafir", {
+      onWelcome: (m) => { mp.id = m.id; mp.lobby = createLobby(R); mp.lobby.px = m.x; mp.lobby.py = m.y; },
+      onSnap, onStart: startNetGame, onClose: onNetClose,
+      onDeny: (m) => { if (ui.phase === "lobby" && g) { g.px = m.x; g.py = m.y; g.myRoom = -1; } showMsg(m.reason, 2200); },
+      onErr: (t) => showMsg(t, 2600),
+    });
+    returnToLobby();
+    mp.lobby.myRoom = -1;
+    showMsg("Lobidesin. Bir odaya girmek için yukarıdaki kabinlerden birine yürü.", 4200);
+  } catch (err) {
+    lobbyBtn.disabled = false;
+    mp.net = null;
+    setStatus("Lobiye girilemedi: " + (err && err.message ? err.message : err));
+  }
+}
+function updateLobbyBar() {
+  const m = mp.snap, n = m ? m.players.length : 1;
+  const r = mp.room >= 0 && m ? m.rooms[mp.room] : null;
+  const host = !!r && r.host === mp.id;
+  const text = r ? `ODA ${mp.room + 1} · ${r.n}/${R.lobby.maxPerRoom} kişi · ${host ? "oda sahibisin" : "sahibin başlatmasını bekle"}` : `Lobi · ${n} oyuncu · bir odaya yürü`;
+  if (lobbyInfo.textContent !== text) lobbyInfo.textContent = text;
+  lobbyStart.classList.toggle("hidden", !(host && r.st === "open"));
+}
+function lobbyEvents() {
+  for (const e of g.lobbyEvents) {
+    if (e.t === "denied") showMsg(e.reason, 2000);
+    else if (e.t === "enter") showMsg(`Oda ${e.room + 1}'e girdin.`, 1800);
+    else if (e.t === "exit") showMsg("Salona çıktın.", 1200);
+  }
+  g.lobbyEvents.length = 0;
+}
+function netTick(dt) {
+  if (!mp.net || !mp.net.open || !(ui.phase === "lobby" || mp.inGame)) return;
+  mp.sendT += dt;
+  if (mp.sendT < 1 / R.lobby.sendHz) return;
+  mp.sendT = 0;
+  mp.net.send({ t: "pos", x: +g.px.toFixed(2), y: +g.py.toFixed(2), yaw: +g.yaw.toFixed(2), walk: +(g.bob || 0).toFixed(1), moving: +(g.moving || 0).toFixed(2) });
+}
+lobbyBtn.addEventListener("click", enterLobby);
+lobbyStart.addEventListener("click", () => { if (mp.net) mp.net.send({ t: "start" }); });
+lobbyExit.addEventListener("click", () => leaveLobby("Lobiden çıktın."));
+serverIn.value = safeGet("gk_server") || R.lobby.net.url || "";
 
 // ---------- Butonlar ----------
 async function startCamera() {
@@ -434,6 +556,7 @@ async function boot() {
     window.__ready = true;
     return;
   }
+  if (Q.has("lobby")) { if (!auth.current()) auth.guest(); showView(); requestAnimationFrame(frame); await enterLobby(); window.__ready = true; return; }
   if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); }
   window.__ready = true;
   requestAnimationFrame(frame);
