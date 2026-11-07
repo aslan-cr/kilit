@@ -62,3 +62,16 @@ test("SÖZ: dokunmatik sağ yarı yalnızca bakar (sim hareket girdisi yoksa oyu
   for (let i = 0; i < 60; i++) step(g, DT, { yaw: 0.1 });
   assert.deepEqual([g.px, g.py], p);
 });
+
+test("söz: fener gölgeleri %30 hızlandırır, fenerdeyken ateş edilemez (metinle sim aynı)", () => {
+  const pct = Math.round((RULES.flashlight.enemyBoost - 1) * 100);
+  assert.match(text, new RegExp(`%${pct} daha hızlı`));
+  assert.match(text, /ateş edilemez/);
+  const g = createGame(5);
+  g.enemies.forEach((e) => { e.alive = false; e.respawn = 1e9; });
+  step(g, DT, { light: true });
+  for (let i = 0; i < 60; i++) step(g, DT, {});
+  assert.equal(g.slot, "light");
+  const sh = g.shells; step(g, DT, { fire: true });
+  assert.equal(g.shells, sh);
+});

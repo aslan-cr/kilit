@@ -94,7 +94,7 @@ canvas#game {
   z-index: 2;
 }
 #msg.on { opacity: 1; }
-#eyeBtn, #fireBtn, #swapBtn {
+#eyeBtn, #fireBtn, #swapBtn, #lightBtn {
   position: fixed;
   border-radius: 50%;
   font: 700 13px/1.2 inherit;
@@ -188,3 +188,6 @@ button.small { padding: 5px 12px; font-size: .8rem; }
 .chk { color: #9fc4a6; font-size: .85rem; display: flex; align-items: center; gap: 4px; }
 #lobbyBar { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; gap: 10px; align-items: center; padding: 6px 12px; border-radius: 12px; background: rgba(8, 16, 11, .72); color: #cfe8d4; font-weight: 600; font-size: 14px; max-width: 94vw; flex-wrap: wrap; justify-content: center; }
 #lobbyBar button { touch-action: manipulation; }
+
+#lightBtn { right: 120px; bottom: 134px; width: 66px; height: 66px; border: 2px solid rgba(240, 220, 150, .6); background: rgba(70, 60, 20, .55); color: #f4e8b8; font-size: 11px; }
+#lightBtn.down { background: rgba(200, 170, 60, .75); }

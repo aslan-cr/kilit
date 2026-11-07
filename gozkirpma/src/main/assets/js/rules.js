@@ -47,14 +47,31 @@ export const RULES = {
   weapons: {
     // pellets: saçma sayısı, damage: saçma başı hasar, spread: yarım koni açısı (rad), range: karo,
     // cooldown: atışlar arası sn, shells: atış başına harcanan mermi
-    pump:      { name: "Pompalı",         model: "pump",      pellets: 8,  damage: 0.40, spread: 0.10, range: 8,  cooldown: 0.90, shells: 1, kick: 0.6 },
-    sawed:     { name: "Kısa Çifte",      model: "sawed",     pellets: 10, damage: 0.50, spread: 0.24, range: 4,  cooldown: 1.10, shells: 1, kick: 0.9 },
-    double:    { name: "Çifte Namlu",     model: "double",    pellets: 14, damage: 0.45, spread: 0.13, range: 7,  cooldown: 1.60, shells: 2, kick: 1.2 },
-    overUnder: { name: "Üst Üste Çifte",  model: "overUnder", pellets: 9,  damage: 0.45, spread: 0.07, range: 10, cooldown: 0.55, shells: 1, kick: 0.7 },
+    pump:      { name: "Pompalı",         model: "pump",      pellets: 8,  damage: 0.40, spread: 0.10, range: 8,  cooldown: 0.90, shells: 1, kick: 0.6, hold: { r: [-0.25, 0.075, 0], l: [0.08, 0.085, 0], handScale: 0.5, roll: 0 } },
+    sawed:     { name: "Kısa Çifte",      model: "sawed",     pellets: 10, damage: 0.50, spread: 0.24, range: 4,  cooldown: 1.10, shells: 1, kick: 0.9, hold: { r: [-0.22, 0.08, 0], l: [0.0, 0.15, 0], handScale: 0.5, roll: 0 } },
+    double:    { name: "Çifte Namlu",     model: "double",    pellets: 14, damage: 0.45, spread: 0.13, range: 7,  cooldown: 1.60, shells: 2, kick: 1.2, hold: { r: [-0.22, 0.09, 0], l: [0.05, 0.1, 0], handScale: 0.5, roll: 0 } },
+    overUnder: { name: "Üst Üste Çifte",  model: "overUnder", pellets: 9,  damage: 0.45, spread: 0.07, range: 10, cooldown: 0.55, shells: 1, kick: 0.7, hold: { r: [-0.24, 0.075, 0], l: [0.05, 0.085, 0], handScale: 0.5, roll: 0 } },
     start: "pump",
     found: ["sawed", "double", "overUnder"], // labirentte bir kez bulunur
     pickupRadius: 0.55,
   },
+  // El feneri (FlashLight pack): L tuşu / FENER düğmesi. Elde fener varken ateş edilemez.
+  flashlight: {
+    range: 11,                               // ışık huzmesinin boyu (karo)
+    coneCos: 0.80,                           // yarım açının kosinüsü (0.80 ≈ 37°); büyürse huzme daralır
+    k: 2.2,                                  // huzme parlaklığı
+    haloR: 2.2, haloK: 0.55,                 // oyuncunun etrafındaki yumuşak ışık
+    color: [1.0, 0.93, 0.78],
+    enemyBoost: 1.3,                         // fener yanıkken, ışık menzilindeki gölgeler bu kadar hızlı koşar (ışığa çekilirler)
+    models: ["fl1", "fl2", "fl3"],           // her oyunda tohuma göre biri seçilir
+    // Elde tutuş: grip = modeldeki sap konumu (el buraya gelir), scale = boyut, at = elde duruş kayması, lensY = mercek ucunun model y'si, handScale/roll = el boyu/dönüşü
+    hold: {
+      fl1: { grip: [0, -0.007, 0.039], scale: 1.7, at: [0.02, 0.0], hand: [0, 0, 0], lensY: 0.0472, handScale: 0.18, roll: 0 },
+      fl2: { grip: [0, -0.018, 0.052], scale: 1.25, at: [0.02, 0.0], hand: [0, 0, 0], lensY: 0.07, handScale: 0.18, roll: 0 },
+      fl3: { grip: [0, -0.015, 0.043], scale: 1.5, at: [0.02, 0.0], hand: [0, 0, 0], lensY: 0.0558, handScale: 0.18, roll: 0 },
+    },
+  },
+  switch: { seconds: 0.55 },                 // silah/fener değiştirme animasyonu: eski eşya iner, yenisi kalkar
   flies: { pickupRadius: 0.55, minStartDist: 6, minSpacing: 4 },
   props: {
     density: 0.26,                           // açık karoların kabaca bu kadarına dekor konur

@@ -98,7 +98,7 @@ Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
 Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
 
-## Karanlık Bataklık (gozkirpma, v3.4)
+## Karanlık Bataklık (gozkirpma, v3.5)
 Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık, mezarlık dekorlu bir bataklık labirentinde ilerlersin.
 Kural: gözlerin AÇIKKEN gölgeler (cadı, kabak kafa) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
 6 ışık böceğini topla, yakalanma. Ayrıntılı tasarım: `gozkirpma/DESIGN.md`.
@@ -110,6 +110,8 @@ Kural: gözlerin AÇIKKEN gölgeler (cadı, kabak kafa) donar; gözünü kapatt�
 - Kamerasız mod: "GÖZÜ KAPAT" düğmesi (klavyede Boşluk). Klavye: WASD yürü, Q/E ya da ok tuşları bak, F ateş, R silah değiş.
 - **Oyuncu karakteri (Hazmat):** Hazmat kıyafetli karakter giriş ekranında görünür; çok oyunculu için oyun durumunda `players` listesi ve `setPlayer()` hazır, diğer oyuncular modelle ve adlarıyla çizilir (`?players=2` ile dene).
 - **Hesap:** Giriş yap / hesap oluştur / misafir. Şifre PBKDF2-SHA256 ile saklanır, 5 yanlışta 30 sn kilit, hesap başına rekor ve istatistik. SINIR: hesaplar yalnızca bu cihazda tutulur, şifre sıfırlanamaz; çok oyunculu için sunucu gerekir (`js/auth.js` içindeki `store` değiştirilecek şekilde yazıldı).
+- **El feneri (FlashLight Pack, 3 model: her oyunda biri):** 🔦 düğmesi ya da `L`. Yönlü ışık huzmesi koridoru aydınlatır (tehlike yakınken titrer) ama menzildeki gölgeler ışığa %30 daha hızlı koşar; fenerdeyken ateş edilemez. Feneri Hazmat'ın eli sapından tutar.
+- **Eller ve geçiş animasyonu:** Hazmat kolları silahı kabzasından (sağ) ve ön tutamağından (sol) tutar. Silah↔fener ve silah↔silah geçişinde eski eşya iner, yenisi kalkar (`rules.switch.seconds`). Tutuş ayarları `rules.js` içinde (`weapons.*.hold`, `flashlight.hold`); `?play&hold=pump|light&flash=fl1..3` ile bakılır, `?r.weapons.pump.hold.r.0=-0.3` gibi değerler canlı denenir. Fener modelleri: `node tools/bake-flashlight.mjs <paket klasörü>`.
 - **Kamera internetsiz:** Yüz modeli ve MediaPipe dosyaları APK'nın içine gömülür (GitHub derlemesi `tools/fetch-mediapipe.sh` ile indirip `assets/mediapipe/` altına koyar). Gömülemezse eski gibi internetten yüklemeyi dener. Yüz algılama ~15 Hz çalışır ve yavaşsa kendini seyreltir (kasma önlemi, `rules.eyes.detectMs`); kamera 320x240.
 - **Lobi + odalar (çok oyunculu):** Menüden "Lobiye gir" (sunucu adresi gerekir). Lobide yürürsün; kuzeydeki 4 kabinden birine girince o odaya katılırsın, oda başına en fazla 10 kişi (dolu/oyundaki kabine girilemez). Odaya ilk kişi girince 50 sn sayaç başlar (`rules.lobby.countdown`); sayaç bitince oyun odadakilerle OTOMATİK başlar (başlat düğmesi yok), hepsi aynı labirentte başlar ve birbirini Hazmat olarak görür. Herkes çıkarsa sayaç durur. SINIR: gölgeler henüz oyuncular arasında eşitlenmiyor (herkes kendi gölgelerini görür).
 - **Lobi sunucusu:** `node server/server.mjs [port]` (bağımlılık yok; Node 18+). Aynı Wi-Fi'de tabletler `ip:port` yazar (örn. `192.168.1.5:8080`). İnternet üzerinden oynamak için sunucuyu bir barındırmada çalıştırıp `wss://` ile bağlan. Hesaplar cihaz içi olduğundan sunucu adı doğrulamaz; aynı ad varsa `#2` eklenir.

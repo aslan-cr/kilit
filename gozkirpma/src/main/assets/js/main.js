@@ -19,7 +19,7 @@ const STEP = 1 / 60;
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("game"), video = $("cam"), touchLayer = $("touch"), joyEl = $("joy"), knobEl = $("knob");
-const hudEl = $("hud"), msgEl = $("msg"), eyeBtn = $("eyeBtn"), fireBtn = $("fireBtn"), swapBtn = $("swapBtn");
+const hudEl = $("hud"), msgEl = $("msg"), eyeBtn = $("eyeBtn"), fireBtn = $("fireBtn"), swapBtn = $("swapBtn"), lightBtn = $("lightBtn");
 const menuEl = $("menu"), resultEl = $("result"), startBtn = $("start"), keyBtn = $("keyboard"), statusEl = $("status");
 const el = { flies: $("flies"), need: $("need"), time: $("time"), shells: $("shells"), gun: $("gun"), eyes: $("eyes"), dry: $("dryFill"), dryBox: $("dry") };
 el.need.textContent = R.goal.flies;
@@ -45,7 +45,7 @@ const ui = {
   phase: "menu",           // menu | play | scare
   scareT: 0, lid: 0, flick: 1, dip: 0, hurt: 0, puffs: [], time: 0,
   keys: { w: false, a: false, s: false, d: false, left: false, right: false, eye: false, fire: false },
-  btnEye: false, btnFire: false, tapFire: false, swap: false, lookAcc: 0,
+  btnEye: false, btnFire: false, tapFire: false, swap: false, light: false, lookAcc: 0,
   best: 0,
   speed: Math.max(1, Number(Q.get("speed") || 1)),
 };
@@ -75,6 +75,7 @@ function setKey(e, down) {
     case "Space": k.eye = down; e.preventDefault(); break;
     case "KeyF": case "Enter": k.fire = down; e.preventDefault(); break;
     case "Tab": case "KeyR": if (down) ui.swap = true; e.preventDefault(); break;
+    case "KeyL": if (down) ui.light = true; break;
   }
 }
 
@@ -132,11 +133,12 @@ function holdButton(btn, on, off) {
 holdButton(eyeBtn, () => { ui.btnEye = true; }, () => { ui.btnEye = false; });
 holdButton(fireBtn, () => { ui.btnFire = true; }, () => { ui.btnFire = false; });
 holdButton(swapBtn, () => { ui.swap = true; }, () => {});
+holdButton(lightBtn, () => { ui.light = true; }, () => {});
 
 function resetTouch() {
   joy.id = null; look.id = null; joyEl.classList.remove("on");
-  ui.btnEye = ui.btnFire = ui.tapFire = ui.swap = false; ui.lookAcc = 0;
-  for (const b of [eyeBtn, fireBtn, swapBtn]) b.classList.remove("down");
+  ui.btnEye = ui.btnFire = ui.tapFire = ui.swap = ui.light = false; ui.lookAcc = 0;
+  for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.remove("down");
 }
 
 // ---------- Girdi -> sim ----------
@@ -155,8 +157,9 @@ function humanInput(first) {
     eyes: eyesT.closed(),
     fire: k.fire || ui.btnFire || ui.tapFire,
     switchWeapon: ui.swap,
+    light: ui.light,
   };
-  if (first) { ui.lookAcc = 0; ui.tapFire = false; ui.swap = false; }
+  if (first) { ui.lookAcc = 0; ui.tapFire = false; ui.swap = false; ui.light = false; }
   return input;
 }
 
@@ -176,7 +179,7 @@ function startGame(seed = newSeed()) {
   hudEl.style.display = "flex";
   const manual = ui.mode === "keyboard";
   eyeBtn.classList.toggle("hidden", !manual);
-  fireBtn.classList.remove("hidden"); swapBtn.classList.remove("hidden");
+  fireBtn.classList.remove("hidden"); lightBtn.classList.remove("hidden"); updateSwapBtn();
   el.dryBox.classList.remove("hidden");
   showMsg(HINT_FIRST, 4200);
   updateHud(true);
@@ -185,7 +188,7 @@ function startGame(seed = newSeed()) {
 function endGame(win) {
   ui.phase = "menu";
   hudEl.style.display = "none";
-  for (const b of [eyeBtn, fireBtn, swapBtn]) b.classList.add("hidden");
+  for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
   msgEl.classList.remove("on");
   resetTouch();
   menuEl.classList.remove("off");
@@ -215,7 +218,7 @@ function endGame(win) {
 function enterScare() {
   ui.phase = "scare"; ui.scareT = 0; ui.scareHit = false; resetTouch();
   hudEl.style.display = "none"; msgEl.classList.remove("on");
-  for (const b of [eyeBtn, fireBtn, swapBtn]) b.classList.add("hidden");
+  for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
 }
 
 function onEvents() {
@@ -230,6 +233,7 @@ function onEvents() {
       case "ammo": A.playPickup(); showMsg(`Mermi kutusu: ${ev.n} mermi.`, 1600); break;
       case "gun": A.playGunPick(); showMsg(`Yeni silah: ${R.weapons[ev.weapon].name}`, 2400); break;
       case "switch": A.playGunPick(); showMsg(R.weapons[ev.weapon].name, 1200); break;
+      case "lightSlot": A.playGunPick(); showMsg("El feneri — ışığa koşan gölgelere dikkat. Fenerdeyken ateş edemezsin.", 2600); break;
       case "forcedBlink": A.playForcedBlink(); showMsg("Gözlerin yandı! Kırpmak zorundasın, gölgeler geliyor.", 2600); break;
       case "caught": enterScare(); A.playScareStart(); break;
       case "win": endGame(true); break;
@@ -239,6 +243,8 @@ function onEvents() {
 }
 function safeVibrate(p) { if (navigator.vibrate) { try { navigator.vibrate(p); } catch { /* yoksay */ } } }
 
+function updateSwapBtn() { if (g) swapBtn.classList.toggle("hidden", !(g.owned.length > 1 || g.slot === "light")); }
+
 // ---------- HUD ----------
 const hudCache = {};
 function setText(key, node, v) { if (hudCache[key] !== v) { hudCache[key] = v; node.textContent = v; } }
@@ -247,12 +253,12 @@ function updateHud() {
   setText("f", el.flies, String(g.collected));
   setText("t", el.time, String(Math.floor(g.time)));
   setText("s", el.shells, String(g.shells));
-  setText("g", el.gun, R.weapons[g.cur].name);
+  setText("g", el.gun, g.slot === "light" ? "Fener" : R.weapons[g.cur].name);
   setText("e", el.eyes, g.eyesClosed ? "KAPALI" : "açık");
   const dk = Math.min(1, g.dry / R.eyes.dryMax);
   const w = (dk * 100).toFixed(0) + "%";
   if (hudCache.d !== w) { hudCache.d = w; el.dry.style.width = w; el.dry.style.background = g.dry >= R.eyes.dryWarn ? "#d04030" : "#6fb283"; }
-  swapBtn.classList.toggle("hidden", g.owned.length < 2);
+  updateSwapBtn();
 }
 
 // ---------- Ana döngü ----------
@@ -376,7 +382,7 @@ function returnToLobby() {
   if (mp.snap) applySnapshot(g, mp.snap, mp.id);
   ui.phase = "lobby"; ui.lid = 0; ui.flick = 1;
   menuEl.classList.add("off"); hudEl.style.display = "none";
-  for (const b of [eyeBtn, fireBtn, swapBtn]) b.classList.add("hidden");
+  for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
   lobbyBar.classList.remove("hidden");
   resetTouch();
 }
@@ -554,7 +560,7 @@ async function boot() {
     return;
   }
   if (Q.has("lobby")) { if (!auth.current()) auth.guest(); showView(); requestAnimationFrame(frame); await enterLobby(); window.__ready = true; return; }
-  if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); }
+  if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); if (Q.has("hold")) { const h = Q.get("hold"); if (h === "light") { g.slot = "light"; g.lightOn = true; } else if (R.weapons[h]) { g.cur = h; if (!g.owned.includes(h)) g.owned.push(h); } if (Q.has("flash")) g.flashModel = Q.get("flash"); if (Q.has("low")) { g.sw = { t: 0.01, to: { slot: g.slot, weapon: g.cur }, applied: true }; g.raise = Number(Q.get("low")); } } }
   window.__ready = true;
   requestAnimationFrame(frame);
 }

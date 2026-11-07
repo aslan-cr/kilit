@@ -145,7 +145,56 @@ test("mermi kutusu ve silah toplanır, silah değişir", () => {
   assert.equal(g.cur, w.weapon);
   assert.ok(g.owned.includes(RULES.weapons.start) && g.owned.includes(w.weapon));
   step(g, DT, { switchWeapon: true });
+  assert.equal(g.cur, w.weapon, "geçiş animasyonu sürerken silah henüz değişmez");
+  for (let i = 0; i < 40; i++) step(g, DT, {});
   assert.equal(g.cur, RULES.weapons.start);
+});
+
+const runIn = (g, sec, input = {}) => { for (let i = 0; i < Math.round(sec / DT); i++) step(g, DT, i === 0 ? input : {}); };
+const clearEnemies = (g) => { g.enemies.forEach((e) => { e.alive = false; e.respawn = 1e9; }); };
+
+test("fener: L ile fener ele gelir; geçiş animasyonu inip kalkar, fener yarıdan sonra yanar", () => {
+  const g = createGame(5); clearEnemies(g);
+  const S = RULES.switch.seconds;
+  assert.equal(g.slot, "gun"); assert.equal(g.raise, 1); assert.equal(g.lightOn, false);
+  step(g, DT, { light: true });
+  assert.ok(g.sw, "animasyon başladı");
+  runIn(g, S / 2 - 0.05); assert.ok(g.raise < 0.15, "yarıda silah/fener tamamen aşağıda: " + g.raise); assert.equal(g.slot, "gun");
+  runIn(g, 0.1); assert.equal(g.slot, "light", "yarıdan sonra elde fener var");
+  runIn(g, S / 2 + 0.05); assert.equal(g.raise, 1); assert.equal(g.sw, null); assert.equal(g.lightOn, true);
+  step(g, DT, { light: true }); runIn(g, S + 0.1);
+  assert.equal(g.slot, "gun"); assert.equal(g.lightOn, false, "tekrar L: silaha dönülür, fener söner");
+});
+
+test("fener elindeyken ya da geçiş sırasında ateş edilemez", () => {
+  const g = createGame(5); clearEnemies(g);
+  step(g, DT, { light: true });
+  const sh = g.shells;
+  step(g, DT, { fire: true }); assert.equal(g.shells, sh, "geçiş sırasında ateş yok");
+  runIn(g, RULES.switch.seconds + 0.1);
+  step(g, DT, { fire: true }); assert.equal(g.shells, sh, "fenerdeyken ateş yok");
+  step(g, DT, { switchWeapon: true }); runIn(g, RULES.switch.seconds + 0.2);
+  assert.equal(g.slot, "gun");
+  step(g, DT, { fire: true }); assert.equal(g.shells, sh - 1, "silaha dönünce ateş eder");
+});
+
+test("fener yanıkken menzildeki gölge ışığa daha hızlı koşar, görüş hattı yoksa değişmez", () => {
+  const g = createGame(5);
+  const e = g.enemies[0]; e.x = g.px + 3; e.y = g.py; for (let x = g.px | 0; x <= (g.px | 0) + 4; x++) g.map[(g.py | 0) * g.S + x] = 0;
+  const base = enemySpeed(g, e);
+  g.lightOn = true;
+  assert.ok(Math.abs(enemySpeed(g, e) / base - RULES.flashlight.enemyBoost) < 1e-9);
+  e.x = g.px + 3; g.map[(g.py | 0) * g.S + ((g.px + 2) | 0)] = 1;
+  assert.equal(enemySpeed(g, e), base, "araya duvar girince (görüş hattı yok) hızlanmaz");
+  g.map[(g.py | 0) * g.S + ((g.px + 2) | 0)] = 0;
+  e.x = g.px + RULES.flashlight.range + 1; assert.equal(enemySpeed(g, e), base, "menzil dışında hızlanmaz");
+  g.lightOn = false; e.x = g.px + 3; assert.equal(enemySpeed(g, e), base);
+});
+
+test("her oyunda tohuma göre üç fener modelinden biri seçilir", () => {
+  const seen = new Set();
+  for (let s = 1; s <= 6; s++) seen.add(createGame(s).flashModel);
+  assert.deepEqual([...seen].sort(), RULES.flashlight.models.slice().sort());
 });
 
 test("çifte namlu atış başına 2 mermi harcar", () => {

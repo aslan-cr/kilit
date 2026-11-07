@@ -159,6 +159,7 @@ export function createGame(seed = 1, rules = RULES) {
     px: 1.5, py: 1.5, yaw, bob: 0, moving: 0,
     enemies, flies, boxes, gunItems, props, lights, players: [],      // players: diğer oyuncular (çok oyunculu için), {id,name,x,y,yaw,walk,moving}
     shells: R.ammo.start, owned: [R.weapons.start], cur: R.weapons.start, cooldown: 0, recoil: 0, flash: 0,
+    slot: "gun", sw: null, raise: 1, lightOn: false, flashModel: R.flashlight.models[seed % R.flashlight.models.length],   // elde: silah ya da fener; sw = geçiş animasyonu
     collected: 0, time: 0, kills: 0, shots: 0, hits: 0,
     eyesClosed: false, forced: 0, dry: 0, danger: 0,
     state: "play", killer: -1, events: [],
@@ -244,7 +245,12 @@ function updateEyes(g, dt, input) {
 // ---------- Düşmanlar ----------
 export function enemySpeed(g, e) {
   const E = g.rules.enemies;
-  return (E.baseSpeed + E.speedPerFly * g.collected) * E.types[e.type].speed;
+  let v = (E.baseSpeed + E.speedPerFly * g.collected) * E.types[e.type].speed;
+  if (g.lightOn) {                                   // fener yanıkken menzildeki gölgeler ışığa koşar
+    const F = g.rules.flashlight;
+    if (Math.hypot(e.x - g.px, e.y - g.py) < F.range && hasLine(g, g.px, g.py, e.x, e.y)) v *= F.enemyBoost;
+  }
+  return v;
 }
 
 function moveEnemy(g, e, dt, dist) {
@@ -295,7 +301,7 @@ export function weaponDef(g) { return g.rules.weapons[g.cur]; }
 
 function fire(g) {
   const W = weaponDef(g);
-  if (g.cooldown > 0 || g.state !== "play") return;
+  if (g.cooldown > 0 || g.state !== "play" || g.slot !== "gun" || g.sw) return;   // fener elindeyken ya da geçiş sırasında ateş yok
   if (g.shells < W.shells) { if (!g.dryClick || g.dryClick <= 0) { emit(g, { t: "empty" }); g.dryClick = 0.4; } return; }
   g.shells -= W.shells;
   g.cooldown = W.cooldown;
@@ -331,12 +337,37 @@ function fire(g) {
   }
 }
 
-function switchWeapon(g) {
+const ease = (x) => x * x * (3 - 2 * x);
+// Geçiş: eski eşya iner (yarı süre), değişir, yenisi kalkar. to: { slot: "gun", weapon } ya da { slot: "light" }
+function beginSwitch(g, to) {
+  if (g.sw) return;
+  if (to.slot === g.slot && (to.slot === "light" || to.weapon === g.cur)) return;
+  g.sw = { t: 0, to, applied: false };
+  emit(g, { t: "switchStart", slot: to.slot });
+}
+function updateSwitch(g, dt) {
+  const sw = g.sw, S = g.rules.switch.seconds;
+  if (!sw) { g.raise = 1; g.lightOn = g.slot === "light"; return; }
+  sw.t += dt;
+  if (!sw.applied && sw.t >= S / 2) {
+    sw.applied = true; g.slot = sw.to.slot;
+    if (sw.to.slot === "gun") { g.cur = sw.to.weapon; g.cooldown = Math.max(g.cooldown, 0.2); emit(g, { t: "switch", weapon: g.cur }); }
+    else emit(g, { t: "lightSlot" });
+  }
+  if (sw.t >= S) { g.sw = null; g.raise = 1; }
+  else { const p = sw.t / S; g.raise = p < 0.5 ? 1 - ease(p * 2) : ease((p - 0.5) * 2); }
+  g.lightOn = g.slot === "light" && g.raise > 0.45;
+}
+function switchWeapon(g) {                           // R / SİLAH DEĞİŞ: fenerdeyken silaha döner, değilse sıradaki silaha geçer
+  if (g.sw) return;
+  if (g.slot === "light") return beginSwitch(g, { slot: "gun", weapon: g.cur });
   if (g.owned.length < 2) return;
   const i = g.owned.indexOf(g.cur);
-  g.cur = g.owned[(i + 1) % g.owned.length];
-  g.cooldown = Math.max(g.cooldown, 0.35);
-  emit(g, { t: "switch", weapon: g.cur });
+  beginSwitch(g, { slot: "gun", weapon: g.owned[(i + 1) % g.owned.length] });
+}
+function toggleLight(g) {
+  if (g.sw) return;
+  beginSwitch(g, g.slot === "light" ? { slot: "gun", weapon: g.cur } : { slot: "light" });
 }
 
 // ---------- Ana adım ----------
@@ -350,7 +381,9 @@ export function step(g, dt, input = {}) {
 
   updateEyes(g, dt, input);
   movePlayer(g, dt, input);
+  updateSwitch(g, dt);
   if (input.switchWeapon) switchWeapon(g);
+  if (input.light) toggleLight(g);
   if (input.fire) fire(g);
 
   // Gölgeler yalnızca gözler KAPALIYKEN ilerler
@@ -381,7 +414,7 @@ export function step(g, dt, input = {}) {
   for (const o of g.gunItems) if (!o.taken && Math.hypot(o.x - g.px, o.y - g.py) < g.rules.weapons.pickupRadius) {
     o.taken = true;
     if (!g.owned.includes(o.weapon)) g.owned.push(o.weapon);
-    g.cur = o.weapon;
+    g.cur = o.weapon; g.slot = "gun"; g.sw = null; g.raise = 1; g.lightOn = false;
     emit(g, { t: "gun", weapon: o.weapon });
   }
   // Yakalanma

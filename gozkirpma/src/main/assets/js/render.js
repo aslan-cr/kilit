@@ -3,6 +3,13 @@
 import { RULES } from "./rules.js";
 import { rayWall } from "./sim.js";
 
+// Yönlü (huzme) ışık için konik çarpan: ışığın önünde 1, yan tarafta 0 (karekök yok)
+function coneF(L, dx, dy, d2) {
+  const dp = dx * L.dx + dy * L.dy;
+  if (dp <= 0) return 0;
+  const cc = (dp * dp) / (d2 + 1e-6), f = (cc - L.c0) / (1 - L.c0);
+  return f <= 0 ? 0 : f >= 1 ? 1 : f * f * (3 - 2 * f);
+}
 const FOV_K = 0.66;
 const NEAR = 0.1;
 const AMB = 0.018;
@@ -23,7 +30,7 @@ export async function loadModels(base = "models/") {
     }
     return m;
   };
-  const M = { props: {}, chars: {}, guns: {} };
+  const M = { props: {}, chars: {}, guns: {}, flash: {} };
   for (const [k, m] of Object.entries(json.props)) M.props[k] = prep(m, k);
   for (const [k, m] of Object.entries(json.chars)) {
     M.chars[k] = prep(m, k);
@@ -32,7 +39,27 @@ export async function loadModels(base = "models/") {
   for (const [k, m] of Object.entries(json.guns)) {
     M.guns[k] = { name: k, P: Float32Array.from(m.pos), UV: Float32Array.from(m.uv), I: Uint32Array.from(m.idx), tex: await loadTex(base.replace(/models\/$/, "") + m.tex) };
   }
+  for (const [k, m] of Object.entries(json.flash || {})) {
+    M.flash[k] = { name: k, P: Float32Array.from(m.pos), UV: Float32Array.from(m.uv), I: Uint32Array.from(m.idx), tex: await loadTex(base.replace(/models\/$/, "") + m.tex) };
+  }
+  prepArms(M);
   return M;
+}
+// Hazmat kollarını birinci şahıs eli olarak hazırla: eldiven merkezi (bilek ucu) ve omuza giden eksen
+function prepArms(M) {
+  const h = M.chars.hazmat;
+  if (!h) return;
+  M.arms = { tex: h.texData };
+  for (const part of h.parts) {
+    if (part.name !== "armL" && part.name !== "armR") continue;
+    const P = part.P, n = P.length / 3;
+    let ymin = Infinity, ymax = -Infinity;
+    for (let i = 0; i < n; i++) { ymin = Math.min(ymin, P[i * 3 + 1]); ymax = Math.max(ymax, P[i * 3 + 1]); }
+    const avg = (pred) => { const c = [0, 0, 0]; let k = 0; for (let i = 0; i < n; i++) if (pred(P[i * 3 + 1])) { c[0] += P[i * 3]; c[1] += P[i * 3 + 1]; c[2] += P[i * 3 + 2]; k++; } return c.map((x) => x / (k || 1)); };
+    const hand = avg((y) => y < ymin + 0.16), sh = avg((y) => y > ymax - 0.2);
+    const A = [sh[0] - hand[0], sh[1] - hand[1], sh[2] - hand[2]], L = Math.hypot(...A);
+    M.arms[part.name] = { part, hand, A: A.map((x) => x / L) };
+  }
 }
 function loadTex(url) {
   return new Promise((res) => {
@@ -231,12 +258,18 @@ export class Renderer {
   // En yakın birkaç ışık kaynağı (jack-o'-lantern, mum, lamba)
   nearLights(g, cam) {
     const arr = [];
+    const F = g.rules.flashlight, fl = [];
+    if (g.lightOn) {                                          // el feneri: yönlü huzme + yumuşak hale
+      const dng = g.danger || 0, jitter = dng > 0.3 && Math.random() < dng * 0.25 ? 0.25 : 1;   // tehlikede titrer
+      fl.push({ x: cam.x, y: cam.y, r: F.range, k: F.k * jitter, c: F.color, cone: true, dx: cam.dirX, dy: cam.dirY, c0: F.coneCos * F.coneCos });
+      fl.push({ x: cam.x, y: cam.y, r: F.haloR, k: F.haloK * jitter, c: F.color });
+    }
     for (const l of g.lights) {
       const d2 = (l.x - cam.x) ** 2 + (l.y - cam.y) ** 2;
       if (d2 < (l.r + 7) ** 2) arr.push({ l, d2 });
     }
     arr.sort((a, b) => a.d2 - b.d2);
-    return arr.slice(0, 4).map((a) => a.l);
+    return fl.concat(arr.slice(0, 4 - (fl.length ? 2 : 0)).map((a) => a.l));
   }
 
   world(g, cam, fx, noEnv = false) {
@@ -273,8 +306,8 @@ export class Renderer {
           const ti = (ty * 64 + tx) * 3;
           let lr = sh * TINT[0], lg = sh * TINT[1], lb = sh * TINT[2];
           for (let k = 0; k < NL; k++) {
-            const L = lights[k], ddx = fx2 - L.x, ddy = fy2 - L.y, q = 1 - (ddx * ddx + ddy * ddy) / (L.r * L.r);
-            if (q > 0) { const a = q * q * L.k * this.flick; lr += a * L.c[0]; lg += a * L.c[1]; lb += a * L.c[2]; }
+            const L = lights[k], ddx = fx2 - L.x, ddy = fy2 - L.y, d2 = ddx * ddx + ddy * ddy, q = 1 - d2 / (L.r * L.r);
+            if (q > 0) { let a = q * q * L.k * this.flick; if (L.cone) a *= coneF(L, ddx, ddy, d2); lr += a * L.c[0]; lg += a * L.c[1]; lb += a * L.c[2]; }
           }
           const m = mul * vig[base + x] * (0.92 + noise[(base + x + noiseOff) & 4095] * 0.16);
           buf32[base + x] = px32(tex[ti] * lr * m, tex[ti + 1] * lg * m, tex[ti + 2] * lb * m);
@@ -311,8 +344,8 @@ export class Renderer {
         if (NL) {
           const hx = cam.x + perp * rdx, hy = cam.y + perp * rdy;
           for (let k = 0; k < NL; k++) {
-            const L = lights[k], ddx2 = hx - L.x, ddy2 = hy - L.y, q = 1 - (ddx2 * ddx2 + ddy2 * ddy2) / (L.r * L.r);
-            if (q > 0) { const a = q * q * L.k * this.flick; lr += a * L.c[0]; lg += a * L.c[1]; lb += a * L.c[2]; }
+            const L = lights[k], ddx2 = hx - L.x, ddy2 = hy - L.y, d22 = ddx2 * ddx2 + ddy2 * ddy2, q = 1 - d22 / (L.r * L.r);
+            if (q > 0) { let a = q * q * L.k * this.flick; if (L.cone) a *= coneF(L, ddx2, ddy2, d22); lr += a * L.c[0]; lg += a * L.c[1]; lb += a * L.c[2]; }
           }
         }
         const stepT = 64 / lineH;
@@ -486,7 +519,7 @@ export class Renderer {
     let r = 0, g = 0, b = 0;
     for (const L of this.lightsNow) {
       const dx = x - L.x, dy = y - L.y, q = 1 - (dx * dx + dy * dy) / (L.r * L.r);
-      if (q > 0 && (dx * dx + dy * dy) > exceptSelf) { const a = q * q * L.k * this.flick; r += a * L.c[0]; g += a * L.c[1]; b += a * L.c[2]; }
+      if (q > 0 && (dx * dx + dy * dy) > exceptSelf) { let a = q * q * L.k * this.flick; if (L.cone) a *= coneF(L, dx, dy, dx * dx + dy * dy); r += a * L.c[0]; g += a * L.c[1]; b += a * L.c[2]; }
     }
     return [r, g, b];
   }
@@ -671,24 +704,86 @@ export class Renderer {
   }
 
   // ----- Elde tutulan silah -----
+  // Elde tutulan eşya (silah ya da fener) + onu tutan eller. Geçişte eşya aşağı iner / yukarı kalkar (g.raise 1 -> 0 -> 1).
   drawGun(g, fx) {
-    const W = g.rules.weapons[g.cur], gun = this.M.guns[W.model];
-    if (!gun) return;
+    const R = g.rules, light = g.slot === "light";
+    const W = R.weapons[g.cur];
+    const item = light ? this.M.flash[g.flashModel] : this.M.guns[W.model];
+    if (!item) return;
     this.dbuf.fill(Infinity);
-    const gs = 0.66, kick = g.recoil * (0.12 + 0.05 * W.kick), rack = g.cooldown > 0 ? Math.sin(Math.min(1, g.cooldown / W.cooldown) * Math.PI) * 0.05 : 0;
-    const bobx = Math.sin(g.bob * 0.5) * 0.012 * g.moving, boby = Math.abs(Math.sin(g.bob * 0.5)) * 0.012 * g.moving;
-    const pitch = g.recoil * (0.28 + 0.1 * W.kick) + rack * 1.2;
+    const low = 1 - g.raise;                                   // 0 = elde, 1 = tamamen aşağıda
+    const gs = light ? 1 : 0.66, kick = light ? 0 : g.recoil * (0.12 + 0.05 * W.kick);
+    const rack = !light && g.cooldown > 0 ? Math.sin(Math.min(1, g.cooldown / W.cooldown) * Math.PI) * 0.05 : 0;
+    const walk = g.moving, bobx = Math.sin(g.bob * 0.5) * (light ? 0.016 : 0.012) * walk, boby = Math.abs(Math.sin(g.bob * 0.5)) * (light ? 0.016 : 0.012) * walk;
+    const pitch = (light ? 0 : g.recoil * (0.28 + 0.1 * W.kick) + rack * 1.2) - low * 0.55;
     const cp = Math.cos(pitch), sp = Math.sin(pitch);
-    const F0 = 0.74 - kick, L0 = 0.15 + bobx, V0 = -0.205 + boby;
-    const V = new Float32Array(gun.P.length);
-    for (let k = 0; k < gun.P.length; k += 3) {
-      const f = gun.P[k] * gs, u = gun.P[k+1] * gs, s = gun.P[k+2] * gs;
-      const fr = f * cp - u * sp, ur = f * sp + u * cp;
-      V[k + 2] = F0 + fr; V[k + 1] = V0 + ur; V[k] = L0 + s - fr * 0.13;
+    const F0 = (light ? 0.72 : 0.74) - kick - low * 0.05, L0 = (light ? 0.2 : 0.15) + bobx + low * 0.1, V0 = (light ? -0.19 : -0.205) + boby - low * 0.62;
+    // (f,u,s) takım koordinatı -> görüş uzayı [x, y, derinlik]
+    const place = (f, u, s, out, o) => { const fr = f * cp - u * sp, ur = f * sp + u * cp; out[o] = L0 + s - fr * 0.13; out[o + 1] = V0 + ur; out[o + 2] = F0 + fr; };
+    const V = new Float32Array(item.P.length);
+    let spec;
+    if (light) {
+      spec = R.flashlight.hold[g.flashModel];
+      const sc = spec.scale;
+      for (let k = 0; k < item.P.length; k += 3) {            // fener: lens +y -> ileri, sap +z -> aşağı
+        const x = item.P[k] - spec.grip[0], y = item.P[k + 1] - spec.grip[1], z = item.P[k + 2] - spec.grip[2];
+        place((y + spec.at[0]) * sc, (-z + spec.at[1]) * sc, -x * sc, V, k);
+      }
+    } else {
+      spec = W.hold;
+      for (let k = 0; k < item.P.length; k += 3) place(item.P[k] * gs, item.P[k + 1] * gs, item.P[k + 2] * gs, V, k);
     }
-    const bright = 0.72 + g.flash * 1.2 + 0.15 * this.flick;
+    const bright = (light ? 0.9 : 0.72) + (light ? 0 : g.flash * 1.2) + 0.15 * this.flick;
     const col = (ti, d, facing) => { const l = bright * (0.55 + 0.45 * facing); return [l, l, l * 0.95]; };
-    this.drawViewMesh(V, gun.I, col, { tex: gun.tex, uv: gun.UV, gun: true });
+    this.drawViewMesh(V, item.I, col, { tex: item.tex, uv: item.UV, gun: true });
+
+    // Eller: sağ el kabzayı/feneri sapından tutar, sol el silahın ön tutamağında
+    const arms = this.M.arms;
+    if (arms) {
+      const hands = light ? [["armR", spec.hand, 1]] : [["armR", spec.r, 1], ["armL", spec.l, -1]];
+      for (const [name, pt, side] of hands) {
+        const arm = arms[name];
+        if (!arm || !pt) continue;
+        const sa = (light ? spec.handScale : spec.handScale) * (light ? 1 : gs);
+        const G = [0, 0, 0], D = [0, 0, 0];
+        if (light) place((spec.at[0] + pt[0]) * spec.scale, (spec.at[1] + pt[1]) * spec.scale, pt[2] * spec.scale, G, 0);
+        else place(pt[0] * gs, pt[1] * gs, pt[2] * gs, G, 0);
+        const back = [-1.0, -0.62, 0.34 * side];                // bilekten omuza: geriye, aşağıya, dışa
+        const fr = back[0] * cp - back[1] * sp, ur = back[0] * sp + back[1] * cp;
+        D[0] = back[2] - fr * 0.13; D[1] = ur; D[2] = fr;
+        this.drawArm(arm, arms.tex, G, D, sa, spec.roll || 0, (ti, d, f) => { const c = col(ti, d, f); return [c[0] * 1.45, c[1] * 1.45, c[2] * 1.4]; });
+      }
+    }
+    // Fener merceğinin ekran konumu: 2B parlama için
+    this._lens = null;
+    if (light && g.lightOn) {
+      const t = [0, 0, 0]; place((spec.lensY - spec.grip[1] + spec.at[0]) * spec.scale, spec.at[1] * spec.scale, 0, t, 0);
+      if (t[2] > NEAR) this._lens = { x: this.RW / 2 + (t[0] * this.SC) / t[2], y: this.RH / 2 - (t[1] * this.SC) / t[2], d: t[2] };
+    }
+  }
+
+  // Kolu eldiven ucu G'de olacak, omuz yönü D'ye bakacak şekilde görüş uzayına yerleştirip çiz
+  drawArm(arm, tex, G, D, scale, roll, col) {
+    const part = arm.part, P = part.P, A = arm.A, hand = arm.hand;
+    const dl = Math.hypot(D[0], D[1], D[2]) || 1, a = [D[0] / dl, D[1] / dl, D[2] / dl];
+    // A -> a döndürme (en kısa yay), sonra a etrafında roll
+    let ax = [A[1] * a[2] - A[2] * a[1], A[2] * a[0] - A[0] * a[2], A[0] * a[1] - A[1] * a[0]];
+    const sin = Math.hypot(...ax), cos = A[0] * a[0] + A[1] * a[1] + A[2] * a[2];
+    if (sin > 1e-6) ax = ax.map((x) => x / sin); else ax = [1, 0, 0];
+    const rot = (v) => {                                       // Rodrigues
+      const d = ax[0] * v[0] + ax[1] * v[1] + ax[2] * v[2];
+      const cr = [ax[1] * v[2] - ax[2] * v[1], ax[2] * v[0] - ax[0] * v[2], ax[0] * v[1] - ax[1] * v[0]];
+      return [v[0] * cos + cr[0] * sin + ax[0] * d * (1 - cos), v[1] * cos + cr[1] * sin + ax[1] * d * (1 - cos), v[2] * cos + cr[2] * sin + ax[2] * d * (1 - cos)];
+    };
+    const cr2 = Math.cos(roll), sr2 = Math.sin(roll);
+    const roll2 = (v) => { const d = a[0] * v[0] + a[1] * v[1] + a[2] * v[2], c = [a[1] * v[2] - a[2] * v[1], a[2] * v[0] - a[0] * v[2], a[0] * v[1] - a[1] * v[0]];
+      return [v[0] * cr2 + c[0] * sr2 + a[0] * d * (1 - cr2), v[1] * cr2 + c[1] * sr2 + a[1] * d * (1 - cr2), v[2] * cr2 + c[2] * sr2 + a[2] * d * (1 - cr2)]; };
+    const V = new Float32Array(P.length);
+    for (let k = 0; k < P.length; k += 3) {
+      const r = roll2(rot([P[k] - hand[0], P[k + 1] - hand[1], P[k + 2] - hand[2]]));
+      V[k] = G[0] + r[0] * scale; V[k + 1] = G[1] + r[1] * scale; V[k + 2] = G[2] + r[2] * scale;
+    }
+    this.drawViewMesh(V, part.I, col, { tex, uv: part.UV, gun: true });
   }
 
   // ----- Son işlemler (2B katman) -----
@@ -705,6 +800,7 @@ export class Renderer {
       ctx.restore();
     }
     if (g.state === "play") this.drawGunPost(g, fx);
+    if (g.state === "play" && g.slot === "light") this.drawLensGlow(g);
     if (g.danger > 0.05) {
       const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * 0.25, RW / 2, RH / 2, RH * 0.95);
       gr.addColorStop(0, "rgba(90,0,0,0)"); gr.addColorStop(1, `rgba(90,0,0,${(g.danger * 0.55).toFixed(3)})`);
@@ -731,6 +827,18 @@ export class Renderer {
   }
 
   // Silah: 3B çizimden sonra, namlu ateşi parlaması için 2B katman
+  // Fener merceği: ışık yanıkken parlama + hafif ışık sütunu (2B, toplamalı)
+  drawLensGlow(g) {
+    const L = this._lens;
+    if (!L) return;
+    const ctx = this.ctx, RW = this.RW, RH = this.RH, r = RH * 0.34;
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    const gr = ctx.createRadialGradient(L.x, L.y, 1, L.x, L.y, r);
+    gr.addColorStop(0, "rgba(255,244,210,.75)"); gr.addColorStop(0.25, "rgba(255,225,160,.3)"); gr.addColorStop(1, "rgba(255,200,120,0)");
+    ctx.fillStyle = gr; ctx.fillRect(L.x - r, L.y - r, r * 2, r * 2);
+    ctx.restore();
+  }
+
   drawGunPost(g, fx) {
     if (g.flash > 0.02) {
       const ctx = this.ctx, RW = this.RW, RH = this.RH;
