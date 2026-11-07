@@ -46,7 +46,7 @@ jobs:
             done < "$f"
           done
       - name: Kamera modelini uygulamaya göm (gozkirpma, internetsiz çalışsın)
-        run: sh gozkirpma/tools/fetch-mediapipe.sh || echo "UYARI: kamera modeli indirilemedi, uygulama internetten yüklemeyi deneyecek"
+        run: sh gozkirpma/tools/fetch-mediapipe.sh || echo "UYARI - kamera modeli indirilemedi, uygulama internetten yuklemeyi deneyecek"
       - name: APK derle
         run: gradle assembleDebug
       - name: APK dosyalarini topla
