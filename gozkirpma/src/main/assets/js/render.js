@@ -18,12 +18,17 @@ export async function loadModels(base = "models/") {
       p.I = Uint32Array.from(p.idx);
       p.arm = /Arm(Left|Right)/i.test(p.name) ? (/Left/i.test(p.name) ? 1 : -1) : 0;
       p.hat = /Hat/i.test(p.name);
+      p.UV = p.uv ? Float32Array.from(p.uv) : null;       // dokulu karakter (Hazmat)
+      p.side = /L$/.test(p.name) ? 1 : -1;
     }
     return m;
   };
   const M = { props: {}, chars: {}, guns: {} };
   for (const [k, m] of Object.entries(json.props)) M.props[k] = prep(m, k);
-  for (const [k, m] of Object.entries(json.chars)) M.chars[k] = prep(m, k);
+  for (const [k, m] of Object.entries(json.chars)) {
+    M.chars[k] = prep(m, k);
+    if (m.tex) M.chars[k].texData = await loadTex(base.replace(/models\/$/, "") + m.tex);
+  }
   for (const [k, m] of Object.entries(json.guns)) {
     M.guns[k] = { name: k, P: Float32Array.from(m.pos), UV: Float32Array.from(m.uv), I: Uint32Array.from(m.idx), tex: await loadTex(base.replace(/models\/$/, "") + m.tex) };
   }
@@ -87,7 +92,8 @@ function px32(r, g, b) {
 
 // ---------- Çizici ----------
 export class Renderer {
-  constructor(canvas, models) {
+  constructor(canvas, models, opts = {}) {
+    this.fixed = opts.size || null;                      // [w, h]: pencereden bağımsız sabit çözünürlük
     this.canvas = canvas; this.ctx = canvas.getContext("2d");
     this.M = models; this.frameNo = 0;
     this.flick = 1; this.amb = AMB;
@@ -96,6 +102,13 @@ export class Renderer {
 
   resize() {
     const w = window.innerWidth || 800, h = window.innerHeight || 450;
+    if (this.fixed) {
+      const RW = (this.RW = this.fixed[0]), RH = (this.RH = this.fixed[1]);
+      this.SC = RW / (2 * FOV_K); this.canvas.width = RW; this.canvas.height = RH;
+      this.img = this.ctx.createImageData(RW, RH); this.buf32 = new Uint32Array(this.img.data.buffer);
+      this.zbuf = new Float32Array(RW); this.dbuf = new Float32Array(RW * RH); this.vig = new Float32Array(RW * RH).fill(1);
+      return;
+    }
     const q = this.quality || 1;                      // yavaş cihazda ana.js kaliteyi düşürür
     const RW = (this.RW = Math.max(150, Math.min(400, Math.round((w / 2.2) * q))));
     const RH = (this.RH = Math.max(90, Math.min(340, Math.round((RW * h) / w))));
@@ -317,7 +330,9 @@ export class Renderer {
     // Modeller
     if (!noEnv) this.drawProps(g);
     this.drawItems(g, cam, fx);
+    this.labels = [];
     this.drawEnemies(g, cam, fx);
+    this.drawPlayers(g, cam);
     if (!noEnv) this.drawGlows(g, cam, fx);
   }
 
@@ -485,7 +500,13 @@ export class Renderer {
     for (const p of model.parts) {
       if (!p._W || p._W.length < p.P.length) p._W = new Float32Array(p.P.length);
       this.placePart(p, s, yaw, ox, oy, oh, anim ? anim(p) : 0, p._W);
-      this.drawWorldMesh(p._W, p.I, colorOf(p.mat), cam);
+      if (model.texData && p.UV) {
+        const amb = this.amb, k = this.flick;
+        this.drawWorldMesh(p._W, p.I, (ti, d, facing) => {
+          const lit = (this.light(d) - amb) * (0.35 + 0.65 * facing) + amb;
+          return [lit * TINT[0] + objL[0], lit * TINT[1] + objL[1], lit * TINT[2] + objL[2]];
+        }, cam, { tex: model.texData, uv: p.UV });
+      } else this.drawWorldMesh(p._W, p.I, colorOf(p.mat), cam);
     }
   }
 
@@ -498,6 +519,32 @@ export class Renderer {
       if (dd < -1.2 || dd > 9.5) continue;
       this.drawModel(model, sc[p.kind] || 0.25, p.yaw, p.x, p.y, 0, g, null, 0);
     }
+  }
+
+  // Diğer oyuncular (çok oyunculu için): Hazmat karakteri, yürürken kol ve bacak sallar, üstünde isim etiketi
+  drawPlayers(g, cam) {
+    const P = g.players;
+    if (!P || !P.length) return;
+    const model = this.M.chars[g.rules.player.model], sc = g.rules.player.scale;
+    if (!model) return;
+    for (const pl of P) {
+      const sw = Math.sin((pl.walk || 0) * 1.2) * 0.6 * Math.min(1, pl.moving ?? 1);
+      this.drawModel(model, sc, pl.yaw || 0, pl.x, pl.y, Math.abs(sw) * 0.02, g,
+        (p) => (p.swing === 1 ? -sw * p.side * 0.9 : p.swing === 2 ? sw * p.side : 0), 0);
+      if (pl.name) {
+        const rx = pl.x - cam.x, ry = pl.y - cam.y, d = rx * cam.dirX + ry * cam.dirY, l = -rx * cam.dirY + ry * cam.dirX;
+        if (d > 0.3 && d < 9 && d < (this.zbuf[Math.max(0, Math.min(this.RW - 1, Math.round(this.RW / 2 + (l / d) * this.SC)))] + 0.2)) (this.labels = this.labels || []).push({ t: pl.name, x: this.RW / 2 + (l / d) * this.SC, y: cam.horizon - ((model.bb.max[1] * sc + 0.06 - cam.eye) / d) * this.SC, d });
+      }
+    }
+  }
+
+  // Menü/giriş ekranındaki dönen avatar önizlemesi (ayrı küçük canvas, sabit çözünürlük)
+  renderAvatar(time) {
+    const R = this.rulesRef || RULES, RW = this.RW, RH = this.RH;
+    const g = { rules: R, map: new Uint8Array(100), S: 10, props: [], enemies: [], flies: [], boxes: [], gunItems: [], lights: [], players: [{ x: 0.5, y: 0, yaw: time * 0.9 + 2.4, walk: time * 5, moving: 0.0 }], px: 0, py: 0, yaw: 0, bob: 0, moving: 0 };
+    this.flick = 2.2;
+    this.world(g, { x: 0, y: 0, yaw: 0, eye: 0.34, bob: 0, time }, { time, flick: 2.2, puffs: [] }, true);
+    this.ctx.putImageData(this.img, 0, 0);
   }
 
   drawEnemies(g, cam, fx) {
@@ -633,6 +680,15 @@ export class Renderer {
   // ----- Son işlemler (2B katman) -----
   post(g, fx) {
     const ctx = this.ctx, RW = this.RW, RH = this.RH, R = g.rules;
+    if (this.labels && this.labels.length) {            // diğer oyuncuların isimleri
+      ctx.save(); ctx.textAlign = "center"; ctx.font = `bold ${Math.max(9, Math.round(RW / 34))}px system-ui, sans-serif`;
+      for (const L of this.labels) {
+        const a = Math.max(0.25, Math.min(1, 1.4 - L.d / 8));
+        ctx.fillStyle = `rgba(0,0,0,${(a * 0.6).toFixed(2)})`; ctx.fillText(L.t, L.x + 1, L.y + 1);
+        ctx.fillStyle = `rgba(210,255,220,${a.toFixed(2)})`; ctx.fillText(L.t, L.x, L.y);
+      }
+      ctx.restore();
+    }
     if (g.state === "play") this.drawGunPost(g, fx);
     if (g.danger > 0.05) {
       const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * 0.25, RW / 2, RH / 2, RH * 0.95);

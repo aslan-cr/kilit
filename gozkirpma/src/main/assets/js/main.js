@@ -2,12 +2,13 @@
 // Hata ayıklama kancaları: ?seed=N  ?play  ?sim=N (bot N sn oynar, son kare çizilir)  ?autoplay&speed=4
 //                          ?scare  ?gallery=0..3  ?r.enemies.count=3 (rules.js'teki sayıyı değiştir)
 import { RULES, applyOverrides } from "./rules.js";
-import { createGame, step, rng } from "./sim.js";
+import { createGame, step, rng, setPlayer } from "./sim.js";
 import { makeBot } from "./bot.js";
 import { Renderer, loadModels } from "./render.js";
 import * as A from "./audio.js";
 import { makeEyeTracker, loadLandmarker, openCamera } from "./eyes.js";
 import { ruleLines, HINT_FIRST } from "./texts.js";
+import { createAuth } from "./auth.js";
 
 const Q = new URLSearchParams(location.search);
 const R = applyOverrides(RULES, location.search);
@@ -21,6 +22,10 @@ const el = { flies: $("flies"), need: $("need"), time: $("time"), shells: $("she
 el.need.textContent = R.goal.flies;
 $("rules").innerHTML = ruleLines(R).map((t) => `<li>${t}</li>`).join("");
 
+const auth = createAuth();
+const loginView = $("loginView"), mainView = $("mainView"), authForm = $("authForm"), authMsg = $("authMsg"), authBtn = $("authBtn");
+const tabLogin = $("tabLogin"), tabReg = $("tabReg"), userIn = $("user"), passIn = $("pass"), pass2In = $("pass2");
+let regMode = false, avatarR = null;
 const safeGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const safeSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* yoksay */ } };
 const setStatus = (t) => { statusEl.textContent = t; };
@@ -38,7 +43,7 @@ const ui = {
   scareT: 0, lid: 0, flick: 1, dip: 0, hurt: 0, puffs: [], time: 0,
   keys: { w: false, a: false, s: false, d: false, left: false, right: false, eye: false, fire: false },
   btnEye: false, btnFire: false, tapFire: false, swap: false, lookAcc: 0,
-  best: Number(safeGet("gk_best_time") || 0),
+  best: 0,
   speed: Math.max(1, Number(Q.get("speed") || 1)),
 };
 let g = null, renderer = null, bot = null, acc = 0, last = performance.now();
@@ -49,6 +54,7 @@ window.GAME = { get g() { return g; }, get renderer() { return renderer; }, R, u
 addEventListener("keydown", (e) => setKey(e, true));
 addEventListener("keyup", (e) => setKey(e, false));
 function setKey(e, down) {
+  if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;   // giriş formunda yazarken oyun tuşları çalışmasın
   const k = ui.keys;
   switch (e.code) {
     case "KeyW": case "ArrowUp": k.w = down; e.preventDefault(); break;
@@ -176,14 +182,18 @@ function endGame(win) {
   menuEl.classList.remove("off");
   startBtn.textContent = ui.mode === "camera" ? "Tekrar oyna" : "Kamerayı aç ve başla";
   if (win) {
-    const t = Math.round(g.time);
+    const t = Math.round(g.time), before = auth.stats().best;
+    const st = auth.recordGame({ win: true, time: g.time, kills: g.kills });
     let line = `Kurtuldun! Süre: ${t} sn, ${g.kills} gölge vurdun.`;
-    if (!ui.best || t < ui.best) { ui.best = t; safeSet("gk_best_time", String(t)); line += " Yeni rekor!"; } else line += ` Rekor: ${ui.best} sn.`;
+    line += !before || t < before ? " Yeni rekor!" : ` Rekor: ${before} sn.`;
+    ui.best = st.best;
     resultEl.style.color = "#b6f0c0"; resultEl.textContent = line;
   } else {
+    auth.recordGame({ win: false, time: g.time, kills: g.kills });
     resultEl.style.color = "#ffb4a8";
     resultEl.textContent = `Seni yakaladılar. ${g.collected}/${R.goal.flies} ışık böceği toplamıştın.`;
   }
+  showView();
   setStatus(ui.mode === "camera" ? "Tekrar denemek için butona bas." : "Tekrar denemek için bir mod seç.");
 }
 
@@ -235,6 +245,7 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   ui.time = now / 1000;
+  if (avatarR && ui.phase === "menu" && !loginView.classList.contains("hidden")) avatarR.renderAvatar(ui.time);
 
   if (g && renderer) {
     if (ui.phase === "play") {
@@ -283,6 +294,41 @@ function adaptQuality(dt) {
 }
 const fx = () => ({ time: ui.time, lid: ui.lid, flick: ui.flick, hurt: ui.hurt, puffs: ui.puffs, scareT: ui.scareT });
 
+// ---------- Hesap ----------
+function showView() {
+  const me = auth.current();
+  loginView.classList.toggle("hidden", !!me);
+  mainView.classList.toggle("hidden", !me);
+  window.GAME.me = me;
+  if (!me) return;
+  const st = auth.stats();
+  ui.best = st.best;
+  $("who").textContent = me.guest ? "Misafir" : me.name;
+  $("statline").textContent = st.games ? `· ${st.wins} galibiyet / ${st.games} oyun · rekor ${st.best ? st.best + " sn" : "-"}` : "· henüz oyun yok";
+}
+function setMode(reg) {
+  regMode = reg;
+  tabLogin.classList.toggle("on", !reg); tabReg.classList.toggle("on", reg);
+  pass2In.classList.toggle("hidden", !reg);
+  passIn.autocomplete = reg ? "new-password" : "current-password";
+  authBtn.textContent = reg ? "Hesap oluştur" : "Giriş yap";
+  authMsg.textContent = "";
+}
+tabLogin.addEventListener("click", () => setMode(false));
+tabReg.addEventListener("click", () => setMode(true));
+authForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  authBtn.disabled = true; authMsg.className = "authmsg"; authMsg.textContent = "…";
+  try {
+    const r = regMode ? await auth.register(userIn.value, passIn.value, pass2In.value) : await auth.login(userIn.value, passIn.value);
+    if (!r.ok) { authMsg.textContent = r.error; }
+    else { passIn.value = pass2In.value = ""; authMsg.textContent = ""; showView(); }
+  } catch (err) { authMsg.textContent = err.message || String(err); }
+  authBtn.disabled = false;
+});
+$("guestBtn").addEventListener("click", () => { auth.guest(); showView(); });
+$("logout").addEventListener("click", () => { auth.logout(); resultEl.textContent = ""; setMode(false); showView(); });
+
 // ---------- Butonlar ----------
 async function startCamera() {
   startBtn.disabled = true;
@@ -316,6 +362,7 @@ function galleryGame(page) {
   if (page === 1) for (const k of propKinds.slice(10)) items.push(["prop", k]);
   if (page === 2) { for (const k of Object.keys(R.enemies.types)) items.push(["enemy", k]); items.push(["box"]); items.push(["fly"]); }
   if (page === 3) for (const k of Object.keys(R.weapons).filter((k) => R.weapons[k].model)) items.push(["gun", k]);
+  if (page === 4) { items.push(["enemy", "witch"]); items.push(["player", "Hazmat"]); items.push(["enemy", "jack"]); }
   const n = items.length;
   items.forEach((it, i) => {
     const a = (n === 1 ? 0 : (i / (n - 1) - 0.5)) * 1.0, d = 2.6;
@@ -324,6 +371,7 @@ function galleryGame(page) {
     if (it[0] === "enemy") gg.enemies.push({ id: i, type: it[1], x, y, hp: 1, stun: 0, alive: true, yaw: Math.PI + a, walk: 0, hit: 0 });
     if (it[0] === "box") gg.boxes.push({ x, y, taken: false, ph: 0 });
     if (it[0] === "fly") gg.flies.push({ x, y, taken: false, ph: 0 });
+    if (it[0] === "player") gg.players.push({ id: "p" + i, name: it[1], x, y, yaw: Math.PI + a, walk: 1.4, moving: 0.8 });
     if (it[0] === "gun") gg.gunItems.push({ x, y, taken: false, ph: 0, weapon: it[1] });
   });
   gg.lights = gg.props.filter((p) => R.props.lights[p.kind]).map((p) => ({ x: p.x, y: p.y, ...R.props.lights[p.kind] }));
@@ -336,6 +384,9 @@ async function boot() {
   startBtn.disabled = keyBtn.disabled = true;
   const models = await loadModels("models/");
   renderer = new Renderer(canvas, models);
+  renderer.rulesRef = R;
+  avatarR = new Renderer($("avatar"), models, { size: [120, 160] }); avatarR.rulesRef = R;
+  showView();
   addEventListener("resize", () => renderer.resize());
   startBtn.disabled = keyBtn.disabled = false;
   setStatus("Kamera görüntüsü hiçbir yere gönderilmez, her şey cihazında çalışır.");
@@ -349,6 +400,10 @@ async function boot() {
     $("debuglog").textContent = `gallery ${Q.get("gallery")} props=${g.props.length} enemies=${g.enemies.length}`;
     window.__ready = true;
     return;
+  }
+  if (Q.has("players")) {      // hata ayıklama: yakınlara N sahte oyuncu koy (çok oyunculu önizlemesi)
+    const n = Number(Q.get("players")) || 2;
+    for (let i = 0; i < n; i++) setPlayer(g, { id: "bot" + i, name: ["Ayşe", "Kaan", "Zeynep", "Mert"][i % 4], x: 1.5 + (i % 2) * 0.0 + 1.6 + i, y: 1.5, yaw: Math.PI / 2 + i, walk: i * 2, moving: i % 2 });
   }
   if (Q.has("sim")) {
     // bot N saniye oynar, son durum çizilir (headless ekran görüntüsü için)

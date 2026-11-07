@@ -30,15 +30,37 @@
   <div id="menu">
     <div class="box">
       <h1>🐸 Karanlık Bataklık</h1>
-      <p class="story">Bataklığın labirentinde mahsur kaldın. Etraf zifiri karanlık, mezarlar ve gölgeler seni bekliyor.</p>
-      <ul class="rules" id="rules"></ul>
-      <p id="result" class="result"></p>
-      <div class="controls">
-        <button id="start">Kamerayı aç ve başla</button>
-        <button id="keyboard" class="ghost">Kamerasız dene (dokunmatik / klavye)</button>
+
+      <!-- 1) Giriş ekranı -->
+      <div id="loginView">
+        <div class="login">
+          <div class="avatarBox"><canvas id="avatar" width="120" height="160"></canvas><span>Karakterin: Hazmat</span></div>
+          <form id="authForm" autocomplete="on">
+            <div class="tabs"><button type="button" id="tabLogin" class="tab on">Giriş yap</button><button type="button" id="tabReg" class="tab">Hesap oluştur</button></div>
+            <input id="user" name="username" autocomplete="username" placeholder="Kullanıcı adı" maxlength="16" autocapitalize="none" autocorrect="off" spellcheck="false">
+            <input id="pass" name="password" type="password" autocomplete="current-password" placeholder="Şifre" maxlength="64">
+            <input id="pass2" type="password" autocomplete="new-password" placeholder="Şifre (tekrar)" maxlength="64" class="hidden">
+            <button type="submit" id="authBtn">Giriş yap</button>
+            <p id="authMsg" class="authmsg"></p>
+          </form>
+        </div>
+        <button id="guestBtn" class="ghost">Misafir olarak oyna</button>
+        <p class="hint">Hesaplar şu an yalnızca bu cihazda saklanır; şifre unutulursa sıfırlanamaz.</p>
       </div>
-      <p id="status" class="status">Yükleniyor…</p>
-      <p class="hint">Klavye: <kbd>W A S D</kbd> yürü, <kbd>Q</kbd>/<kbd>E</kbd> ya da ok tuşları bak, <kbd>F</kbd> ateş, <kbd>R</kbd> silah değiş, <kbd>Boşluk</kbd> basılı = gözünü kapat.</p>
+
+      <!-- 2) Oyun menüsü -->
+      <div id="mainView" class="hidden">
+        <div class="acct">👤 <b id="who"></b> <span id="statline"></span> <button id="logout" class="ghost small" type="button">Çıkış</button></div>
+        <p class="story">Bataklığın labirentinde mahsur kaldın. Etraf zifiri karanlık, mezarlar ve gölgeler seni bekliyor.</p>
+        <ul class="rules" id="rules"></ul>
+        <p id="result" class="result"></p>
+        <div class="controls">
+          <button id="start">Kamerayı aç ve başla</button>
+          <button id="keyboard" class="ghost">Kamerasız dene (dokunmatik / klavye)</button>
+        </div>
+        <p id="status" class="status">Yükleniyor…</p>
+        <p class="hint">Klavye: <kbd>W A S D</kbd> yürü, <kbd>Q</kbd>/<kbd>E</kbd> ya da ok tuşları bak, <kbd>F</kbd> ateş, <kbd>R</kbd> silah değiş, <kbd>Boşluk</kbd> basılı = gözünü kapat.</p>
+      </div>
     </div>
   </div>
   <pre id="debuglog" hidden></pre>

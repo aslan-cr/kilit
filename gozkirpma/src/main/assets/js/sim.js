@@ -157,12 +157,18 @@ export function createGame(seed = 1, rules = RULES) {
   return {
     rules: R, seed, rand, map, S, distStart,
     px: 1.5, py: 1.5, yaw, bob: 0, moving: 0,
-    enemies, flies, boxes, gunItems, props, lights,
+    enemies, flies, boxes, gunItems, props, lights, players: [],      // players: diğer oyuncular (çok oyunculu için), {id,name,x,y,yaw,walk,moving}
     shells: R.ammo.start, owned: [R.weapons.start], cur: R.weapons.start, cooldown: 0, recoil: 0, flash: 0,
     collected: 0, time: 0, kills: 0, shots: 0, hits: 0,
     eyesClosed: false, forced: 0, dry: 0, danger: 0,
     state: "play", killer: -1, events: [],
   };
+}
+
+// Çok oyunculu için: diğer oyuncuyu dünyaya ekler/günceller (sim hareketini ağ katmanı sürer)
+export function setPlayer(g, p) {
+  const i = g.players.findIndex((q) => q.id === p.id);
+  if (i >= 0) Object.assign(g.players[i], p); else g.players.push({ yaw: 0, walk: 0, moving: 0, ...p });
 }
 
 // ---------- Yardımcılar ----------

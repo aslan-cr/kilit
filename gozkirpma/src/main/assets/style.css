@@ -160,3 +160,24 @@ button.ghost { background: transparent; color: #9fc4a6; border: 1px solid #36563
 .status { min-height: 1.4em; color: #a9cdb0; margin: 12px 0 4px; font-size: .9rem; }
 .hint { color: #6f917a; font-size: .82rem; margin: 0; }
 kbd { background: #17281d; padding: 1px 6px; border-radius: 5px; border: 1px solid #36563f; }
+
+/* ---- Giriş ekranı ---- */
+.login { display: flex; gap: 22px; justify-content: center; align-items: center; margin: 10px 0 8px; }
+.avatarBox { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #7fa588; font-size: .78rem; }
+#avatar { width: 96px; height: 128px; border-radius: 12px; border: 1px solid #2a4a33; background: #000; image-rendering: pixelated; }
+#authForm { display: flex; flex-direction: column; gap: 8px; width: min(300px, 62vw); text-align: left; }
+#authForm input {
+  font: inherit; font-size: 16px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid #36563f; background: rgba(10, 24, 16, .85); color: #d8ead9; outline: none;
+  user-select: text; -webkit-user-select: text;
+}
+#authForm input:focus { border-color: #5fcf7e; }
+.tabs { display: flex; gap: 6px; }
+.tab { flex: 1; padding: 8px 6px; font-size: .85rem; background: transparent; color: #8fb097; border: 1px solid #36563f; }
+.tab.on { background: #1f4a2b; color: #d8ffe0; border-color: #5fcf7e; }
+.authmsg { min-height: 1.2em; margin: 0; color: #ffb4a8; font-size: .85rem; }
+.authmsg.ok { color: #b6f0c0; }
+.acct { display: flex; gap: 10px; align-items: center; justify-content: center; margin: 2px 0 6px; color: #b6d8bd; font-size: .9rem; flex-wrap: wrap; }
+.acct #statline { color: #7fa588; font-size: .8rem; }
+button.small { padding: 5px 12px; font-size: .8rem; }
+@media (max-height: 420px) { .login { margin: 4px 0; } #avatar { width: 72px; height: 96px; } h1 { font-size: 1.3rem; } #authForm input { padding: 7px 10px; } }
