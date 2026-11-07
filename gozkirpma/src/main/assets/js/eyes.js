@@ -38,7 +38,7 @@ export async function loadLandmarker() {
 export async function openCamera(video) {
   if (!video.srcObject) {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 30, max: 30 }, facingMode: "user" },
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30, max: 30 }, facingMode: "user" },   // küçük görüntüde göz kırpma okunmuyordu: 640x480; kasma, algılamayı seyrelterek önlenir,
       audio: false,
     });
     video.srcObject = stream;

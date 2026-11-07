@@ -6,11 +6,11 @@ import { createGame, step, rng, setPlayer } from "./sim.js";
 import { makeBot } from "./bot.js";
 import { Renderer, loadModels } from "./render.js";
 import * as A from "./audio.js";
-import { makeEyeTracker, loadLandmarker, openCamera } from "./eyes.js";
+import { makeEyeTracker, loadLandmarker, openCamera, landmarkerSource } from "./eyes.js";
 import { ruleLines, HINT_FIRST } from "./texts.js";
 import { createAuth } from "./auth.js";
 import { createLobby, stepLobby, applySnapshot, smoothPlayers, updateSigns } from "./lobby.js";
-import { connectLobby, normalizeUrl } from "./net.js";
+import { connectLobby, connectLocal, normalizeUrl } from "./net.js";
 import { cabin } from "./rooms.js";
 
 const Q = new URLSearchParams(location.search);
@@ -290,14 +290,15 @@ function frame(now) {
       ui.flick = (0.9 + 0.06 * Math.sin(ui.time * 13) + 0.04 * Math.sin(ui.time * 31.7)) * (1 - ui.dip);
       for (const p of ui.puffs) p.t += dt; ui.puffs = ui.puffs.filter((p) => p.t < 0.7);
       A.heartbeat(dt, g.danger);
-      updateHud();
+      updateHud(); updateEyeDbg();
       if (ui.phase === "play") renderer.render(g, fx());
       else renderer.renderScare(g, fx());
     } else if (ui.phase === "lobby") {
       ui.lid = 0; ui.flick = 1;
       acc += dt; let n = 0, first = true;
       while (acc >= STEP && n++ < 10) { stepLobby(g, STEP, humanInput(first)); first = false; acc -= STEP; }
-      smoothPlayers(g, dt); updateSigns(g); lobbyEvents(); netTick(dt); updateLobbyBar();
+      if (ui.mode === "camera" && !lobbySet.classList.contains("hidden")) eyesT.read(video);
+      smoothPlayers(g, dt); updateSigns(g); lobbyEvents(); netTick(dt); updateLobbyBar(); updateEyeDbg();
       renderer.render(g, fx());
     } else if (ui.phase === "scare") {
       ui.scareT += dt;
@@ -323,6 +324,8 @@ function adaptQuality(dt) {
 const fx = () => ({ time: ui.time, lid: ui.lid, flick: ui.flick, hurt: ui.hurt, puffs: ui.puffs, scareT: ui.scareT });
 
 // ---------- Hesap ----------
+// Oyun açılınca / giriş yapınca doğrudan lobiye (?nolobby ile kapatılır: testler)
+function autoLobby() { if (!Q.has("nolobby") && auth.current() && !mp.net) enterLobby(); }
 function showView() {
   const me = auth.current();
   loginView.classList.toggle("hidden", !!me);
@@ -350,17 +353,51 @@ authForm.addEventListener("submit", async (e) => {
   try {
     const r = regMode ? await auth.register(userIn.value, passIn.value, pass2In.value) : await auth.login(userIn.value, passIn.value);
     if (!r.ok) { authMsg.textContent = r.error; }
-    else { passIn.value = pass2In.value = ""; authMsg.textContent = ""; showView(); }
+    else { passIn.value = pass2In.value = ""; authMsg.textContent = ""; showView(); autoLobby(); }
   } catch (err) { authMsg.textContent = err.message || String(err); }
   authBtn.disabled = false;
 });
-$("guestBtn").addEventListener("click", () => { auth.guest(); showView(); });
+$("guestBtn").addEventListener("click", () => { auth.guest(); showView(); autoLobby(); });
 $("logout").addEventListener("click", () => { auth.logout(); resultEl.textContent = ""; setMode(false); showView(); });
 
 // ---------- Lobi (çok oyunculu) ----------
-// Lobide dolaşırsın; kuzeydeki 4 kabinden birine girince o odaya katılırsın (oda başına en fazla 10 kişi).
-// Odaya girince sayaç başlar; bitince oyun OTOMATİK başlar: odadakilerin hepsi aynı labirentte (aynı seed) başlar, birbirini görür.
+// Oyun açılınca doğrudan lobiye girilir. Lobide dolaşırsın; kuzeydeki 4 kabinden birine girince o odaya katılırsın
+// (oda başına en fazla 10 kişi). Odaya girince sayaç başlar; bitince oyun OTOMATİK başlar, odadakiler aynı labirentte
+// (aynı seed) başlar ve birbirini görür. Sunucu adresi yoksa ya da bağlanılamazsa lobi bu cihazda çevrimdışı çalışır.
 // Gölgeler henüz her oyuncuda ayrı hesaplanır (ağ üzerinden eşitlenmiyor).
+const settings = { cam: (safeGet("gk_cam") ?? "1") === "1", server: Q.get("server") || safeGet("gk_server") || R.lobby.net.url || "" };
+const lobbySet = $("lobbySet"), netState = $("netState"), camState = $("camState"), eyeDbg = $("eyeDbg");
+useCam.checked = settings.cam; serverIn.value = settings.server;
+
+async function ensureCamera() {
+  if (ui.mode === "camera" && video.srcObject) return;
+  camState.textContent = "Yüz modeli yükleniyor…"; setStatus("Yüz modeli yükleniyor…");
+  await loadLandmarker();
+  camState.textContent = "Kamera izni bekleniyor…"; setStatus("Kamera izni bekleniyor…");
+  await openCamera(video);
+  video.style.display = "block"; ui.mode = "camera";
+}
+async function applyCamera() {
+  if (settings.cam) {
+    try { await ensureCamera(); camState.textContent = `Kamera açık (${landmarkerSource || "?"} model). Gözünü kapat: yukarıdaki sayılar yükselmeli.`; return; }
+    catch (err) {
+      console.error(err);
+      settings.cam = false; useCam.checked = false; safeSet("gk_cam", "0");
+      camState.textContent = "Kamera açılamadı: " + (err && err.message ? err.message : err);
+      showMsg("Kamera açılamadı, kamerasız devam ediliyor (ayarlardan tekrar dene).", 4000);
+    }
+  }
+  ui.mode = "keyboard"; video.style.display = "none";
+  if (!camState.textContent.startsWith("Kamera açılamadı")) camState.textContent = "Kamera kapalı: gözünü GÖZÜ KAPAT düğmesiyle (Boşluk) kapatırsın.";
+}
+function updateEyeDbg() {
+  const on = ui.mode === "camera" && (ui.phase === "play" || (ui.phase === "lobby" && !lobbySet.classList.contains("hidden")));
+  eyeDbg.classList.toggle("hidden", !on);
+  if (!on) return;
+  const t = `👁 sol ${eyesT.left.toFixed(2)} · sağ ${eyesT.right.toFixed(2)} · ${eyesT.noFace ? "YÜZ GÖRÜNMÜYOR" : eyesT.closed() ? "KAPALI" : "açık"}`;
+  if (eyeDbg.textContent !== t) eyeDbg.textContent = t;
+}
+
 function onSnap(m) {
   mp.snap = m;
   const me = m.players.find((p) => p.id === mp.id);
@@ -369,9 +406,9 @@ function onSnap(m) {
   else if (mp.lobby) applySnapshot(mp.lobby, m, mp.id);
 }
 function startNetGame(m) {
-  if (!mp.net || mp.inGame) return;
+  if (!mp.net || mp.inGame || (ui.phase !== "lobby")) return;
   mp.inGame = true; mp.room = m.room;
-  lobbyBar.classList.add("hidden");
+  lobbyBar.classList.add("hidden"); lobbySet.classList.add("hidden");
   startGame(m.seed);
 }
 function returnToLobby() {
@@ -389,7 +426,7 @@ function returnToLobby() {
 function leaveLobby(statusText) {
   if (mp.net) { const n = mp.net; mp.net = null; n.close(); }
   Object.assign(mp, { id: null, lobby: null, snap: null, room: -1, inGame: false });
-  lobbyBar.classList.add("hidden"); lobbyBtn.disabled = false;
+  lobbyBar.classList.add("hidden"); lobbySet.classList.add("hidden"); lobbyBtn.disabled = false; eyeDbg.classList.add("hidden");
   g = createGame(newSeed(), R);
   ui.phase = "menu"; ui.lid = 0; resetTouch();
   menuEl.classList.remove("off");
@@ -397,37 +434,40 @@ function leaveLobby(statusText) {
   if (statusText) setStatus(statusText);
 }
 function onNetClose() {
-  if (!mp.net) return;
+  if (!mp.net || mp.net.local) return;
   if (mp.inGame) { mp.net = null; mp.inGame = false; if (g) g.players = []; showMsg("Sunucu bağlantısı koptu, tek başına devam ediyorsun.", 4000); return; }
-  leaveLobby("Sunucu bağlantısı koptu.");
+  netState.textContent = "Sunucu bağlantısı koptu — çevrimdışı lobi.";
+  showMsg("Sunucu bağlantısı koptu, çevrimdışı lobiye geçildi.", 3500);
+  connectNet().then(() => { returnToLobby(); mp.lobby.myRoom = -1; });
+}
+// Sunucuya (yoksa bu cihazdaki lobiye) bağlan
+async function connectNet() {
+  if (mp.net) { const n = mp.net; mp.net = null; n.close(); }
+  Object.assign(mp, { id: null, lobby: null, snap: null, room: -1, inGame: false });
+  const me = auth.current(), name = me ? me.name : "Misafir";
+  const h = {
+    onWelcome: (m) => { mp.id = m.id; mp.lobby = createLobby(R); mp.lobby.px = m.x; mp.lobby.py = m.y; },
+    onSnap, onStart: startNetGame, onClose: onNetClose,
+    onDeny: (m) => { if (ui.phase === "lobby" && g) { g.px = m.x; g.py = m.y; g.myRoom = -1; } showMsg(m.reason, 2200); },
+    onErr: (t) => showMsg(t, 2600),
+  };
+  const url = normalizeUrl(settings.server);
+  let note = "";
+  if (url) {
+    try { mp.net = await connectLobby(url, name, h); note = "Sunucuya bağlısın: " + url; }
+    catch (e) { note = `Sunucuya bağlanılamadı (${e.message}) — çevrimdışı lobi.`; }
+  } else note = "Çevrimdışı lobi (yalnızca sen). Başkalarıyla buluşmak için sunucu adresi gir.";
+  if (!mp.net) mp.net = connectLocal(R, name, h);
+  netState.textContent = note;
 }
 async function enterLobby() {
-  const url = normalizeUrl(serverIn.value || Q.get("server") || R.lobby.net.url);
-  if (!url) { setStatus("Önce sunucu adresini yaz (örn. 192.168.1.5:8080)."); serverIn.focus(); return; }
-  safeSet("gk_server", serverIn.value);
   lobbyBtn.disabled = true; A.initAudio();
-  try {
-    if (useCam.checked) {
-      setStatus("Yüz modeli yükleniyor…"); await loadLandmarker();
-      setStatus("Kamera izni bekleniyor…"); await openCamera(video);
-      video.style.display = "block"; ui.mode = "camera";
-    } else { ui.mode = "keyboard"; video.style.display = "none"; }
-    setStatus("Sunucuya bağlanılıyor…");
-    const me = auth.current();
-    mp.net = await connectLobby(url, me ? me.name : "Misafir", {
-      onWelcome: (m) => { mp.id = m.id; mp.lobby = createLobby(R); mp.lobby.px = m.x; mp.lobby.py = m.y; },
-      onSnap, onStart: startNetGame, onClose: onNetClose,
-      onDeny: (m) => { if (ui.phase === "lobby" && g) { g.px = m.x; g.py = m.y; g.myRoom = -1; } showMsg(m.reason, 2200); },
-      onErr: (t) => showMsg(t, 2600),
-    });
-    returnToLobby();
-    mp.lobby.myRoom = -1;
-    showMsg("Lobidesin. Bir odaya girmek için yukarıdaki kabinlerden birine yürü.", 4200);
-  } catch (err) {
-    lobbyBtn.disabled = false;
-    mp.net = null;
-    setStatus("Lobiye girilemedi: " + (err && err.message ? err.message : err));
-  }
+  setStatus("Lobiye giriliyor…");
+  await applyCamera();
+  await connectNet();
+  returnToLobby();
+  mp.lobby.myRoom = -1;
+  showMsg("Lobidesin. Bir odaya girmek için yukarıdaki kabinlerden birine yürü. ⚙ ayarlar yukarıda.", 4500);
 }
 function updateLobbyBar() {
   const m = mp.snap, n = m ? m.players.length : 1;
@@ -451,22 +491,22 @@ function netTick(dt) {
   mp.net.send({ t: "pos", x: +g.px.toFixed(2), y: +g.py.toFixed(2), yaw: +g.yaw.toFixed(2), walk: +(g.bob || 0).toFixed(1), moving: +(g.moving || 0).toFixed(2) });
 }
 lobbyBtn.addEventListener("click", enterLobby);
-lobbyExit.addEventListener("click", () => leaveLobby("Lobiden çıktın."));
-serverIn.value = safeGet("gk_server") || R.lobby.net.url || "";
+lobbyExit.addEventListener("click", () => leaveLobby("Menüdesin."));
+$("lobbyGear").addEventListener("click", () => lobbySet.classList.toggle("hidden"));
+useCam.addEventListener("change", async () => { settings.cam = useCam.checked; safeSet("gk_cam", settings.cam ? "1" : "0"); await applyCamera(); });
+$("serverGo").addEventListener("click", async () => {
+  settings.server = serverIn.value.trim(); safeSet("gk_server", settings.server);
+  netState.textContent = "Bağlanılıyor…";
+  await connectNet(); returnToLobby(); mp.lobby.myRoom = -1;
+});
+addEventListener("pointerdown", () => A.initAudio(), { once: true });
 
 // ---------- Butonlar ----------
 async function startCamera() {
   startBtn.disabled = true;
   A.initAudio();
-  setStatus("Yüz modeli yükleniyor…");
-  try {
-    await loadLandmarker();
-    setStatus("Kamera izni bekleniyor…");
-    await openCamera(video);
-    video.style.display = "block";
-    ui.mode = "camera";
-    startGame();
-  } catch (err) {
+  try { await ensureCamera(); startGame(); }
+  catch (err) {
     console.error(err);
     startBtn.disabled = false;
     setStatus("Kamera açılamadı: " + (err && err.message ? err.message : err) + " — kamerasız modu deneyebilirsin.");
@@ -560,6 +600,7 @@ async function boot() {
     return;
   }
   if (Q.has("lobby")) { if (!auth.current()) auth.guest(); showView(); requestAnimationFrame(frame); await enterLobby(); window.__ready = true; return; }
+  if (!Q.has("play") && !Q.has("autoplay")) autoLobby();
   if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); if (Q.has("hold")) { const h = Q.get("hold"); if (h === "light") { g.slot = "light"; g.lightOn = true; } else if (R.weapons[h]) { g.cur = h; if (!g.owned.includes(h)) g.owned.push(h); } if (Q.has("flash")) g.flashModel = Q.get("flash"); if (Q.has("low")) { g.sw = { t: 0.01, to: { slot: g.slot, weapon: g.cur }, applied: true }; g.raise = Number(Q.get("low")); } } }
   window.__ready = true;
   requestAnimationFrame(frame);

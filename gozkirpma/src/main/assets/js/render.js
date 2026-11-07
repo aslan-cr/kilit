@@ -717,7 +717,7 @@ export class Renderer {
     const walk = g.moving, bobx = Math.sin(g.bob * 0.5) * (light ? 0.016 : 0.012) * walk, boby = Math.abs(Math.sin(g.bob * 0.5)) * (light ? 0.016 : 0.012) * walk;
     const pitch = (light ? 0 : g.recoil * (0.28 + 0.1 * W.kick) + rack * 1.2) - low * 0.55;
     const cp = Math.cos(pitch), sp = Math.sin(pitch);
-    const F0 = (light ? 0.72 : 0.74) - kick - low * 0.05, L0 = (light ? 0.2 : 0.15) + bobx + low * 0.1, V0 = (light ? -0.19 : -0.205) + boby - low * 0.62;
+    const F0 = (light ? 0.72 : 0.74) - kick - low * 0.05, L0 = (light ? 0.2 : 0.15) + bobx + low * 0.1, V0 = (light ? -0.14 : -0.205) + boby - low * 0.62;
     // (f,u,s) takım koordinatı -> görüş uzayı [x, y, derinlik]
     const place = (f, u, s, out, o) => { const fr = f * cp - u * sp, ur = f * sp + u * cp; out[o] = L0 + s - fr * 0.13; out[o + 1] = V0 + ur; out[o + 2] = F0 + fr; };
     const V = new Float32Array(item.P.length);
@@ -725,9 +725,9 @@ export class Renderer {
     if (light) {
       spec = R.flashlight.hold[g.flashModel];
       const sc = spec.scale;
-      for (let k = 0; k < item.P.length; k += 3) {            // fener: lens +y -> ileri, sap +z -> aşağı
+      for (let k = 0; k < item.P.length; k += 3) {            // fener: lens +y -> ileri, sap +z -> YUKARI (sap üstte)
         const x = item.P[k] - spec.grip[0], y = item.P[k + 1] - spec.grip[1], z = item.P[k + 2] - spec.grip[2];
-        place((y + spec.at[0]) * sc, (-z + spec.at[1]) * sc, -x * sc, V, k);
+        place((y + spec.at[0]) * sc, (z + spec.at[1]) * sc, x * sc, V, k);
       }
     } else {
       spec = W.hold;
@@ -748,7 +748,7 @@ export class Renderer {
         const G = [0, 0, 0], D = [0, 0, 0];
         if (light) place((spec.at[0] + pt[0]) * spec.scale, (spec.at[1] + pt[1]) * spec.scale, pt[2] * spec.scale, G, 0);
         else place(pt[0] * gs, pt[1] * gs, pt[2] * gs, G, 0);
-        const back = [-1.0, -0.62, 0.34 * side];                // bilekten omuza: geriye, aşağıya, dışa
+        const back = light ? [-0.35, -0.42, 1.0] : [-1.0, -0.62, 0.34 * side];                // bilekten omuza: geriye, aşağıya, dışa
         const fr = back[0] * cp - back[1] * sp, ur = back[0] * sp + back[1] * cp;
         D[0] = back[2] - fr * 0.13; D[1] = ur; D[2] = fr;
         this.drawArm(arm, arms.tex, G, D, sa, spec.roll || 0, (ti, d, f) => { const c = col(ti, d, f); return [c[0] * 1.45, c[1] * 1.45, c[2] * 1.4]; });
@@ -757,7 +757,7 @@ export class Renderer {
     // Fener merceğinin ekran konumu: 2B parlama için
     this._lens = null;
     if (light && g.lightOn) {
-      const t = [0, 0, 0]; place((spec.lensY - spec.grip[1] + spec.at[0]) * spec.scale, spec.at[1] * spec.scale, 0, t, 0);
+      const t = [0, 0, 0]; place((spec.lensY - spec.grip[1] + spec.at[0]) * spec.scale, (spec.at[1] - spec.grip[2]) * spec.scale, 0, t, 0);
       if (t[2] > NEAR) this._lens = { x: this.RW / 2 + (t[0] * this.SC) / t[2], y: this.RH / 2 - (t[1] * this.SC) / t[2], d: t[2] };
     }
   }

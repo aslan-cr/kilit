@@ -191,3 +191,9 @@ button.small { padding: 5px 12px; font-size: .8rem; }
 
 #lightBtn { right: 120px; bottom: 134px; width: 66px; height: 66px; border: 2px solid rgba(240, 220, 150, .6); background: rgba(70, 60, 20, .55); color: #f4e8b8; font-size: 11px; }
 #lightBtn.down { background: rgba(200, 170, 60, .75); }
+
+#lobbySet { position: fixed; top: 88px; left: 50%; transform: translateX(-50%); z-index: 4; width: min(520px, 94vw); padding: 10px 12px; border-radius: 12px; background: rgba(8, 16, 11, .88); color: #cfe8d4; display: flex; flex-direction: column; gap: 6px; }
+#lobbySet .row { display: flex; gap: 8px; }
+#lobbySet .row input { flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid #36563f; background: #0b140f; color: #cfe8d4; font-size: .9rem; }
+#lobbySet .hint { margin: 0; }
+#eyeDbg { position: fixed; left: 10px; bottom: 10px; z-index: 4; padding: 4px 8px; border-radius: 8px; background: rgba(0,0,0,.55); color: #b6f0c0; font: 600 12px/1.2 system-ui, sans-serif; pointer-events: none; }

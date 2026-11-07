@@ -23,7 +23,14 @@
     <span id="dry" title="Göz kuruluğu"><i id="dryFill"></i></span>
   </div>
   <div id="msg"></div>
-  <div id="lobbyBar" class="hidden"><span id="lobbyInfo"></span><button id="lobbyExit" class="ghost small" type="button">Lobiden çık</button></div>
+  <div id="lobbyBar" class="hidden"><span id="lobbyInfo"></span><button id="lobbyGear" class="ghost small" type="button">⚙ Ayarlar</button><button id="lobbyExit" class="ghost small" type="button">Menü</button></div>
+  <div id="lobbySet" class="hidden">
+    <label class="chk"><input type="checkbox" id="useCam"> Kamerayla oyna (gözünü kapatınca gölgeler gelir)</label>
+    <p id="camState" class="hint"></p>
+    <div class="row"><input id="serverUrl" placeholder="Sunucu adresi (örn. 192.168.1.5:8080) — boşsa çevrimdışı" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="120"><button id="serverGo" type="button">Bağlan</button></div>
+    <p id="netState" class="hint"></p>
+  </div>
+  <div id="eyeDbg" class="hidden"></div>
   <button id="eyeBtn" class="hidden">GÖZÜ<br>KAPAT</button>
   <button id="swapBtn" class="hidden">SİLAH<br>DEĞİŞ</button>
   <button id="lightBtn" class="hidden">🔦<br>FENER</button>
@@ -59,11 +66,7 @@
         <div class="controls">
           <button id="start">Kamerayı aç ve başla</button>
           <button id="keyboard" class="ghost">Kamerasız dene (dokunmatik / klavye)</button>
-        </div>
-        <div class="lobbyBox">
-          <input id="serverUrl" placeholder="Sunucu adresi (örn. 192.168.1.5:8080)" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="120">
-          <label class="chk"><input type="checkbox" id="useCam"> Kamerayla oyna</label>
-          <button id="lobbyBtn">🌐 Lobiye gir</button>
+          <button id="lobbyBtn">🌐 Lobiye dön</button>
         </div>
         <p id="status" class="status">Yükleniyor…</p>
         <p class="hint">Klavye: <kbd>W A S D</kbd> yürü, <kbd>Q</kbd>/<kbd>E</kbd> ya da ok tuşları bak, <kbd>F</kbd> ateş, <kbd>R</kbd> silah değiş, <kbd>L</kbd> el feneri, <kbd>Boşluk</kbd> basılı = gözünü kapat.</p>

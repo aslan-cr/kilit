@@ -11,7 +11,7 @@ const b = await chromium.launch();
 const ctx = await b.newContext({ viewport: { width: 820, height: 380 } });
 const p = await ctx.newPage();
 const errs = []; p.on("pageerror", (e) => errs.push(e.message));
-const url = `http://localhost:${port}/index.html`;
+const url = `http://localhost:${port}/index.html?nolobby`;
 const results = [];
 const check = (n, ok, x = "") => { results.push(ok); console.log((ok ? "GEÇTİ " : "KALDI ") + n + (x ? "  " + x : "")); };
 const vis = (id) => p.evaluate((i) => !document.getElementById(i).classList.contains("hidden"), id);
