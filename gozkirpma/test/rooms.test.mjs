@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { RULES } from "../src/main/assets/js/rules.js";
-import { createHub, hubJoin, hubLeave, hubMove, hubStart, hubBack, hubView, cabin, roomAt } from "../src/main/assets/js/rooms.js";
+import { createHub, hubJoin, hubLeave, hubMove, hubTick, hubBack, hubView, cabin, roomAt } from "../src/main/assets/js/rooms.js";
 import { createLobby, stepLobby, applySnapshot } from "../src/main/assets/js/lobby.js";
 import { blocked } from "../src/main/assets/js/sim.js";
 
@@ -63,21 +63,57 @@ test("sunucu doluysa yeni oyuncu alınmaz", () => {
   assert.equal(hubJoin(hub, 99, "x").ok, false);
 });
 
-test("yalnızca oda sahibi başlatır; başlayınca oda 'oyunda' olur ve yeni kişi giremez", () => {
+test("odaya girince 50 sn sayaç başlar; bitince oyun otomatik başlar, odadakiler oyuna geçer", () => {
+  assert.equal(R.lobby.countdown, 50);
   const hub = createHub(R); joinN(hub, 3);
-  hubMove(hub, 0, inCabin(1)); hubMove(hub, 1, inCabin(1));
-  assert.equal(hubStart(hub, 1, 5).ok, false, "sahip değil");
-  assert.equal(hubStart(hub, 2, 5).ok, false, "odada değil");
-  const s = hubStart(hub, 0, 5);
-  assert.deepEqual(s.members, [0, 1]); assert.equal(hub.rooms[1].status, "playing");
-  assert.match(hubMove(hub, 2, inCabin(1)).deny.reason, /oyunda/);
-  hubBack(hub, 0); assert.equal(hub.rooms[1].status, "playing", "biri hâlâ oyunda");
-  hubBack(hub, 1); assert.equal(hub.rooms[1].status, "open");
+  assert.equal(hubView(hub).rooms[1].t, null, "boş odada sayaç yok");
+  hubMove(hub, 0, inCabin(1));
+  assert.equal(hubView(hub).rooms[1].t, 50, "ilk kişi girince sayaç başlar");
+  assert.deepEqual(hubTick(hub, 30), []);
+  hubMove(hub, 1, inCabin(1));                                   // sayaç sürerken katılan sayacı sıfırlamaz
+  assert.equal(hubView(hub).rooms[1].t, 20);
+  assert.deepEqual(hubTick(hub, 19.5), []);
+  const st = hubTick(hub, 1, () => 77);
+  assert.equal(st.length, 1); assert.deepEqual(st[0].members, [0, 1]); assert.equal(st[0].seed, 77);
+  assert.equal(hub.rooms[1].status, "playing");
+  assert.ok(hub.players.get(0).inGame && hub.players.get(1).inGame && !hub.players.get(2).inGame);
+  assert.match(hubMove(hub, 2, inCabin(1)).deny.reason, /oyunda/, "başlayan odaya yeni kişi giremez");
+});
+
+test("herkes çıkarsa sayaç durur; yeniden girince 50 sn'den başlar", () => {
+  const hub = createHub(R); joinN(hub, 1);
+  hubMove(hub, 0, inCabin(0)); hubTick(hub, 40);
+  hubMove(hub, 0, { x: 13, y: 12 });
+  assert.equal(hubView(hub).rooms[0].t, null);
+  assert.deepEqual(hubTick(hub, 100), [], "boş oda başlamaz");
+  hubMove(hub, 0, inCabin(0));
+  assert.equal(hubView(hub).rooms[0].t, 50);
+});
+
+test("minPlayers 2 ise tek kişi sayacı başlatmaz", () => {
+  const hub = createHub({ ...R, lobby: { ...R.lobby, minPlayers: 2 } }); joinN(hub, 2);
+  hubMove(hub, 0, inCabin(0));
+  assert.equal(hubView(hub).rooms[0].t, null);
+  hubMove(hub, 1, inCabin(0));
+  assert.equal(hubView(hub).rooms[0].t, 50);
+});
+
+test("odalar birbirinden bağımsız sayar; oyun bitince oda yeniden açılır", () => {
+  const hub = createHub(R); joinN(hub, 2);
+  hubMove(hub, 0, inCabin(0)); hubTick(hub, 20); hubMove(hub, 1, inCabin(2));
+  const v = hubView(hub).rooms;
+  assert.deepEqual([v[0].t, v[1].t, v[2].t], [30, null, 50]);
+  hubTick(hub, 30);
+  assert.equal(hub.rooms[0].status, "playing");
+  hubBack(hub, 0);
+  assert.equal(hub.rooms[0].status, "open");
+  hubTick(hub, 0.1);
+  assert.equal(hubView(hub).rooms[0].t, 50, "dönen oyuncu için yeni sayaç");
 });
 
 test("oyundayken konum labirent koordinatı olarak aktarılır, oda değişmez", () => {
   const hub = createHub(R); joinN(hub, 1);
-  hubMove(hub, 0, inCabin(0)); hubStart(hub, 0, 1);
+  hubMove(hub, 0, inCabin(0)); hubTick(hub, 60);
   hubMove(hub, 0, { x: 9.5, y: 7.5, yaw: 1 });
   assert.equal(hub.players.get(0).room, 0); assert.equal(hub.players.get(0).x, 9.5);
 });
@@ -85,7 +121,7 @@ test("oyundayken konum labirent koordinatı olarak aktarılır, oda değişmez",
 test("anlık görüntüde oda doluluğu ve oyuncular var", () => {
   const hub = createHub(R); joinN(hub, 2); hubMove(hub, 0, inCabin(3));
   const v = hubView(hub);
-  assert.equal(v.players.length, 2); assert.equal(v.rooms[3].n, 1); assert.equal(v.rooms[3].host, 0);
+  assert.equal(v.players.length, 2); assert.equal(v.rooms[3].n, 1); assert.equal(v.rooms[3].t, 50);
 });
 
 test("lobi haritası: kabinler açık, bölmeler dolu, spawn serbest, oyuncu kabine yürüyebilir", () => {
@@ -101,7 +137,7 @@ test("lobi haritası: kabinler açık, bölmeler dolu, spawn serbest, oyuncu kab
 
 test("dolu odaya yürümeye çalışan oyuncu istemcide de geri itilir", () => {
   const g = createLobby(R);
-  g.rooms[0] = { n: 10, st: "open", host: 3 };
+  g.rooms[0] = { n: 10, st: "open", t: 20 };
   g.px = cabin(R, 0).cx; g.py = 8; g.yaw = -Math.PI / 2;
   for (let k = 0; k < 200; k++) stepLobby(g, 1 / 60, { fwd: 1 });
   assert.equal(g.myRoom, -1);

@@ -1,12 +1,12 @@
 // Karanlık Bataklık lobi sunucusu. Bağımlılık yok.   Kullanım:  node server/server.mjs [port]
-// Oyuncular lobide dolaşır; 4 odadan birine (kabine) girer; oda başına en fazla 10 kişi. Mantık js/rooms.js'te.
+// Oyuncular lobide dolaşır; 4 odadan birine (kabine) girer; oda başına en fazla 10 kişi. Odaya girilince 50 sn sayaç başlar, bitince oyun otomatik başlar. Mantık js/rooms.js'te.
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import { attachWebSocket } from "./ws.mjs";
 import { RULES } from "../src/main/assets/js/rules.js";
-import { createHub, hubJoin, hubLeave, hubMove, hubStart, hubBack, hubView } from "../src/main/assets/js/rooms.js";
+import { createHub, hubJoin, hubLeave, hubMove, hubTick, hubBack, hubView } from "../src/main/assets/js/rooms.js";
 
-export function createServer({ port = 8080, rules = RULES, log = () => {}, sendHz = 10 } = {}) {
+export function createServer({ port = 8080, rules = RULES, log = () => {}, sendHz = 10 } = {}) {   // sayaç: rules.lobby.countdown
   const hub = createHub(rules);
   const conns = new Map();                                        // id -> ws
   let nextId = 1;
@@ -39,17 +39,18 @@ export function createServer({ port = 8080, rules = RULES, log = () => {}, sendH
         lastPos = now;
         const r = hubMove(hub, id, m);
         if (r.deny) send(ws, { t: "deny", ...r.deny });
-      } else if (m.t === "start") {
-        const r = hubStart(hub, id, 1 + Math.floor(Math.random() * 1e6));
-        if (!r.ok) { send(ws, { t: "err", msg: r.error }); return; }
-        for (const mid of r.members) send(conns.get(mid), { t: "start", room: r.room, seed: r.seed });
-        log(`oda ${r.room + 1} başladı (${r.members.length} kişi)`);
       } else if (m.t === "back") hubBack(hub, id);
     };
     ws.onclose = () => { if (id !== null) { const p = hub.players.get(id); hubLeave(hub, id); conns.delete(id); log(`- ${p ? p.name : id} (${hub.players.size})`); } };
   });
 
+  let lastTick = Date.now();
   const timer = setInterval(() => {
+    const now = Date.now(), dt = (now - lastTick) / 1000; lastTick = now;
+    for (const st of hubTick(hub, dt)) {                       // sayacı biten odalar otomatik başlar
+      for (const mid of st.members) { const c = conns.get(mid); if (c) send(c, { t: "start", room: st.room, seed: st.seed }); }
+      log(`oda ${st.room + 1} başladı (${st.members.length} kişi)`);
+    }
     if (!conns.size) return;
     const view = JSON.stringify({ t: "snap", ...hubView(hub) });
     for (const ws of conns.values()) ws.send(view);

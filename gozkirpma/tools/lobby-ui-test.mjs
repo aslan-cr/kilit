@@ -10,7 +10,7 @@ import { cabin } from "../src/main/assets/js/rooms.js";
 const shots = process.argv[2];
 const port = 6100 + Math.floor(Math.random() * 90);
 const web = await serve(port);
-const srv = createServer({ port: 0, sendHz: 20 });
+const srv = createServer({ port: 0, sendHz: 20, rules: { ...RULES, lobby: { ...RULES.lobby, countdown: 4 } } });
 const sport = await srv.listen();
 const b = await chromium.launch();
 const results = [], errs = [];
@@ -27,7 +27,7 @@ async function player(name) {
   await p.waitForTimeout(500);
   return p;
 }
-const st = (p) => p.evaluate(() => ({ phase: GAME.ui.phase, room: GAME.mp.room, others: GAME.g.players.length, rooms: GAME.mp.snap && GAME.mp.snap.rooms.map((r) => r.n), start: !document.getElementById("lobbyStart").classList.contains("hidden") }));
+const st = (p) => p.evaluate(() => ({ phase: GAME.ui.phase, room: GAME.mp.room, others: GAME.g.players.length, rooms: GAME.mp.snap && GAME.mp.snap.rooms.map((r) => r.n), t: GAME.mp.snap && GAME.mp.snap.rooms[0].t, bar: document.getElementById("lobbyInfo").textContent }));
 const walkToRoom = async (p, i) => {
   const c = cabin(RULES, i);
   await p.evaluate(([x, y]) => { const g = GAME.g; g.px = x; g.py = 9; g.yaw = -Math.PI / 2; GAME.ui.keys.w = true; }, [c.cx, 0]);
@@ -46,12 +46,11 @@ await walkToRoom(A, 0); await walkToRoom(B, 0);
 await A.waitForFunction(() => GAME.mp.snap && GAME.mp.snap.rooms[0].n === 2, null, { timeout: 5000 });
 s = await st(A);
 check("ikisi de oda 1'de (2 kişi)", s.room === 0 && s.rooms[0] === 2, JSON.stringify(s));
-check("oda sahibi (A) başlat düğmesini görür, B görmez", s.start && !(await st(B)).start);
+check("sayaç çalışıyor ve çubukta görünür", s.t > 0 && /sn sonra başlıyor/.test(s.bar), s.bar);
 if (shots) await A.screenshot({ path: shots + "/lobby-room.png" });
 
-await A.click("#lobbyStart");
-await A.waitForFunction(() => GAME.ui.phase === "play", null, { timeout: 5000 });
-await B.waitForFunction(() => GAME.ui.phase === "play", null, { timeout: 5000 });
+await A.waitForFunction(() => GAME.ui.phase === "play", null, { timeout: 9000 });
+await B.waitForFunction(() => GAME.ui.phase === "play", null, { timeout: 9000 });
 const seeds = await Promise.all([A, B].map((p) => p.evaluate(() => GAME.g.seed)));
 check("ikisi de aynı labirentte başladı", seeds[0] === seeds[1], seeds.join("/"));
 await A.waitForFunction(() => GAME.g.players.length === 1, null, { timeout: 5000 });

@@ -37,7 +37,7 @@ export function createLobby(rules, seed = 7) {
 
   const sp = spawnPoint(R, 0);
   Object.assign(g, { map, S, props, lights, signs, enemies: [], flies: [], boxes: [], gunItems: [], players: [], px: sp.x, py: sp.y, yaw: -Math.PI / 2, state: "lobby",
-    rooms: Array.from({ length: L.rooms }, () => ({ n: 0, st: "open", host: null })), myRoom: -1, myId: null, lobbyEvents: [] });
+    rooms: Array.from({ length: L.rooms }, () => ({ n: 0, st: "open", t: null })), myRoom: -1, myId: null, lobbyEvents: [] });
   return g;
 }
 
@@ -90,7 +90,7 @@ export function updateSigns(g) {
   const max = g.rules.lobby.maxPerRoom;
   g.signs.forEach((sg, i) => {
     const r = g.rooms[i] || { n: 0, st: "open" };
-    const state = r.st === "playing" ? " · OYUNDA" : r.n >= max ? " · DOLU" : "";
+    const state = r.st === "playing" ? " · OYUNDA" : r.n >= max ? " · DOLU" : r.t !== null && r.t !== undefined ? ` · ${r.t} sn` : "";
     sg.text = `ODA ${i + 1} · ${r.n}/${max}${state}`;
     sg.c = r.st === "playing" ? "170,170,170" : r.n >= max ? "255,110,90" : r.n ? "255,220,120" : "150,240,170";
   });

@@ -98,7 +98,7 @@ Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
 Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
 
-## Karanlık Bataklık (gozkirpma, v3.2)
+## Karanlık Bataklık (gozkirpma, v3.3)
 Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık, mezarlık dekorlu bir bataklık labirentinde ilerlersin.
 Kural: gözlerin AÇIKKEN gölgeler (cadı, kabak kafa) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
 6 ışık böceğini topla, yakalanma. Ayrıntılı tasarım: `gozkirpma/DESIGN.md`.
@@ -111,7 +111,7 @@ Kural: gözlerin AÇIKKEN gölgeler (cadı, kabak kafa) donar; gözünü kapatt�
 - **Oyuncu karakteri (Hazmat):** Hazmat kıyafetli karakter giriş ekranında görünür; çok oyunculu için oyun durumunda `players` listesi ve `setPlayer()` hazır, diğer oyuncular modelle ve adlarıyla çizilir (`?players=2` ile dene).
 - **Hesap:** Giriş yap / hesap oluştur / misafir. Şifre PBKDF2-SHA256 ile saklanır, 5 yanlışta 30 sn kilit, hesap başına rekor ve istatistik. SINIR: hesaplar yalnızca bu cihazda tutulur, şifre sıfırlanamaz; çok oyunculu için sunucu gerekir (`js/auth.js` içindeki `store` değiştirilecek şekilde yazıldı).
 - **Kamera internetsiz:** Yüz modeli ve MediaPipe dosyaları APK'nın içine gömülür (GitHub derlemesi `tools/fetch-mediapipe.sh` ile indirip `assets/mediapipe/` altına koyar). Gömülemezse eski gibi internetten yüklemeyi dener. Yüz algılama ~15 Hz çalışır ve yavaşsa kendini seyreltir (kasma önlemi, `rules.eyes.detectMs`); kamera 320x240.
-- **Lobi + odalar (çok oyunculu):** Menüden "Lobiye gir" (sunucu adresi gerekir). Lobide yürürsün; kuzeydeki 4 kabinden birine girince o odaya katılırsın, oda başına en fazla 10 kişi (dolu/oyundaki kabine girilemez). Oda sahibi "Oyunu başlat"a basınca odadakiler aynı labirentte başlar ve birbirini Hazmat olarak görür. SINIR: gölgeler henüz oyuncular arasında eşitlenmiyor (herkes kendi gölgelerini görür).
+- **Lobi + odalar (çok oyunculu):** Menüden "Lobiye gir" (sunucu adresi gerekir). Lobide yürürsün; kuzeydeki 4 kabinden birine girince o odaya katılırsın, oda başına en fazla 10 kişi (dolu/oyundaki kabine girilemez). Odaya ilk kişi girince 50 sn sayaç başlar (`rules.lobby.countdown`); sayaç bitince oyun odadakilerle OTOMATİK başlar (başlat düğmesi yok), hepsi aynı labirentte başlar ve birbirini Hazmat olarak görür. Herkes çıkarsa sayaç durur. SINIR: gölgeler henüz oyuncular arasında eşitlenmiyor (herkes kendi gölgelerini görür).
 - **Lobi sunucusu:** `node server/server.mjs [port]` (bağımlılık yok; Node 18+). Aynı Wi-Fi'de tabletler `ip:port` yazar (örn. `192.168.1.5:8080`). İnternet üzerinden oynamak için sunucuyu bir barındırmada çalıştırıp `wss://` ile bağlan. Hesaplar cihaz içi olduğundan sunucu adı doğrulamaz; aynı ad varsa `#2` eklenir.
 
 Geliştirme (goat-game-creator yöntemi): bütün sayılar `assets/js/rules.js`'te, mantık DOM'suz `assets/js/sim.js`'te, `bot.js` oyuncuyla aynı girdiyle oynar.

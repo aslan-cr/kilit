@@ -82,6 +82,8 @@ export const RULES = {
   // Lobi: kuzey duvarında yan yana oda kurma yerleri (kabinler), altında ortak salon
   lobby: {
     rooms: 4,                                // oda kurma yeri sayısı
+    countdown: 50,                           // sn: odaya ilk kişi girince sayaç başlar, bitince oyun OTOMATİK başlar
+    minPlayers: 1,                           // sayaç için odada en az bu kadar kişi olmalı (2 yapılırsa tek kişi bekler)
     maxPerRoom: 10,                          // bir odadaki en fazla kişi
     maxPlayers: 80,                          // sunucudaki en fazla kişi (lobi + odalar)
     size: 26,                                // harita kenarı (karo)

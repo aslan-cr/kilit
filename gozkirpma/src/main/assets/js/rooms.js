@@ -1,5 +1,6 @@
 // Lobi + oda mantığı. DOM'suz ve ağsız: hem sunucu (server/server.mjs) hem tarayıcı aynı kodu kullanır.
-// Kurallar: 4 oda kurma yeri, her oda en fazla 10 kişi. Oda üyeliği KONUMDAN hesaplanır: kabine girince odaya girersin.
+// Kurallar: 4 oda kurma yeri (ışınlanma noktası), her oda en fazla 10 kişi. Oda üyeliği KONUMDAN hesaplanır: kabine girince odaya girersin.
+// Odaya kişi girince 50 sn'lik sayaç başlar; sayaç bitince oyun, o an odadaki herkesle OTOMATİK başlar (başlat düğmesi yok).
 import { RULES } from "./rules.js";
 
 // Kabin i'nin x aralığı [x0, x1) ve y aralığı [1, 1+cubDepth)
@@ -19,7 +20,7 @@ export function spawnPoint(R, n = 0) {              // salonun ortası, herkes b
 
 export function createHub(rules = RULES) {
   const L = rules.lobby;
-  return { R: rules, players: new Map(), rooms: Array.from({ length: L.rooms }, (_, i) => ({ i, members: [], host: null, status: "open", seed: 0 })), n: 0 };
+  return { R: rules, players: new Map(), rooms: Array.from({ length: L.rooms }, (_, i) => ({ i, members: [], host: null, status: "open", seed: 0, t: null })), n: 0 };
 }
 
 const clean = (s) => String(s || "").normalize("NFC").replace(/[^A-Za-z0-9_ğüşıöçĞÜŞİÖÇ ]/g, "").trim().slice(0, 16);
@@ -47,6 +48,7 @@ function leaveRoom(hub, p) {
   r.members = r.members.filter((m) => m !== p.id);
   if (r.host === p.id) r.host = r.members[0] ?? null;          // sahip çıkarsa sıradaki kişi sahip olur
   if (!r.members.length) { r.status = "open"; r.host = null; }
+  if (r.members.length < hub.R.lobby.minPlayers && r.status === "open") r.t = null;      // yeterli kişi kalmadıysa sayaç durur
   else if (!r.members.some((m) => hub.players.get(m).inGame)) r.status = "open";
   p.room = -1; p.inGame = false;
 }
@@ -70,22 +72,26 @@ export function hubMove(hub, id, m) {
       if (why) { const c = cabin(hub.R, to); return { deny: { room: to, reason: why, x: c.cx, y: c.y1 + 0.7 } }; }
     }
     if (p.room >= 0) leaveRoom(hub, p);
-    if (to >= 0) { const r = hub.rooms[to]; r.members.push(id); if (r.host === null) r.host = id; p.room = to; }
+    if (to >= 0) { const r = hub.rooms[to]; r.members.push(id); if (r.host === null) r.host = id; p.room = to; if (r.t === null && r.status === "open" && r.members.length >= hub.R.lobby.minPlayers) r.t = hub.R.lobby.countdown; }
   }
   Object.assign(p, { x, y, yaw: num(m.yaw, p.yaw), walk: num(m.walk, 0), moving: num(m.moving, 0) });
   return {};
 }
 
-// Oda sahibi oyunu başlatır. { ok, room, seed, members } ya da { ok:false, error }
-export function hubStart(hub, id, seed) {
-  const p = hub.players.get(id);
-  if (!p || p.room < 0) return { ok: false, error: "Önce bir odaya gir." };
-  const r = hub.rooms[p.room];
-  if (r.host !== id) return { ok: false, error: "Oyunu yalnızca oda sahibi başlatabilir." };
-  if (r.status === "playing") return { ok: false, error: "Oyun zaten başladı." };
-  r.status = "playing"; r.seed = seed;
-  for (const m of r.members) { const q = hub.players.get(m); q.inGame = true; q.x = 1.5; q.y = 1.5; }
-  return { ok: true, room: r.i, seed, members: r.members.slice() };
+// Zamanı ilerlet. Sayaç biten odalar başlar: [{ room, seed, members }]
+export function hubTick(hub, dt, seed = () => 1 + Math.floor(Math.random() * 1e6)) {
+  const L = hub.R.lobby, started = [];
+  for (const r of hub.rooms) {
+    if (r.status !== "open") continue;
+    if (r.t === null && r.members.length >= L.minPlayers) r.t = L.countdown;      // oyundan dönenler için yeniden başlar
+    if (r.t === null) continue;
+    r.t -= dt;
+    if (r.t > 0) continue;
+    r.t = null; r.status = "playing"; r.seed = seed();
+    for (const m of r.members) { const q = hub.players.get(m); q.inGame = true; q.x = 1.5; q.y = 1.5; }
+    started.push({ room: r.i, seed: r.seed, members: r.members.slice() });
+  }
+  return started;
 }
 
 // Oyuncu oyunu bitirdi/bıraktı: odanın kabinine geri döner
@@ -103,6 +109,6 @@ export function hubBack(hub, id) {
 export function hubView(hub) {
   return {
     players: [...hub.players.values()].map((p) => ({ id: p.id, name: p.name, x: +p.x.toFixed(2), y: +p.y.toFixed(2), yaw: +p.yaw.toFixed(2), walk: +p.walk.toFixed(1), moving: +p.moving.toFixed(2), room: p.room, g: p.inGame ? 1 : 0 })),
-    rooms: hub.rooms.map((r) => ({ n: r.members.length, st: r.status, host: r.host })),
+    rooms: hub.rooms.map((r) => ({ n: r.members.length, st: r.status, t: r.t === null ? null : Math.ceil(r.t) })),
   };
 }

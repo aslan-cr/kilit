@@ -20,8 +20,8 @@ async function client(port, name) {
   return c;
 }
 
-test("sunucu: 11 oyuncu bağlanır, 10'u odaya girer, 11'i reddedilir; başlatınca üyelere seed gider", async () => {
-  const srv = createServer({ port: 0, sendHz: 40 });
+test("sunucu: 11 oyuncu bağlanır, 10'u odaya girer, 11'i reddedilir; sayaç bitince üyelere seed otomatik gider", async () => {
+  const srv = createServer({ port: 0, sendHz: 40, rules: { ...RULES, lobby: { ...RULES.lobby, countdown: 1.2 } } });
   const port = await srv.listen();
   try {
     const cs = [];
@@ -36,11 +36,9 @@ test("sunucu: 11 oyuncu bağlanır, 10'u odaya girer, 11'i reddedilir; başlatı
     assert.equal(cs[10].snap.rooms[0].n, 10, "oda hâlâ 10 kişi");
     assert.equal(cs[0].snap.players.length, 11, "herkes birbirini görür");
 
-    cs[3].ws.send(JSON.stringify({ t: "start" }));
-    await until(() => cs[3].msgs.find((m) => m.t === "err"));                      // sahip değil
-    cs[0].ws.send(JSON.stringify({ t: "start" }));
-    const st = await until(() => cs[7].msgs.find((m) => m.t === "start"));
+    const st = await until(() => cs[7].msgs.find((m) => m.t === "start"), 6000);   // sayaç bitince OTOMATİK başlar
     assert.ok(st.seed > 0); assert.equal(st.room, 0);
+    assert.ok(cs[0].msgs.find((m) => m.t === "start") && cs[9].msgs.find((m) => m.t === "start"), "odadaki 10 kişinin hepsi alır");
     assert.ok(!cs[10].msgs.find((m) => m.t === "start"), "odada olmayan başlatma mesajı almaz");
 
     cs[1].ws.close();                                                              // bağlantı kopunca oyuncu listeden düşer

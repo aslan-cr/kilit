@@ -52,7 +52,7 @@ const ui = {
 let g = null, renderer = null, bot = null, acc = 0, last = performance.now();
 const eyesT = makeEyeTracker(R);
 // Lobi / çok oyunculu durum
-const lobbyBar = $("lobbyBar"), lobbyInfo = $("lobbyInfo"), lobbyStart = $("lobbyStart"), lobbyExit = $("lobbyExit");
+const lobbyBar = $("lobbyBar"), lobbyInfo = $("lobbyInfo"), lobbyExit = $("lobbyExit");
 const serverIn = $("serverUrl"), useCam = $("useCam"), lobbyBtn = $("lobbyBtn");
 const mp = { net: null, id: null, lobby: null, snap: null, room: -1, inGame: false, sendT: 0 };
 window.GAME = { get mp() { return mp; }, get g() { return g; }, get renderer() { return renderer; }, R, ui, fx: () => fx() };
@@ -353,7 +353,7 @@ $("logout").addEventListener("click", () => { auth.logout(); resultEl.textConten
 
 // ---------- Lobi (çok oyunculu) ----------
 // Lobide dolaşırsın; kuzeydeki 4 kabinden birine girince o odaya katılırsın (oda başına en fazla 10 kişi).
-// Oda sahibi "Oyunu başlat"a basınca odadakilerin hepsi aynı labirentte (aynı seed) başlar; birbirini görür.
+// Odaya girince sayaç başlar; bitince oyun OTOMATİK başlar: odadakilerin hepsi aynı labirentte (aynı seed) başlar, birbirini görür.
 // Gölgeler henüz her oyuncuda ayrı hesaplanır (ağ üzerinden eşitlenmiyor).
 function onSnap(m) {
   mp.snap = m;
@@ -426,10 +426,8 @@ async function enterLobby() {
 function updateLobbyBar() {
   const m = mp.snap, n = m ? m.players.length : 1;
   const r = mp.room >= 0 && m ? m.rooms[mp.room] : null;
-  const host = !!r && r.host === mp.id;
-  const text = r ? `ODA ${mp.room + 1} · ${r.n}/${R.lobby.maxPerRoom} kişi · ${host ? "oda sahibisin" : "sahibin başlatmasını bekle"}` : `Lobi · ${n} oyuncu · bir odaya yürü`;
+  const text = r ? `ODA ${mp.room + 1} · ${r.n}/${R.lobby.maxPerRoom} kişi · ${r.t !== null ? `oyun ${r.t} sn sonra başlıyor` : r.st === "playing" ? "oyun sürüyor" : "bekleniyor"}` : `Lobi · ${n} oyuncu · bir odaya yürü (girince ${R.lobby.countdown} sn sayaç başlar)`;
   if (lobbyInfo.textContent !== text) lobbyInfo.textContent = text;
-  lobbyStart.classList.toggle("hidden", !(host && r.st === "open"));
 }
 function lobbyEvents() {
   for (const e of g.lobbyEvents) {
@@ -447,7 +445,6 @@ function netTick(dt) {
   mp.net.send({ t: "pos", x: +g.px.toFixed(2), y: +g.py.toFixed(2), yaw: +g.yaw.toFixed(2), walk: +(g.bob || 0).toFixed(1), moving: +(g.moving || 0).toFixed(2) });
 }
 lobbyBtn.addEventListener("click", enterLobby);
-lobbyStart.addEventListener("click", () => { if (mp.net) mp.net.send({ t: "start" }); });
 lobbyExit.addEventListener("click", () => leaveLobby("Lobiden çıktın."));
 serverIn.value = safeGet("gk_server") || R.lobby.net.url || "";
 
