@@ -110,7 +110,7 @@ export const RULES = {
     cubW: 5, cubGap: 1, cubDepth: 4,         // kabin genişliği, kabinler arası duvar, kabin derinliği
     hallRows: 11,                            // kabinlerin altındaki salon satırı
     sendHz: 10,                              // konumumu sunucuya yollama sıklığı
-    net: { url: "" },                        // varsayılan sunucu adresi (ws://… ya da wss://…); boşsa oyuncu girer
+    net: { url: "https://kilit-sunucu.onrender.com" },   // varsayılan sunucu adresi (ws://… ya da wss://…); boşsa oyuncu girer
   },
 };
 
