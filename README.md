@@ -98,11 +98,11 @@ Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
 Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
 
-## Karanlık Bataklık (gozkirpma, v3.6)
+## Karanlık Bataklık (gozkirpma, v3.7)
 Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık, mezarlık dekorlu bir bataklık labirentinde ilerlersin.
 Kural: gözlerin AÇIKKEN gölgeler (cadı, kabak kafa) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
 6 ışık böceğini topla, yakalanma. Ayrıntılı tasarım: `gozkirpma/DESIGN.md`.
-- **Silahlar (PSX Shotgun Pack):** Pompalı tüfekle başlarsın. Labirentte Kısa Çifte, Çifte Namlu ve Üst Üste Çifte var; kırmızı mermi kutuları mermi verir. Vurulan gölge birkaç saniye kıpırdayamaz, ölen gölge uzakta yeniden doğar.
+- **Silahlar (PSX Shotgun Pack):** Pompalı tüfekle başlarsın; kırmızı mermi kutuları mermi verir. Labirentte artık silah yok: yerine dönen **altın paralar** var, her biri 15 para verir; bekledikçe rastgele ulaşılabilir yerlerde yenisi çıkar (`rules.coins`). Vurulan gölge birkaç saniye kıpırdayamaz, ölen gölge uzakta yeniden doğar.
 - **Dekor (KayKit Spooktober, CC0):** mezar taşı, ölü ağaç, kabak, mum, fener direği, tabut, kazan, mihrap. Mum, kabak fener ve lamba etraflarına ışık verir.
 - **Göz kuruluğu:** gözlerini 6.5 sn'den uzun açık tutarsan göz kendiliğinden kapanır (gölgeler o an hareket eder), 4 sn'den sonra görüş kararır.
 - Kamera modu: iki göz de kapanınca "göz kapalı" sayılır. Dil algılama yok. Göz hassasiyeti düşük (`eyes.closeAt` 0.5, `eyes.openAt` 0.3).
@@ -131,3 +131,7 @@ node tools/bake-models.mjs <Spooktober klasörü> <PSXShotgunPack/Files>   # mod
 ```
 Varlık lisansları: KayKit Spooktober Seasonal Pack 1.1 (Kay Lousberg, CC0). PSX Shotgun Pack: paketin içinde lisans dosyası yok, yayımlamadan önce kaynağındaki koşullara bak.
 
+
+### Çok lobili sunucu (v3.7)
+`node gozkirpma/server/server.mjs [port]` — internetten gelen herkes aynı lobiye girer; bir lobi en fazla 20 kişi (`rules.lobby.maxPlayers`). 20 dolunca otomatik yeni lobi açılır; lobi 20'nin altına inerse sonradan gelenler önce boşluğu olan en küçük numaralı lobiye yerleşir; boş lobiler silinir. `/health` lobi doluluklarını verir.
+SINIR: sunucuyu ben barındıramam. Herkesin aynı lobide buluşması için sunucunun internette sürekli açık bir adreste çalışması ve adresin uygulamada (⚙ ayarlar ya da `rules.lobby.net.url`) girilmesi gerekir.

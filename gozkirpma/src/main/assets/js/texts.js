@@ -11,7 +11,7 @@ export function ruleLines(R = RULES) {
     `${R.goal.flies} ışık böceğini (🪰) topla, hayatta kal.`,
     `Pompalı tüfekle başlarsın, ${R.ammo.start} mermin var. Mermi kutusu +${R.ammo.perBox} mermi verir (en fazla ${R.ammo.max}).`,
     `Vurulan gölge ${R.enemies.stunSec} sn kıpırdayamaz; ölen gölge ${R.enemies.respawnSec} sn sonra uzakta yeniden doğar.`,
-    `Labirentte ${w.found.length} silah daha var: ${w.found.map((k) => w[k].name).join(", ")}.`,
+    `Labirentte rastgele yerlerde 🪙 para belirir; her biri ${R.coins.value} para verir. Bekledikçe yenileri başka yerlerde oluşur (en fazla ${R.coins.max} tane).`,
     `El feneri (🔦 düğmesi ya da L): huzmesiyle koridoru aydınlatır ama menzildeki gölgeler ışığa %${Math.round((R.flashlight.enemyBoost - 1) * 100)} daha hızlı koşar. Fenerdeyken ve silah/fener değiştirirken ateş edilemez.`,
     "Sol yarı ekran: hareket. Sağ yarı ekran: sadece etrafa bakma (kısa dokunuş = ateş).",
   ];

@@ -75,6 +75,18 @@ export function playPickup() {
   o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.4);
 }
 
+// Para: iki kısa, parlak "ding"
+export function playCoin() {
+  if (!AC) return;
+  const t = AC.currentTime;
+  [[988, 0], [1480, 0.07]].forEach(([f, d]) => {
+    const o = AC.createOscillator(); o.type = "triangle"; o.frequency.setValueAtTime(f, t + d);
+    const g = AC.createGain();
+    g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.14, t + d + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.28);
+    o.connect(g); g.connect(master); o.start(t + d); o.stop(t + d + 0.3);
+  });
+}
+
 // Silah: gürleyen patlama + keskin çatırtı + alçak vuruş. Çifte namlu iki kez patlar.
 export function playShot(weapon) {
   if (!AC) return;

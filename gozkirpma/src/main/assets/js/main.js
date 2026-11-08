@@ -21,7 +21,7 @@ const $ = (id) => document.getElementById(id);
 const canvas = $("game"), video = $("cam"), touchLayer = $("touch"), joyEl = $("joy"), knobEl = $("knob");
 const hudEl = $("hud"), msgEl = $("msg"), eyeBtn = $("eyeBtn"), fireBtn = $("fireBtn"), swapBtn = $("swapBtn"), lightBtn = $("lightBtn");
 const menuEl = $("menu"), resultEl = $("result"), startBtn = $("start"), keyBtn = $("keyboard"), statusEl = $("status");
-const el = { flies: $("flies"), need: $("need"), time: $("time"), shells: $("shells"), gun: $("gun"), eyes: $("eyes"), dry: $("dryFill"), dryBox: $("dry") };
+const el = { coins: $("coins"), flies: $("flies"), need: $("need"), time: $("time"), shells: $("shells"), gun: $("gun"), eyes: $("eyes"), dry: $("dryFill"), dryBox: $("dry") };
 el.need.textContent = R.goal.flies;
 $("rules").innerHTML = ruleLines(R).map((t) => `<li>${t}</li>`).join("");
 
@@ -195,15 +195,15 @@ function endGame(win) {
   startBtn.textContent = ui.mode === "camera" ? "Tekrar oyna" : "Kamerayı aç ve başla";
   if (win) {
     const t = Math.round(g.time), before = auth.stats().best;
-    const st = auth.recordGame({ win: true, time: g.time, kills: g.kills });
-    let line = `Kurtuldun! Süre: ${t} sn, ${g.kills} gölge vurdun.`;
+    const st = auth.recordGame({ win: true, time: g.time, kills: g.kills, coins: g.money });
+    let line = `Kurtuldun! Süre: ${t} sn, ${g.kills} gölge vurdun, ${g.money} para topladın.`;
     line += !before || t < before ? " Yeni rekor!" : ` Rekor: ${before} sn.`;
     ui.best = st.best;
     resultEl.style.color = "#b6f0c0"; resultEl.textContent = line;
   } else {
-    auth.recordGame({ win: false, time: g.time, kills: g.kills });
+    auth.recordGame({ win: false, time: g.time, kills: g.kills, coins: g.money });
     resultEl.style.color = "#ffb4a8";
-    resultEl.textContent = `Seni yakaladılar. ${g.collected}/${R.goal.flies} ışık böceği toplamıştın.`;
+    resultEl.textContent = `Seni yakaladılar. ${g.collected}/${R.goal.flies} ışık böceği, ${g.money} para toplamıştın.`;
   }
   showView();
   setStatus(ui.mode === "camera" ? "Tekrar denemek için butona bas." : "Tekrar denemek için bir mod seç.");
@@ -230,6 +230,7 @@ function onEvents() {
       case "kill": A.playKill(); ui.puffs.push({ x: ev.x, y: ev.y, t: 0, seed: Math.random() * 6 }); showMsg(`Gölge dağıldı. ${R.enemies.respawnSec} sn sonra geri döner…`, 2200); break;
       case "step": A.playStep(ev.near); break;
       case "fly": A.playPickup(); showMsg(`Işık böceği ${ev.n}/${R.goal.flies}. Gölgeler hızlandı…`, 2400); break;
+      case "coin": A.playCoin(); showMsg(`🪙 +${ev.value} para (toplam ${ev.n})`, 1600); break;
       case "ammo": A.playPickup(); showMsg(`Mermi kutusu: ${ev.n} mermi.`, 1600); break;
       case "gun": A.playGunPick(); showMsg(`Yeni silah: ${R.weapons[ev.weapon].name}`, 2400); break;
       case "switch": A.playGunPick(); showMsg(R.weapons[ev.weapon].name, 1200); break;
@@ -250,6 +251,7 @@ const hudCache = {};
 function setText(key, node, v) { if (hudCache[key] !== v) { hudCache[key] = v; node.textContent = v; } }
 function updateHud() {
   if (ui.phase === "scare") return;
+  setText("c", el.coins, String(g.money || 0));
   setText("f", el.flies, String(g.collected));
   setText("t", el.time, String(Math.floor(g.time)));
   setText("s", el.shells, String(g.shells));
@@ -335,7 +337,7 @@ function showView() {
   const st = auth.stats();
   ui.best = st.best;
   $("who").textContent = me.guest ? "Misafir" : me.name;
-  $("statline").textContent = st.games ? `· ${st.wins} galibiyet / ${st.games} oyun · rekor ${st.best ? st.best + " sn" : "-"}` : "· henüz oyun yok";
+  $("statline").textContent = st.games ? `· ${st.wins} galibiyet / ${st.games} oyun · rekor ${st.best ? st.best + " sn" : "-"} · 🪙 ${st.coins || 0}` : "· henüz oyun yok";
 }
 function setMode(reg) {
   regMode = reg;
@@ -472,7 +474,8 @@ async function enterLobby() {
 function updateLobbyBar() {
   const m = mp.snap, n = m ? m.players.length : 1;
   const r = mp.room >= 0 && m ? m.rooms[mp.room] : null;
-  const text = r ? `ODA ${mp.room + 1} · ${r.n}/${R.lobby.maxPerRoom} kişi · ${r.t !== null ? `oyun ${r.t} sn sonra başlıyor` : r.st === "playing" ? "oyun sürüyor" : "bekleniyor"}` : `Lobi · ${n} oyuncu · bir odaya yürü (girince ${R.lobby.countdown} sn sayaç başlar)`;
+  const ln = m && m.lobby ? `Lobi ${m.lobby} · ` : "";
+  const text = r ? `${ln}ODA ${mp.room + 1} · ${r.n}/${R.lobby.maxPerRoom} kişi · ${r.t !== null ? `oyun ${r.t} sn sonra başlıyor` : r.st === "playing" ? "oyun sürüyor" : "bekleniyor"}` : `${ln || "Lobi · "}${n}/${R.lobby.maxPlayers} oyuncu · bir odaya yürü (girince ${R.lobby.countdown} sn sayaç başlar)`;
   if (lobbyInfo.textContent !== text) lobbyInfo.textContent = text;
 }
 function lobbyEvents() {
@@ -601,7 +604,7 @@ async function boot() {
   }
   if (Q.has("lobby")) { if (!auth.current()) auth.guest(); showView(); requestAnimationFrame(frame); await enterLobby(); window.__ready = true; return; }
   if (!Q.has("play") && !Q.has("autoplay")) autoLobby();
-  if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); if (Q.has("hold")) { const h = Q.get("hold"); if (h === "light") { g.slot = "light"; g.lightOn = true; } else if (R.weapons[h]) { g.cur = h; if (!g.owned.includes(h)) g.owned.push(h); } if (Q.has("flash")) g.flashModel = Q.get("flash"); if (Q.has("low")) { g.sw = { t: 0.01, to: { slot: g.slot, weapon: g.cur }, applied: true }; g.raise = Number(Q.get("low")); } } }
+  if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); if (Q.has("coin") && g.coins[0]) { const c = g.coins[0]; g.px = c.x - 1.2; g.py = c.y; g.ang = 0; } if (Q.has("hold")) { const h = Q.get("hold"); if (h === "light") { g.slot = "light"; g.lightOn = true; } else if (R.weapons[h]) { g.cur = h; if (!g.owned.includes(h)) g.owned.push(h); } if (Q.has("flash")) g.flashModel = Q.get("flash"); if (Q.has("low")) { g.sw = { t: 0.01, to: { slot: g.slot, weapon: g.cur }, applied: true }; g.raise = Number(Q.get("low")); } } }
   window.__ready = true;
   requestAnimationFrame(frame);
 }

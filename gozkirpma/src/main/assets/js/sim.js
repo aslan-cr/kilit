@@ -151,19 +151,39 @@ export function createGame(seed = 1, rules = RULES) {
   }
   const lights = props.filter((p) => R.props.lights[p.kind]).map((p) => ({ x: p.x, y: p.y, ...R.props.lights[p.kind] }));
 
+  const crand = rng(seed * 31 + 7);                   // para için ayrı rastgele akış (labirent/düşman akışını bozmaz)
   let yaw = 0;
   if (map[1 * S + 2] === 0) yaw = 0; else if (map[2 * S + 1] === 0) yaw = Math.PI / 2;
 
-  return {
+  const g = {
     rules: R, seed, rand, map, S, distStart,
     px: 1.5, py: 1.5, yaw, bob: 0, moving: 0,
     enemies, flies, boxes, gunItems, props, lights, players: [],      // players: diğer oyuncular (çok oyunculu için), {id,name,x,y,yaw,walk,moving}
     shells: R.ammo.start, owned: [R.weapons.start], cur: R.weapons.start, cooldown: 0, recoil: 0, flash: 0,
+    coins: [], money: 0, coinT: 0, crand,
     slot: "gun", sw: null, raise: 1, lightOn: false, flashModel: R.flashlight.models[seed % R.flashlight.models.length],   // elde: silah ya da fener; sw = geçiş animasyonu
     collected: 0, time: 0, kills: 0, shots: 0, hits: 0,
     eyesClosed: false, forced: 0, dry: 0, danger: 0,
     state: "play", killer: -1, events: [],
   };
+  for (let i = 0; i < R.coins.start; i++) spawnCoin(g, 5);
+  return g;
+}
+
+// Para: rastgele açık karoya koy (oyuncudan uzak, diğer paralardan uzak, ulaşılabilir). Yer bulunamazsa false.
+export function spawnCoin(g, minDist) {
+  const C = g.rules.coins, S = g.S;
+  const md = minDist ?? C.minPlayerDist;
+  for (let tries = 0; tries < 80; tries++) {
+    const cx = 1 + Math.floor(g.crand() * (S - 2)), cy = 1 + Math.floor(g.crand() * (S - 2));
+    if (g.map[cy * S + cx] || g.distStart[cy * S + cx] < 0) continue;
+    const x = cx + 0.5, y = cy + 0.5;
+    if (Math.hypot(x - g.px, y - g.py) < md) continue;
+    if (g.coins.some((c) => Math.hypot(c.x - x, c.y - y) < C.minCoinDist)) continue;
+    g.coins.push({ x, y, ph: g.crand() * 6, taken: false });
+    return true;
+  }
+  return false;
 }
 
 // Çok oyunculu için: diğer oyuncuyu dünyaya ekler/günceller (sim hareketini ağ katmanı sürer)
@@ -401,6 +421,14 @@ export function step(g, dt, input = {}) {
   // Oyuncuya dönük bakış: göz kapalıyken yönü oyuncuya çevir (donmuşken pozu korur)
   g.danger = Math.max(0, Math.min(1, 1 - nearestEnemyDist(g) / g.rules.danger.range));
 
+  // Para: bekledikçe rastgele yerlerde yenisi oluşur
+  g.coinT += dt;
+  if (g.coinT >= g.rules.coins.spawnEvery && g.coins.length < g.rules.coins.max) { g.coinT = 0; spawnCoin(g); }
+  for (const c of g.coins) if (Math.hypot(c.x - g.px, c.y - g.py) < g.rules.coins.pickupRadius) {
+    c.taken = true; g.money += g.rules.coins.value;
+    emit(g, { t: "coin", n: g.money, value: g.rules.coins.value });
+  }
+  if (g.coins.some((c) => c.taken)) g.coins = g.coins.filter((c) => !c.taken);
   // Toplananlar
   for (const o of g.flies) if (!o.taken && Math.hypot(o.x - g.px, o.y - g.py) < g.rules.flies.pickupRadius) {
     o.taken = true; g.collected++;

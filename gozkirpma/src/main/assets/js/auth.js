@@ -45,7 +45,7 @@ export function createAuth({ store = browserStore(), crypto = globalThis.crypto,
     return new Uint8Array(await subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256));
   }
   const same = (a, b) => { if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i]; return d === 0; };
-  const emptyStats = () => ({ games: 0, wins: 0, deaths: 0, kills: 0, best: 0 });
+  const emptyStats = () => ({ games: 0, wins: 0, deaths: 0, kills: 0, best: 0, coins: 0 });
 
   const api = {
     // { ok, error }
@@ -100,12 +100,12 @@ export function createAuth({ store = browserStore(), crypto = globalThis.crypto,
       return { ...emptyStats(), ...load("gk_guest_stats", {}) };
     },
 
-    // Oyun bitince: { win, time (sn), kills }
-    recordGame({ win, time, kills }) {
+    // Oyun bitince: { win, time (sn), kills, coins (toplanan para) }
+    recordGame({ win, time, kills, coins }) {
       const k = store.get("gk_session"), users = load("gk_users", {});
       const target = k && users[k] ? users[k].stats : load("gk_guest_stats", emptyStats());
       Object.assign(target, { ...emptyStats(), ...target });
-      target.games++; target.kills += kills || 0;
+      target.games++; target.kills += kills || 0; target.coins += coins || 0;
       if (win) { target.wins++; if (!target.best || time < target.best) target.best = Math.round(time); } else target.deaths++;
       if (k && users[k]) { users[k].stats = target; save("gk_users", users); } else save("gk_guest_stats", target);
       return { ...target };

@@ -60,3 +60,31 @@ test("sunucu: kötü veri ve hello olmadan mesajlar sunucuyu düşürmez; aynı 
     raw.close();
   } finally { srv.close(); }
 });
+
+test("sunucu: herkes 1. lobiye girer; 20 dolunca 2. lobi açılır; biri çıkınca yeni gelen boşluğu olan lobiye yerleşir; boş lobi silinir", async () => {
+  const srv = createServer({ port: 0, sendHz: 40 });
+  const port = await srv.listen();
+  try {
+    assert.equal(RULES.lobby.maxPlayers, 20);
+    const cs = [];
+    for (let i = 0; i < 20; i++) cs.push(await client(port, "p" + i));
+    assert.ok(cs.every((c) => c.welcome.lobby === 1), "ilk 20 kişi aynı lobide");
+    const c21 = await client(port, "p20"), c22 = await client(port, "p21");
+    assert.equal(c21.welcome.lobby, 2, "21. kişi yeni lobiye");
+    assert.equal(c22.welcome.lobby, 2);
+    assert.equal(srv.lobbies.size, 2);
+    // lobiler birbirinin konumunu görmez
+    await until(() => c21.snap && cs[0].snap);
+    assert.ok(cs[0].snap.players.every((p) => !["p20", "p21"].includes(p.name)), "lobi 1 anlık görüntüsünde lobi 2 oyuncusu yok");
+    assert.equal(cs[0].snap.lobby, 1); assert.equal(c21.snap.lobby, 2);
+    // 1. lobiden biri çıkar -> sonradan gelen 1. lobiye dolar
+    cs[5].ws.close(); await until(() => srv.lobbies.get(1).players.size === 19);
+    const late = await client(port, "gec");
+    assert.equal(late.welcome.lobby, 1, "20'nin altına inen lobi önce doldurulur");
+    // 2. lobi boşalınca silinir
+    c21.ws.close(); c22.ws.close(); await until(() => srv.lobbies.size === 1);
+    const h = await (await fetch(`http://127.0.0.1:${port}/health`)).json();
+    assert.equal(h.players, 20); assert.equal(h.lobbies.length, 1);
+    for (const c of [...cs, late]) c.ws.close();
+  } finally { srv.close(); }
+});

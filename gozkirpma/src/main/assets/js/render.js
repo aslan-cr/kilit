@@ -42,6 +42,7 @@ export async function loadModels(base = "models/") {
   for (const [k, m] of Object.entries(json.flash || {})) {
     M.flash[k] = { name: k, P: Float32Array.from(m.pos), UV: Float32Array.from(m.uv), I: Uint32Array.from(m.idx), tex: await loadTex(base.replace(/models\/$/, "") + m.tex) };
   }
+  if (json.coin) M.coin = { P: Float32Array.from(json.coin.pos), UV: Float32Array.from(json.coin.uv), I: Uint32Array.from(json.coin.idx), tex: await loadTex(base.replace(/models\/$/, "") + json.coin.tex) };
   prepArms(M);
   return M;
 }
@@ -667,6 +668,17 @@ export class Renderer {
       if (dd < -1 || dd > 9) continue;
       const m = this.shellModel();
       this.drawModel(m, 0.30, t * 1.2 + o.ph, o.x, o.y, 0.03 + Math.sin(t * 2 + o.ph) * 0.02, g, null, 0);
+    }
+    const coin = this.M.coin;
+    if (coin && g.coins) for (const o of g.coins) {                    // para: dikey duran disk, kendi ekseninde döner ve hafifçe süzülür
+      const rx = o.x - cam.x, ry = o.y - cam.y, dd = rx * cam.dirX + ry * cam.dirY;
+      if (dd < -1 || dd > 10) continue;
+      if (!coin._W) coin._W = new Float32Array(coin.P.length);
+      const yaw = t * 2.6 + o.ph, cy = Math.cos(yaw), sy = Math.sin(yaw), s = g.rules.coins.scale, h0 = 0.3 + Math.sin(t * 2.2 + o.ph) * 0.03;
+      for (let k = 0; k < coin.P.length; k += 3) { const mx = coin.P[k], my = coin.P[k+1], mz = coin.P[k+2]; coin._W[k] = o.x + (mx * cy - mz * sy) * s; coin._W[k+1] = o.y + (mx * sy + mz * cy) * s; coin._W[k+2] = h0 + my * s; }
+      const objL = this.objLight(o.x, o.y, 0.1);
+      const col = (ti, d, facing) => { const l = Math.max(0.75, (this.light(d) - this.amb) * 0.5 + this.amb + objL[0]) * (0.8 + 0.4 * facing); return [l * 1.6, l * 1.5, l * 1.0]; };
+      this.drawWorldMesh(coin._W, coin.I, col, cam, { tex: coin.tex, uv: coin.UV });
     }
     for (const o of g.gunItems) {
       if (o.taken) continue;

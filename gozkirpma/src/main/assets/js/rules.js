@@ -52,7 +52,7 @@ export const RULES = {
     double:    { name: "Çifte Namlu",     model: "double",    pellets: 14, damage: 0.45, spread: 0.13, range: 7,  cooldown: 1.60, shells: 2, kick: 1.2, hold: { r: [-0.22, 0.09, 0], l: [0.05, 0.1, 0], handScale: 0.5, roll: 0 } },
     overUnder: { name: "Üst Üste Çifte",  model: "overUnder", pellets: 9,  damage: 0.45, spread: 0.07, range: 10, cooldown: 0.55, shells: 1, kick: 0.7, hold: { r: [-0.24, 0.075, 0], l: [0.05, 0.085, 0], handScale: 0.5, roll: 0 } },
     start: "pump",
-    found: ["sawed", "double", "overUnder"], // labirentte bir kez bulunur
+    found: [],                               // labirentte silah bulunmaz (yerine para çıkar); doldurulursa o silahlar bir kez bulunur
     pickupRadius: 0.55,
   },
   // El feneri (FlashLight pack): L tuşu / FENER düğmesi. Elde fener varken ateş edilemez.
@@ -72,6 +72,8 @@ export const RULES = {
     },
   },
   switch: { seconds: 0.55 },                 // silah/fener değiştirme animasyonu: eski eşya iner, yenisi kalkar
+  // Para: labirentte rastgele yerlerde belirir; her biri `value` para verir. Beklemeye devam ettikçe yenileri rastgele yerlerde oluşur.
+  coins: { value: 15, start: 3, max: 6, spawnEvery: 9, minPlayerDist: 4, minCoinDist: 3, pickupRadius: 0.55, scale: 0.16 },
   flies: { pickupRadius: 0.55, minStartDist: 6, minSpacing: 4 },
   props: {
     density: 0.26,                           // açık karoların kabaca bu kadarına dekor konur
@@ -102,7 +104,8 @@ export const RULES = {
     countdown: 50,                           // sn: odaya ilk kişi girince sayaç başlar, bitince oyun OTOMATİK başlar
     minPlayers: 1,                           // sayaç için odada en az bu kadar kişi olmalı (2 yapılırsa tek kişi bekler)
     maxPerRoom: 10,                          // bir odadaki en fazla kişi
-    maxPlayers: 80,                          // sunucudaki en fazla kişi (lobi + odalar)
+    maxPlayers: 20,                          // BİR LOBİDEKİ en fazla kişi; dolunca sunucu yeni lobi açar
+    maxLobbies: 50,                          // sunucudaki en fazla lobi sayısı
     size: 26,                                // harita kenarı (karo)
     cubW: 5, cubGap: 1, cubDepth: 4,         // kabin genişliği, kabinler arası duvar, kabin derinliği
     hallRows: 11,                            // kabinlerin altındaki salon satırı

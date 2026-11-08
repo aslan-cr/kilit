@@ -65,10 +65,10 @@ test("misafir girişi; istatistikler hesap başına ayrı tutulur", async () => 
   assert.equal(auth.stats().best, 80);
   await auth.register("Ece", "parola123");
   assert.equal(auth.stats().games, 0, "yeni hesap sıfırdan başlar");
-  auth.recordGame({ win: true, time: 60, kills: 2 });
-  auth.recordGame({ win: true, time: 90, kills: 1 });
+  auth.recordGame({ win: true, time: 60, kills: 2, coins: 30 });
+  auth.recordGame({ win: true, time: 90, kills: 1, coins: 15 });
   auth.recordGame({ win: false, time: 20, kills: 0 });
-  assert.deepEqual(auth.stats(), { games: 3, wins: 2, deaths: 1, kills: 3, best: 60 });
+  assert.deepEqual(auth.stats(), { games: 3, wins: 2, deaths: 1, kills: 3, best: 60, coins: 45 });
   auth.logout(); auth.guest();
   assert.equal(auth.stats().best, 80, "misafir istatistiği korunur");
 });

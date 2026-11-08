@@ -9,9 +9,8 @@ const DT = 1 / 60;
 const text = ruleLines().join("\n");
 
 test("metin kurallardaki sayıları içerir (rules.js değişirse metin de değişir)", () => {
-  for (const n of [RULES.eyes.dryMax, RULES.eyes.dryWarn, RULES.goal.flies, RULES.ammo.start, RULES.ammo.perBox, RULES.ammo.max, RULES.enemies.stunSec, RULES.enemies.respawnSec, RULES.weapons.found.length])
+  for (const n of [RULES.eyes.dryMax, RULES.eyes.dryWarn, RULES.goal.flies, RULES.ammo.start, RULES.ammo.perBox, RULES.ammo.max, RULES.enemies.stunSec, RULES.enemies.respawnSec, RULES.coins.value, RULES.coins.max])
     assert.ok(text.includes(String(n)), "metinde yok: " + n);
-  for (const k of RULES.weapons.found) assert.ok(text.includes(RULES.weapons[k].name), "silah adı yok: " + k);
 });
 
 test("SÖZ: ışık böceği sayısı kadar böcek vardır ve hepsi toplanınca oyun kazanılır", () => {
@@ -53,7 +52,8 @@ test("SÖZ: vurulan gölge stunSec sn kıpırdamaz", () => {
 
 test("SÖZ: tüfek bulunan silahların hepsi labirentte bir kez vardır", () => {
   const g = createGame(9);
-  assert.deepEqual(g.gunItems.map((o) => o.weapon).sort(), RULES.weapons.found.slice().sort());
+  assert.equal(g.gunItems.length, 0, "labirentte silah yok, yerine para var");
+  assert.equal(g.coins.length, RULES.coins.start);
 });
 
 test("SÖZ: dokunmatik sağ yarı yalnızca bakar (sim hareket girdisi yoksa oyuncu yerinde kalır)", () => {

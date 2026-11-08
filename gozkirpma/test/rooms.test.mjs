@@ -34,8 +34,8 @@ test("bir oda en fazla 10 kişi: 11. kişi girmeye çalışınca reddedilir ve s
   assert.deepEqual(hubMove(hub, 10, inCabin(1)), {}, "başka odaya girebilir");
 });
 
-test("dört oda toplam 40 kişi alır, 41. kişi hiçbir odaya giremez", () => {
-  const hub = createHub(R); joinN(hub, 41);
+test("dört oda toplam 40 kişi alır, 41. kişi hiçbir odaya giremez (lobi sınırı bu testte yükseltildi)", () => {
+  const hub = createHub({ ...R, lobby: { ...R.lobby, maxPlayers: 80 } }); joinN(hub, 41);
   for (let k = 0; k < 40; k++) assert.deepEqual(hubMove(hub, k, inCabin(k % 4)), {}, "kişi " + k);
   assert.deepEqual(hub.rooms.map((r) => r.members.length), [10, 10, 10, 10]);
   for (let i = 0; i < 4; i++) assert.ok(hubMove(hub, 40, inCabin(i)).deny);
@@ -151,4 +151,9 @@ test("anlık görüntü diğer oyuncuları ekler, çıkanları siler, beni çizm
   assert.deepEqual(g.players.map((p) => p.id), [2, 3]);
   applySnapshot(g, snap([1, 3]), 1);
   assert.deepEqual(g.players.map((p) => p.id), [3]);
+});
+
+test("bir lobi en fazla 20 kişi alır (varsayılan kural)", () => {
+  const hub = createHub(R); joinN(hub, 20);
+  assert.equal(hubJoin(hub, 99, "fazla").ok, false);
 });
