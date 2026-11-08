@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Karanlık Bataklık</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <video id="cam" playsinline muted></video>
+
+  <!-- Dokunma katmanı: sol yarı = hareket joystick'i (sınırsız mesafe), sağ yarı = sadece bakış (kısa dokunuş = ateş) -->
+  <div id="touch"></div>
+  <div id="joy"><div id="knob"></div></div>
+
+  <div id="hud">
+    <span>🪰 <b id="flies">0</b>/<b id="need">6</b></span>
+    <span>🪙 <b id="coins">0</b></span>
+    <span>⏱ <b id="time">0</b> sn</span>
+    <span>🔫 <b id="gun">-</b> · <b id="shells">0</b> mermi</span>
+    <span>👁 <b id="eyes">açık</b></span>
+    <span id="dry" title="Göz kuruluğu"><i id="dryFill"></i></span>
+  </div>
+  <div id="msg"></div>
+  <div id="lobbyBar" class="hidden"><span id="lobbyInfo"></span><button id="lobbyGear" class="ghost small" type="button">⚙ Ayarlar</button><button id="lobbyExit" class="ghost small" type="button">Menü</button></div>
+  <div id="lobbySet" class="hidden">
+    <label class="chk"><input type="checkbox" id="useCam"> Kamerayla oyna (gözünü kapatınca gölgeler gelir)</label>
+    <p id="camState" class="hint"></p>
+    <div class="row"><input id="serverUrl" placeholder="Sunucu adresi (örn. 192.168.1.5:8080) — boşsa çevrimdışı" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="120"><button id="serverGo" type="button">Bağlan</button></div>
+    <p id="netState" class="hint"></p>
+  </div>
+  <div id="eyeDbg" class="hidden"></div>
+  <button id="eyeBtn" class="hidden">GÖZÜ<br>KAPAT</button>
+  <button id="swapBtn" class="hidden">SİLAH<br>DEĞİŞ</button>
+  <button id="lightBtn" class="hidden">🔦<br>FENER</button>
+  <button id="fireBtn" class="hidden">ATEŞ</button>
+
+  <div id="menu">
+    <div class="box">
+      <h1>🐸 Karanlık Bataklık</h1>
+
+      <!-- 1) Giriş ekranı -->
+      <div id="loginView">
+        <div class="login">
+          <div class="avatarBox"><canvas id="avatar" width="120" height="160"></canvas><span>Karakterin: Hazmat</span></div>
+          <form id="authForm" autocomplete="on">
+            <div class="tabs"><button type="button" id="tabLogin" class="tab on">Giriş yap</button><button type="button" id="tabReg" class="tab">Hesap oluştur</button></div>
+            <input id="user" name="username" autocomplete="username" placeholder="Kullanıcı adı" maxlength="16" autocapitalize="none" autocorrect="off" spellcheck="false">
+            <input id="pass" name="password" type="password" autocomplete="current-password" placeholder="Şifre" maxlength="64">
+            <input id="pass2" type="password" autocomplete="new-password" placeholder="Şifre (tekrar)" maxlength="64" class="hidden">
+            <button type="submit" id="authBtn">Giriş yap</button>
+            <p id="authMsg" class="authmsg"></p>
+          </form>
+        </div>
+        <button id="guestBtn" class="ghost">Misafir olarak oyna</button>
+        <p class="hint">Hesaplar şu an yalnızca bu cihazda saklanır; şifre unutulursa sıfırlanamaz.</p>
+      </div>
+
+      <!-- 2) Oyun menüsü -->
+      <div id="mainView" class="hidden">
+        <div class="acct">👤 <b id="who"></b> <span id="statline"></span> <button id="logout" class="ghost small" type="button">Çıkış</button></div>
+        <p class="story">Bataklığın labirentinde mahsur kaldın. Etraf zifiri karanlık, mezarlar ve gölgeler seni bekliyor.</p>
+        <ul class="rules" id="rules"></ul>
+        <p id="result" class="result"></p>
+        <div class="controls">
+          <button id="start">Kamerayı aç ve başla</button>
+          <button id="keyboard" class="ghost">Kamerasız dene (dokunmatik / klavye)</button>
+          <button id="lobbyBtn">🌐 Lobiye dön</button>
+        </div>
+        <p id="status" class="status">Yükleniyor…</p>
+        <p class="hint">Xbox: <kbd>Sol çubuk</kbd> yürü, <kbd>Sağ çubuk</kbd> bak, <kbd>RT</kbd> ateş, <kbd>RB</kbd> silah ↔ el feneri (fenerdeyken <kbd>RT</kbd> ışığı açar/kapatır), <kbd>LB</kbd> sıradaki silah, <kbd>LT</kbd> basılı = gözünü kapat, <kbd>A</kbd> başla.</p>
+        <p class="hint">Klavye: <kbd>W A S D</kbd> yürü, <kbd>Q</kbd>/<kbd>E</kbd> ya da ok tuşları bak, <kbd>F</kbd> ateş, <kbd>R</kbd> silah değiş, <kbd>L</kbd> el feneri, <kbd>Boşluk</kbd> basılı = gözünü kapat.</p>
+      </div>
+    </div>
+  </div>
+  <pre id="debuglog" hidden></pre>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
