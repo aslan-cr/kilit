@@ -18,7 +18,7 @@ canvas#game {
   height: 100vh;
   display: block;
   background: #000;
-  image-rendering: pixelated;
+  image-rendering: auto;                  /* yumuşak ölçekleme: eskisi gibi karanlık/retro ama daha az blok */
 }
 #cam {
   position: fixed;

@@ -98,9 +98,9 @@ Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
 Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
 
-## Karanlık Bataklık (gozkirpma, v3.8)
+## Karanlık Bataklık (gozkirpma, v3.9)
 Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık, mezarlık dekorlu bir bataklık labirentinde ilerlersin.
-Kural: gözlerin AÇIKKEN gölgeler (cadı, kabak kafa) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
+Kural: gözlerin AÇIKKEN gölgeler (Sıska Canavar, kabak kafa) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
 6 ışık böceğini topla, yakalanma. Ayrıntılı tasarım: `gozkirpma/DESIGN.md`.
 - **Silahlar (PSX Shotgun Pack):** Pompalı tüfekle başlarsın; kırmızı mermi kutuları mermi verir. Labirentte artık silah yok: yerine dönen **altın paralar** var, her biri 15 para verir; bekledikçe rastgele ulaşılabilir yerlerde yenisi çıkar (`rules.coins`). Vurulan gölge birkaç saniye kıpırdayamaz, ölen gölge uzakta yeniden doğar.
 - **Dekor (KayKit Spooktober, CC0):** mezar taşı, ölü ağaç, kabak, mum, fener direği, tabut, kazan, mihrap. Mum, kabak fener ve lamba etraflarına ışık verir.
@@ -138,3 +138,9 @@ SINIR: sunucuyu ben barındıramam. Herkesin aynı lobide buluşması için sunu
 
 ### Dükkan (v3.8)
 Labirentte "DÜKKAN" tabelalı bir sunak var (başlangıçtan en az 8 karo uzakta). Yanına yaklaşınca panel otomatik açılır, uzaklaşınca kapanır. Topladığın paralarla silah (Kısa Çifte 45, Üst Üste Çifte 60, Çifte Namlu 75) ve el feneri (Küçük 30 / Orta 60 / Güçlü 90; menzilleri 8/11/14) alırsın. El feneri artık yalnızca dükkandan alınır. Fiyatlar `rules.shop`, fener menzilleri `rules.flashlight.stats`. Test: `node tools/shop-ui-test.mjs`.
+
+### v3.9: Sıska Canavar, boşluk tavan, her yöne bakış, daha az pikselli görüntü
+- **Sıska Canavar:** Cadının yerine geçti (aynı boy, aynı hız/can; `rules.enemies.types.monster`). Kaynak `siska-canavar` paketindeki three.js kodu; `node tools/bake-monster.mjs <canavar-model.js>` onu oyunun üçgen ağına pişirir (~7 bin üçgen, ince uzuvlar görünsün diye biraz kalınlaştırıldı: `Q.thick`). Kollar yaklaşırken öne uzanır. Debug: `?play&nolobby&mon=2.2`.
+- **Tavan yok:** Duvarlar yukarı doğru uzar ve karanlığa karışır; üstte sonsuz bir boşluk var (`rules.view.wallFade`, `voidHaze`).
+- **Her yöne bakış:** Sağ yarıda parmağı yukarı/aşağı sürükleyince yukarı/aşağı bakılır (sınır `player.pitchMax`). Klavye: Z yukarı, X aşağı. Ateş/hasar hâlâ yatay düzlemde. Debug: `?pitch=0.6`.
+- **Görüntü:** iç çözünürlük ~1.7x (en çok 576 px geniş), doku 64→128, yumuşak ölçekleme (`image-rendering: auto`). Yavaş cihazda kalite otomatik düşer.

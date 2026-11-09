@@ -157,7 +157,7 @@ export function createGame(seed = 1, rules = RULES) {
 
   const g = {
     rules: R, seed, rand, map, S, distStart,
-    px: 1.5, py: 1.5, yaw, bob: 0, moving: 0,
+    px: 1.5, py: 1.5, yaw, pitch: 0, bob: 0, moving: 0,
     enemies, flies, boxes, gunItems, props, lights, players: [],      // players: diğer oyuncular (çok oyunculu için), {id,name,x,y,yaw,walk,moving}
     shells: R.ammo.start, owned: [R.weapons.start], cur: R.weapons.start, cooldown: 0, recoil: 0, flash: 0,
     coins: [], money: 0, coinT: 0, crand,
@@ -269,6 +269,7 @@ function emit(g, e) { g.events.push(e); }
 export function movePlayer(g, dt, input) {
   const R = g.rules.player;
   g.yaw += (input.yaw || 0) + (input.turn || 0) * dt;
+  g.pitch = Math.max(-R.pitchMax, Math.min(R.pitchMax, (g.pitch || 0) + (input.pitch || 0) + (input.pitchRate || 0) * dt));
   let fwd = input.fwd || 0, str = input.str || 0;
   const len = Math.hypot(fwd, str);
   if (len > 1) { fwd /= len; str /= len; }

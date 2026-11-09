@@ -11,6 +11,7 @@ function coneF(L, dx, dy, d2) {
   return f <= 0 ? 0 : f >= 1 ? 1 : f * f * (3 - 2 * f);
 }
 const FOV_K = 0.66;
+const RES_DIV = 1.7, RES_MAX = 576;                // iç çözünürlük (eskiden w/2.2, en çok 400): daha az pikselli
 const NEAR = 0.1;
 const AMB = 0.018;
 const TINT = [1.0, 0.95, 0.72];
@@ -90,9 +91,11 @@ function vnoise(x, y) {
   const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
+const TS = 128;                                   // doku boyu (eskiden 64: daha az blok blok)
 function makeTex(kind) {
-  const T = new Uint8Array(64 * 64 * 3);
-  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+  const T = new Uint8Array(TS * TS * 3);
+  for (let y0 = 0; y0 < TS; y0++) for (let x0 = 0; x0 < TS; x0++) {
+    const x = x0 * 64 / TS, y = y0 * 64 / TS;
     const n = vnoise(x * 0.35, y * 0.35) * 0.6 + vnoise(x * 0.9, y * 0.9) * 0.4;
     const moss = vnoise(x * 0.12 + 7, y * 0.12 + 3);
     let r, g, b;
@@ -106,7 +109,7 @@ function makeTex(kind) {
       const base = 55 + n * 55; r = base * 0.8; g = base * 0.78; b = base * 0.55;
       if (moss > 0.5) { r *= 0.6; g *= 1.1; b *= 0.6; }
     } else { const base = 35 + n * 40; r = base * 0.8; g = base * 0.9; b = base; }
-    const i = (y * 64 + x) * 3; T[i] = r; T[i + 1] = g; T[i + 2] = b;
+    const i = (y0 * TS + x0) * 3; T[i] = r; T[i + 1] = g; T[i + 2] = b;
   }
   return T;
 }
@@ -138,8 +141,8 @@ export class Renderer {
       return;
     }
     const q = this.quality || 1;                      // yavaş cihazda ana.js kaliteyi düşürür
-    const RW = (this.RW = Math.max(150, Math.min(400, Math.round((w / 2.2) * q))));
-    const RH = (this.RH = Math.max(90, Math.min(340, Math.round((RW * h) / w))));
+    const RW = (this.RW = Math.max(150, Math.min(RES_MAX, Math.round((w / RES_DIV) * q))));
+    const RH = (this.RH = Math.max(90, Math.min(Math.round(RES_MAX * 0.85), Math.round((RW * h) / w))));
     this.SC = RW / (2 * FOV_K);
     this.canvas.width = RW; this.canvas.height = RH;
     this.img = this.ctx.createImageData(RW, RH);
@@ -161,7 +164,7 @@ export class Renderer {
     const R = g.rules, ctx = this.ctx, RW = this.RW, RH = this.RH;
     this.flick = fx.flick;
     if (fx.lid >= 0.97) { ctx.fillStyle = "#070000"; ctx.fillRect(0, 0, RW, RH); return; }
-    const cam = { x: g.px, y: g.py, yaw: g.yaw, eye: R.player.eyeHeight, bob: g.bob, time: fx.time };
+    const cam = { x: g.px, y: g.py, yaw: g.yaw, pitch: g.pitch || 0, eye: R.player.eyeHeight, bob: g.bob, time: fx.time };
     this.world(g, cam, fx);
     if (g.state === "play") this.drawGun(g, fx);
     ctx.putImageData(this.img, 0, 0);
@@ -253,7 +256,7 @@ export class Renderer {
     this.cam = cam;
     cam.dirX = Math.cos(cam.yaw); cam.dirY = Math.sin(cam.yaw);
     cam.plX = -cam.dirY * FOV_K; cam.plY = cam.dirX * FOV_K;
-    cam.horizon = this.RH / 2 + Math.sin(cam.bob || 0) * 1.6 * (this.RH / 220);
+    cam.horizon = this.RH / 2 + Math.sin(cam.bob || 0) * 1.6 * (this.RH / 220) + Math.tan(cam.pitch || 0) * this.SC;   // pitch: yukarı bakınca ufuk aşağı iner
   }
 
   // En yakın birkaç ışık kaynağı (jack-o'-lantern, mum, lamba)
@@ -291,21 +294,26 @@ export class Renderer {
     } else {
       // Zemin ve tavan
       const ambFill = px32(AMB * 150, AMB * 190, AMB * 170);
+      const hazeK = g.rules.view.voidHaze;
       for (let y = 0; y < RH; y++) {
         const isFloor = y > horizon;
         const dy = isFloor ? y - horizon : horizon - y;
+        if (!isFloor) {                                          // tavan yok: sonsuza giden karanlık boşluk (ufka yakın çok hafif sis)
+          const base = y * RW, hz = hazeK * Math.exp(-dy / 55);
+          for (let x = 0; x < RW; x++) buf32[base + x] = hz < 0.5 ? 0xff000000 : px32(hz * 0.55, hz, hz * 0.8);
+          continue;
+        }
         if (dy < 0.5) { for (let x = 0; x < RW; x++) buf32[y * RW + x] = 0xff000000; continue; }
-        const rowDist = ((isFloor ? cam.eye : 1 - cam.eye) * SC) / dy;
+        const rowDist = (cam.eye * SC) / dy;
         const sh = this.light(rowDist);
         if (sh < AMB * 1.25 && !NL) { const base = y * RW; for (let x = 0; x < RW; x++) buf32[base + x] = ambFill; continue; }
-        const tex = isFloor ? TEX_FLOOR : TEX_CEIL;
-        const mul = isFloor ? 1.0 : 0.7;
+        const tex = TEX_FLOOR, mul = 1.0;
         let fx2 = cam.x + rowDist * (dirX - plX), fy2 = cam.y + rowDist * (dirY - plY);
         const sx = (rowDist * 2 * plX) / RW, sy = (rowDist * 2 * plY) / RW;
         const base = y * RW;
         for (let x = 0; x < RW; x++) {
-          const tx = ((fx2 - Math.floor(fx2)) * 64) | 0, ty = ((fy2 - Math.floor(fy2)) * 64) | 0;
-          const ti = (ty * 64 + tx) * 3;
+          const tx = ((fx2 - Math.floor(fx2)) * TS) | 0, ty = ((fy2 - Math.floor(fy2)) * TS) | 0;
+          const ti = (ty * TS + tx) * 3;
           let lr = sh * TINT[0], lg = sh * TINT[1], lb = sh * TINT[2];
           for (let k = 0; k < NL; k++) {
             const L = lights[k], ddx = fx2 - L.x, ddy = fy2 - L.y, d2 = ddx * ddx + ddy * ddy, q = 1 - d2 / (L.r * L.r);
@@ -336,10 +344,11 @@ export class Renderer {
         this.zbuf[x] = perp;
         let wallX = side === 0 ? cam.y + perp * rdy : cam.x + perp * rdx;
         wallX -= Math.floor(wallX);
-        let texX = (wallX * 64) | 0;
-        if ((side === 0 && rdx > 0) || (side === 1 && rdy < 0)) texX = 63 - texX;
-        const lineH = SC / perp;
-        const topF = horizon - (1 - cam.eye) * lineH;
+        let texX = (wallX * TS) | 0;
+        if ((side === 0 && rdx > 0) || (side === 1 && rdy < 0)) texX = TS - 1 - texX;
+        const lineH = SC / perp, V = g.rules.view;
+        const hTop = 1 + V.wallFade;                               // duvar yukarı doğru uzar ve karanlığa karışır (tavan yok)
+        const topF = horizon - (hTop - cam.eye) * lineH;
         const y0 = Math.max(0, topF | 0), y1 = Math.min(RH - 1, (horizon + cam.eye * lineH) | 0);
         const sh = this.light(perp) * (side ? 0.78 : 1);
         let lr = sh * TINT[0], lg = sh * TINT[1], lb = sh * TINT[2];
@@ -350,13 +359,15 @@ export class Renderer {
             if (q > 0) { let a = q * q * L.k * this.flick; if (L.cone) a *= coneF(L, ddx2, ddy2, d22); lr += a * L.c[0]; lg += a * L.c[1]; lb += a * L.c[2]; }
           }
         }
-        const stepT = 64 / lineH;
-        let tyF = (y0 - topF) * stepT;
+        const stepT = TS / lineH, yb = horizon - (1 - cam.eye) * lineH;      // yb: eski duvar tepesi (h = 1)
+        let tyF = (1 - (cam.eye + (horizon - y0) / lineH)) * TS + TS * 64;  // doku satırı (negatif olmasın diye kaydırılmış)
+        const inv = 1 / (lineH * V.wallFade);
         for (let y = y0; y <= y1; y++) {
-          const ti = ((tyF & 63) * 64 + texX) * 3;
+          const ti = (((tyF | 0) & (TS - 1)) * TS + texX) * 3;
           tyF += stepT;
           const idx = y * RW + x;
-          const m = vig[idx] * (0.92 + noise[(idx + noiseOff) & 4095] * 0.16);
+          let m = vig[idx] * (0.92 + noise[(idx + noiseOff) & 4095] * 0.16);
+          if (y < yb) { const f = 1 - (yb - y) * inv; if (f <= 0) continue; m *= f * f; }
           buf32[idx] = px32(TEX_WALL[ti] * lr * m, TEX_WALL[ti + 1] * lg * m, TEX_WALL[ti + 2] * lb * m);
         }
       }

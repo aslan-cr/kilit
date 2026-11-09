@@ -9,7 +9,9 @@ export const RULES = {
     model: "hazmat",                         // oyuncu karakteri (diğer oyuncular bunu görür; birinci şahısta kendini görmezsin)
     scale: 0.27,                             // Hazmat boyu 2.43 birim -> duvar yüksekliğinin ~0.66'sı
     eyeHeight: 0.42,                         // kurbağa göz hizası (duvar yüksekliği = 1)
-    lookSens: 0.0055,                        // rad/piksel (dokunmatik bakış)
+    lookSens: 0.0055,
+    pitchMax: 0.95,                          // yukarı/aşağı bakış sınırı (rad)
+    pitchKeys: 1.6,                          // rad/sn (klavye Z/X)                        // rad/piksel (dokunmatik bakış)
     turnKeys: 2.0,                           // rad/sn (klavye ok tuşları)
   },
   eyes: {
@@ -34,7 +36,7 @@ export const RULES = {
     startMinDist: 10,                        // başlangıçta oyuncuya en az bu kadar adım uzakta
     types: {
       jack:  { name: "Kabak Kafa", speed: 1.0,  hp: 2, radius: 0.30, scale: 0.46 },
-      witch: { name: "Cadı",       speed: 0.85, hp: 3, radius: 0.30, scale: 0.42 },
+      monster: { name: "Sıska Canavar", speed: 0.85, hp: 3, radius: 0.30, scale: 0.42 },   // eski cadıyla aynı boy (model 2.177 birim x 0.42)
     },
   },
   ammo: {
@@ -112,6 +114,8 @@ export const RULES = {
       candleSmall: { c: [1.0, 0.8, 0.45], r: 1.5, k: 0.6 }, lampPost: { c: [0.9, 1.0, 0.6], r: 3.6, k: 1.3 },
     },
   },
+  // Görüntü: tavan yok; duvarlar yukarı doğru wallFade birim uzar ve karanlığa karışır. voidHaze: boşluğun ufka yakın hafif sisi (0 = tam siyah)
+  view: { wallFade: 2.6, voidHaze: 7 },
   danger: { range: 8 },                      // bu kadar yakında düşman varsa kalp atışı hızlanır
   scare: { seconds: 3.0 },                   // yakalanma sahnesi süresi (karanlık + saldırı + kararma)
   // Lobi: kuzey duvarında yan yana oda kurma yerleri (kabinler), altında ortak salon

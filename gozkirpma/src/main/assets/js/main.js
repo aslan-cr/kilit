@@ -45,7 +45,7 @@ const ui = {
   phase: "menu",           // menu | play | scare
   scareT: 0, lid: 0, flick: 1, dip: 0, hurt: 0, puffs: [], time: 0,
   keys: { w: false, a: false, s: false, d: false, left: false, right: false, eye: false, fire: false },
-  btnEye: false, btnFire: false, tapFire: false, swap: false, light: false, lookAcc: 0,
+  btnEye: false, btnFire: false, tapFire: false, swap: false, light: false, lookAcc: 0, pitchAcc: 0,
   best: 0,
   speed: Math.max(1, Number(Q.get("speed") || 1)),
 };
@@ -68,6 +68,8 @@ function setKey(e, down) {
     case "KeyS": case "ArrowDown": k.s = down; e.preventDefault(); break;
     case "KeyA": k.a = down; break;
     case "KeyD": k.d = down; break;
+    case "KeyZ": k.up = down; break;
+    case "KeyX": k.dn = down; break;
     case "KeyQ": k.left = down; break;
     case "KeyE": k.right = down; break;
     case "ArrowLeft": k.left = down; e.preventDefault(); break;
@@ -109,7 +111,7 @@ touchLayer.addEventListener("pointermove", (e) => {
     knobEl.style.transform = `translate(${dx * k}px,${dy * k}px)`;   // topuz halkada kalır, hareket mesafesi sınırsızdır
   } else if (e.pointerId === look.id) {
     // yalnızca sağ yarıdayken döner; parmak sol yarıya geçerse dönmez
-    if (e.clientX >= half() && isLive()) ui.lookAcc += (e.clientX - look.x) * R.player.lookSens;
+    if (e.clientX >= half() && isLive()) { ui.lookAcc += (e.clientX - look.x) * R.player.lookSens; ui.pitchAcc -= (e.clientY - look.y) * R.player.lookSens; }
     look.moved = Math.max(look.moved, Math.hypot(e.clientX - look.x0, e.clientY - look.y0));
     look.x = e.clientX; look.y = e.clientY;
   }
@@ -137,7 +139,7 @@ holdButton(lightBtn, () => { ui.light = true; }, () => {});
 
 function resetTouch() {
   joy.id = null; look.id = null; joyEl.classList.remove("on");
-  ui.btnEye = ui.btnFire = ui.tapFire = ui.swap = ui.light = false; ui.lookAcc = 0;
+  ui.btnEye = ui.btnFire = ui.tapFire = ui.swap = ui.light = false; ui.lookAcc = 0; ui.pitchAcc = 0;
   for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.remove("down");
 }
 
@@ -154,12 +156,14 @@ function humanInput(first) {
     fwd, str,
     turn: ((k.right ? 1 : 0) - (k.left ? 1 : 0)) * R.player.turnKeys,
     yaw: first ? ui.lookAcc : 0,
+    pitch: first ? ui.pitchAcc : 0,
+    pitchRate: ((k.up ? 1 : 0) - (k.dn ? 1 : 0)) * R.player.pitchKeys,
     eyes: eyesT.closed(),
     fire: k.fire || ui.btnFire || ui.tapFire,
     switchWeapon: ui.swap,
     light: ui.light,
   };
-  if (first) { ui.lookAcc = 0; ui.tapFire = false; ui.swap = false; ui.light = false; }
+  if (first) { ui.lookAcc = 0; ui.pitchAcc = 0; ui.tapFire = false; ui.swap = false; ui.light = false; }
   return input;
 }
 
@@ -556,7 +560,7 @@ function galleryGame(page) {
   if (page === 1) for (const k of propKinds.slice(10)) items.push(["prop", k]);
   if (page === 2) { for (const k of Object.keys(R.enemies.types)) items.push(["enemy", k]); items.push(["box"]); items.push(["fly"]); }
   if (page === 3) for (const k of Object.keys(R.weapons).filter((k) => R.weapons[k].model)) items.push(["gun", k]);
-  if (page === 4) { items.push(["enemy", "witch"]); items.push(["player", "Hazmat"]); items.push(["enemy", "jack"]); }
+  if (page === 4) { items.push(["enemy", "monster"]); items.push(["player", "Hazmat"]); items.push(["enemy", "jack"]); }
   const n = items.length;
   items.forEach((it, i) => {
     const a = (n === 1 ? 0 : (i / (n - 1) - 0.5)) * 1.0, d = 2.6;
@@ -630,7 +634,7 @@ async function boot() {
   }
   if (Q.has("lobby")) { if (!auth.current()) auth.guest(); showView(); requestAnimationFrame(frame); await enterLobby(); window.__ready = true; return; }
   if (!Q.has("play") && !Q.has("autoplay")) autoLobby();
-  if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); if (Q.has("coin") && g.coins[0]) { const c = g.coins[0]; g.px = c.x - 1.2; g.py = c.y; g.ang = 0; } if (Q.has("shop")) { g.px = g.shop.x - 1.3; g.py = g.shop.y; g.yaw = 0; g.money = Number(Q.get("shop")) || 60; } if (Q.has("hold")) { const h = Q.get("hold"); if (h === "light") { g.slot = "light"; g.lightOn = true; g.flashModel = Q.get("flash") || "fl2"; g.flashOwned.push(g.flashModel); } else if (R.weapons[h]) { g.cur = h; if (!g.owned.includes(h)) g.owned.push(h); } if (Q.has("flash")) g.flashModel = Q.get("flash"); if (Q.has("low")) { g.sw = { t: 0.01, to: { slot: g.slot, weapon: g.cur }, applied: true }; g.raise = Number(Q.get("low")); } } }
+  if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); if (Q.has("coin") && g.coins[0]) { const c = g.coins[0]; g.px = c.x - 1.2; g.py = c.y; g.ang = 0; } if (Q.has("mon")) { const e = g.enemies.find((q) => q.type === "monster") || g.enemies[0]; e.x = g.px + Number(Q.get("mon")); e.y = g.py; e.yaw = Math.PI; e.walk = 0.4; } if (Q.has("pitch")) g.pitch = Number(Q.get("pitch")); if (Q.has("shop")) { g.px = g.shop.x - 1.3; g.py = g.shop.y; g.yaw = 0; g.money = Number(Q.get("shop")) || 60; } if (Q.has("hold")) { const h = Q.get("hold"); if (h === "light") { g.slot = "light"; g.lightOn = true; g.flashModel = Q.get("flash") || "fl2"; g.flashOwned.push(g.flashModel); } else if (R.weapons[h]) { g.cur = h; if (!g.owned.includes(h)) g.owned.push(h); } if (Q.has("flash")) g.flashModel = Q.get("flash"); if (Q.has("low")) { g.sw = { t: 0.01, to: { slot: g.slot, weapon: g.cur }, applied: true }; g.raise = Number(Q.get("low")); } } }
   window.__ready = true;
   requestAnimationFrame(frame);
 }
