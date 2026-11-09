@@ -52,6 +52,7 @@ class MainActivity : Activity() {
     )
 
     private lateinit var listBox: LinearLayout
+    private lateinit var statusView: TextView
 
     private val dir: File
         get() = File(filesDir, "apks").also { it.mkdirs() }
@@ -75,6 +76,9 @@ class MainActivity : Activity() {
                 14f, MUTED, false
             ).also { (it.layoutParams as LinearLayout.LayoutParams).topMargin = dp(6) }
         )
+
+        statusView = text("Hazır.", 14f, GOOD, true)
+        root.addView(statusView, lp(top = 10))
 
         val add = Button(this).apply {
             text = "+ APK ekle / güncelle"
@@ -296,7 +300,7 @@ class MainActivity : Activity() {
             if (!silent) toast("Kontrol zaten sürüyor, biraz bekle")
             return
         }
-        if (!silent) toast("Güncellemeler kontrol ediliyor...")
+        setStatus("Kontrol ediliyor... (GitHub\u0027a bağlanılıyor)", WARN)
         Thread {
             try {
                 val con = URL("https://api.github.com/repos/$REPO/releases/latest")
@@ -307,11 +311,11 @@ class MainActivity : Activity() {
                 con.setRequestProperty("User-Agent", "guncelle-app")
                 val code = con.responseCode
                 if (code == 404) {
-                    if (!silent) toastUi("Yayınlanmış sürüm bulunamadı. Depo herkese açık mı, derleme bitti mi?")
+                    setStatus("Yayınlanmış sürüm bulunamadı (404). Derleme bitti mi?", WARN)
                     return@Thread
                 }
                 if (code != 200) {
-                    if (!silent) toastUi("Sunucu hatası: $code")
+                    setStatus("GitHub hatası: $code" + if (code == 403) " (istek sınırı, biraz sonra tekrar dene)" else "", WARN)
                     return@Thread
                 }
                 val body = con.inputStream.bufferedReader().use { it.readText() }
@@ -321,19 +325,25 @@ class MainActivity : Activity() {
                 val tag = json.optString("tag_name")
                 val prefs = getSharedPreferences("guncelle", MODE_PRIVATE)
                 if (tag == prefs.getString("tag2", "") && entries().isNotEmpty()) {
-                    runOnUiThread {
-                        refresh()
-                        if (!silent) toast("En son yayın zaten indirilmiş ($tag). Listeden kurabilirsin.")
-                    }
+                    setStatus("Kontrol edildi: en son yayın ($tag) zaten indirilmiş. Listeden kurabilirsin.")
+                    runOnUiThread { refresh() }
                     return@Thread
                 }
 
                 val assets = json.getJSONArray("assets")
                 val added = mutableListOf<Entry>()
                 var failed = 0
+                val total = (0 until assets.length()).count { assets.getJSONObject(it).getString("name").lowercase().endsWith(".apk") }
+                var n = 0
                 for (i in 0 until assets.length()) {
                     val a = assets.getJSONObject(i)
                     if (!a.getString("name").lowercase().endsWith(".apk")) continue
+                    n++
+                    setStatus("Yayın $tag: indiriliyor $n/$total - ${a.getString("name")}", WARN)
+                    // Aynı boyutta dosya zaten varsa yeniden indirme.
+                    val have = dir.listFiles { f -> f.name.endsWith(".apk") }
+                        ?.firstOrNull { it.length() == a.optLong("size", -1) }
+                    if (have != null) continue
                     // Bir APK inmezse diğerleri yine denensin; hiçbiri sessizce atlanmasın.
                     try {
                         val dl = URL(a.getString("browser_download_url"))
@@ -343,7 +353,7 @@ class MainActivity : Activity() {
                         dl.instanceFollowRedirects = true
                         if (dl.responseCode == 200) {
                             val e = dl.inputStream.use { importStream(it, warn = false) }
-                            if (e != null) added.add(e)
+                            if (e != null) { added.add(e); runOnUiThread { refresh() } }
                         } else {
                             failed++
                         }
@@ -354,13 +364,17 @@ class MainActivity : Activity() {
                 }
                 // Etiket yalnızca hepsi indiyse kaydedilir; yoksa sonraki açılışta yeniden denenir.
                 if (failed == 0) prefs.edit().putString("tag2", tag).apply()
+                setStatus(
+                    if (failed > 0) "Yayın $tag: $failed dosya indirilemedi, tekrar dene."
+                    else "Yayın $tag kontrol edildi: ${added.size} yeni dosya indi.",
+                    if (failed > 0) WARN else GOOD
+                )
                 runOnUiThread {
                     refresh()
-                    if (failed > 0 && !silent) toast("$failed dosya indirilemedi, tekrar dene")
                     afterCheck(added, silent)
                 }
             } catch (ex: Exception) {
-                if (!silent) toastUi("Kontrol edilemedi: ${ex.message}")
+                setStatus("Kontrol edilemedi: ${ex.message ?: ex.javaClass.simpleName}. İnternet var mı?", WARN)
             } finally {
                 checking.set(false)
             }
@@ -491,6 +505,11 @@ class MainActivity : Activity() {
             if (bold) setTypeface(typeface, Typeface.BOLD)
             layoutParams = lp()
         }
+
+    private fun setStatus(msg: String, color: Int = GOOD) = runOnUiThread {
+        statusView.text = msg
+        statusView.setTextColor(color)
+    }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
