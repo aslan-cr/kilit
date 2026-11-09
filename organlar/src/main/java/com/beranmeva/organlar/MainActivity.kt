@@ -9,7 +9,10 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.webkit.MimeTypeMap
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 
@@ -34,11 +37,33 @@ class MainActivity : Activity() {
         s.allowFileAccess = true
         s.setSupportZoom(false)
 
-        web.webViewClient = WebViewClient()
+        // file:// adresinde fetch() engellenir; dosyaları sanal https adresinden sunarız.
+        web.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                val u = request.url
+                if (u.host != HOST) return null
+                val path = (u.path ?: "/").trimStart('/').ifEmpty { "index.html" }
+                return try {
+                    val ext = path.substringAfterLast('.', "")
+                    val mime = when (ext) {
+                        "js" -> "text/javascript"
+                        "json" -> "application/json"
+                        "html" -> "text/html"
+                        "gz" -> "application/octet-stream"
+                        else -> MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
+                    }
+                    val res = WebResourceResponse(mime, "utf-8", assets.open(path))
+                    res.responseHeaders = mapOf("Access-Control-Allow-Origin" to "*")
+                    res
+                } catch (_: Exception) {
+                    WebResourceResponse("text/plain", "utf-8", 404, "Not Found", emptyMap(), java.io.ByteArrayInputStream(ByteArray(0)))
+                }
+            }
+        }
         web.webChromeClient = WebChromeClient()
 
         if (savedInstanceState != null) web.restoreState(savedInstanceState)
-        else web.loadUrl("file:///android_asset/index.html")
+        else web.loadUrl("https://$HOST/index.html")
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -83,5 +108,6 @@ class MainActivity : Activity() {
 
     companion object {
         private const val IMMERSIVE = false
+        private const val HOST = "appassets.androidplatform.net"
     }
 }
