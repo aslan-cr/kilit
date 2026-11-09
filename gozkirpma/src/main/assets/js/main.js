@@ -2,7 +2,7 @@
 // Hata ayıklama kancaları: ?seed=N  ?play  ?sim=N (bot N sn oynar, son kare çizilir)  ?autoplay&speed=4
 //                          ?scare  ?gallery=0..3  ?lobby&server=127.0.0.1:8080 (lobiye doğrudan gir)  ?r.enemies.count=3 (rules.js'teki sayıyı değiştir)
 import { RULES, applyOverrides } from "./rules.js";
-import { createGame, step, rng, setPlayer } from "./sim.js";
+import { createGame, step, rng, setPlayer, buy, owns } from "./sim.js";
 import { makeBot } from "./bot.js";
 import { Renderer, loadModels } from "./render.js";
 import * as A from "./audio.js";
@@ -186,7 +186,7 @@ function startGame(seed = newSeed()) {
 }
 
 function endGame(win) {
-  ui.phase = "menu";
+  ui.phase = "menu"; shopEl.classList.add("hidden");
   hudEl.style.display = "none";
   for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
   msgEl.classList.remove("on");
@@ -230,6 +230,10 @@ function onEvents() {
       case "kill": A.playKill(); ui.puffs.push({ x: ev.x, y: ev.y, t: 0, seed: Math.random() * 6 }); showMsg(`Gölge dağıldı. ${R.enemies.respawnSec} sn sonra geri döner…`, 2200); break;
       case "step": A.playStep(ev.near); break;
       case "fly": A.playPickup(); showMsg(`Işık böceği ${ev.n}/${R.goal.flies}. Gölgeler hızlandı…`, 2400); break;
+      case "shopOpen": renderShop(true); A.playGunPick(); break;
+      case "shopClose": renderShop(); break;
+      case "buy": A.playGunPick(); showMsg(ev.kind === "light" ? `${R.shop.names[ev.id]} alındı` : `${R.weapons[ev.id].name} alındı`, 1800); renderShop(true); break;
+      case "noLight": showMsg("Fenerin yok. Dükkandan bir el feneri al.", 2200); break;
       case "coin": A.playCoin(); showMsg(`🪙 +${ev.value} para (toplam ${ev.n})`, 1600); break;
       case "ammo": A.playPickup(); showMsg(`Mermi kutusu: ${ev.n} mermi.`, 1600); break;
       case "gun": A.playGunPick(); showMsg(`Yeni silah: ${R.weapons[ev.weapon].name}`, 2400); break;
@@ -241,6 +245,27 @@ function onEvents() {
     }
   }
   g.events.length = 0;
+}
+// ---------- Dükkan ----------
+const shopEl = $("shop"), shopList = $("shopList"), shopMoney = $("shopMoney");
+shopEl.addEventListener("pointerdown", (e) => e.stopPropagation());
+let shopKey = "";
+function renderShop(force) {
+  if (!g || !g.shop || ui.phase !== "play" || !g.nearShop) { shopEl.classList.add("hidden"); shopKey = ""; return; }
+  const key = g.money + "|" + g.owned.join() + "|" + g.flashOwned.join();
+  if (!force && key === shopKey && !shopEl.classList.contains("hidden")) return;
+  shopKey = key; shopEl.classList.remove("hidden"); shopMoney.textContent = String(g.money);
+  shopList.textContent = "";
+  for (const it of R.shop.items) {
+    const row = document.createElement("div"); row.className = "row";
+    const name = it.kind === "light" ? R.shop.names[it.id] : R.weapons[it.id].name;
+    const info = it.kind === "light" ? `El feneri · menzil ${R.flashlight.stats[it.id].range}` : `Silah · ${R.weapons[it.id].pellets} saçma · ${R.weapons[it.id].shells} mermi/atış`;
+    const l = document.createElement("div"); l.innerHTML = "<b></b><small></small>"; l.firstChild.textContent = name; l.lastChild.textContent = info; row.append(l);
+    if (owns(g, it)) { const o = document.createElement("div"); o.className = "own"; o.textContent = "✔ sende"; row.append(o); }
+    else { const b = document.createElement("button"); b.type = "button"; b.textContent = `🪙 ${it.price}`; b.disabled = g.money < it.price;
+      b.addEventListener("click", () => { const r = buy(g, it.id); if (!r.ok) showMsg(r.reason === "money" ? "Paran yetmiyor." : "Dükkandan uzaktasın.", 1400); }); row.append(b); }
+    shopList.append(row);
+  }
 }
 function safeVibrate(p) { if (navigator.vibrate) { try { navigator.vibrate(p); } catch { /* yoksay */ } } }
 
@@ -261,6 +286,7 @@ function updateHud() {
   const w = (dk * 100).toFixed(0) + "%";
   if (hudCache.d !== w) { hudCache.d = w; el.dry.style.width = w; el.dry.style.background = g.dry >= R.eyes.dryWarn ? "#d04030" : "#6fb283"; }
   updateSwapBtn();
+  renderShop();
 }
 
 // ---------- Ana döngü ----------
@@ -604,7 +630,7 @@ async function boot() {
   }
   if (Q.has("lobby")) { if (!auth.current()) auth.guest(); showView(); requestAnimationFrame(frame); await enterLobby(); window.__ready = true; return; }
   if (!Q.has("play") && !Q.has("autoplay")) autoLobby();
-  if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); if (Q.has("coin") && g.coins[0]) { const c = g.coins[0]; g.px = c.x - 1.2; g.py = c.y; g.ang = 0; } if (Q.has("hold")) { const h = Q.get("hold"); if (h === "light") { g.slot = "light"; g.lightOn = true; } else if (R.weapons[h]) { g.cur = h; if (!g.owned.includes(h)) g.owned.push(h); } if (Q.has("flash")) g.flashModel = Q.get("flash"); if (Q.has("low")) { g.sw = { t: 0.01, to: { slot: g.slot, weapon: g.cur }, applied: true }; g.raise = Number(Q.get("low")); } } }
+  if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); if (Q.has("coin") && g.coins[0]) { const c = g.coins[0]; g.px = c.x - 1.2; g.py = c.y; g.ang = 0; } if (Q.has("shop")) { g.px = g.shop.x - 1.3; g.py = g.shop.y; g.yaw = 0; g.money = Number(Q.get("shop")) || 60; } if (Q.has("hold")) { const h = Q.get("hold"); if (h === "light") { g.slot = "light"; g.lightOn = true; g.flashModel = Q.get("flash") || "fl2"; g.flashOwned.push(g.flashModel); } else if (R.weapons[h]) { g.cur = h; if (!g.owned.includes(h)) g.owned.push(h); } if (Q.has("flash")) g.flashModel = Q.get("flash"); if (Q.has("low")) { g.sw = { t: 0.01, to: { slot: g.slot, weapon: g.cur }, applied: true }; g.raise = Number(Q.get("low")); } } }
   window.__ready = true;
   requestAnimationFrame(frame);
 }

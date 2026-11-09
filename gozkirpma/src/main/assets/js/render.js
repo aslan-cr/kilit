@@ -1,7 +1,7 @@
 // Yazılım çizici: ışın izlemeli labirent (duvar/zemin/tavan) + KayKit/PSX 3D modelleri için üçgen rasterizer.
 // Hiçbir dış kütüphane gerekmez (internetsiz WebView'da çalışır). Sim durumunu (g) okur, hiçbir şeyi değiştirmez.
 import { RULES } from "./rules.js";
-import { rayWall } from "./sim.js";
+import { rayWall, flashStat } from "./sim.js";
 
 // Yönlü (huzme) ışık için konik çarpan: ışığın önünde 1, yan tarafta 0 (karekök yok)
 function coneF(L, dx, dy, d2) {
@@ -262,7 +262,8 @@ export class Renderer {
     const F = g.rules.flashlight, fl = [];
     if (g.lightOn) {                                          // el feneri: yönlü huzme + yumuşak hale
       const dng = g.danger || 0, jitter = dng > 0.3 && Math.random() < dng * 0.25 ? 0.25 : 1;   // tehlikede titrer
-      fl.push({ x: cam.x, y: cam.y, r: F.range, k: F.k * jitter, c: F.color, cone: true, dx: cam.dirX, dy: cam.dirY, c0: F.coneCos * F.coneCos });
+      const st = flashStat(g);
+      fl.push({ x: cam.x, y: cam.y, r: st.range, k: st.k * jitter, c: F.color, cone: true, dx: cam.dirX, dy: cam.dirY, c0: F.coneCos * F.coneCos });
       fl.push({ x: cam.x, y: cam.y, r: F.haloR, k: F.haloK * jitter, c: F.color });
     }
     for (const l of g.lights) {

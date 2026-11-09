@@ -69,6 +69,7 @@ test("söz: fener gölgeleri %30 hızlandırır, fenerdeyken ateş edilemez (met
   assert.match(text, /ateş edilemez/);
   const g = createGame(5);
   g.enemies.forEach((e) => { e.alive = false; e.respawn = 1e9; });
+  g.flashOwned.push("fl2"); g.flashModel = "fl2";      // fener dükkandan alınır
   step(g, DT, { light: true });
   for (let i = 0; i < 60; i++) step(g, DT, {});
   assert.equal(g.slot, "light");

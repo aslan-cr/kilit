@@ -198,3 +198,47 @@ test("gölgeler her böcekte hızlanır", () => {
   g.collected = 3;
   assert.ok(enemySpeed(g, g.enemies[0]) > s0 + 3 * RULES.enemies.speedPerFly * 0.8);
 });
+
+// ---------- Dükkan ----------
+import { buy, shopItem } from "../src/main/assets/js/sim.js";
+function atShop(seed = 5, money = 0) { const g = createGame(seed); g.px = g.shop.x - 1; g.py = g.shop.y; g.money = money; step(g, DT, {}); return g; }
+
+test("dükkan: ulaşılabilir, başlangıçtan uzak bir yerde; yaklaşınca otomatik açılır, uzaklaşınca kapanır", () => {
+  for (const seed of [1, 2, 3, 5, 9, 14]) {
+    const g = createGame(seed);
+    assert.ok(g.distStart[(g.shop.y | 0) * g.S + (g.shop.x | 0)] >= RULES.shop.minStartDist, "dükkan çok yakın, tohum " + seed);
+  }
+  const g = createGame(5);
+  g.px = g.shop.x - 1; g.py = g.shop.y; step(g, DT, {});
+  assert.equal(g.nearShop, true); assert.ok(g.events.some((e) => e.t === "shopOpen"));
+  g.events.length = 0; g.px = 1.5; g.py = 1.5; step(g, DT, {});
+  assert.equal(g.nearShop, false); assert.ok(g.events.some((e) => e.t === "shopClose"));
+});
+
+test("dükkan: uzaktan alınamaz, para yetmezse alınamaz, alınan silah/fener ele gelir ve para düşer", () => {
+  const g0 = createGame(5); g0.money = 999;
+  assert.equal(buy(g0, "double").reason, "far");
+  const g = atShop(5, 70);
+  assert.equal(buy(g, "double").reason, "money");          // 75 > 70
+  assert.equal(buy(g, "sawed").ok, true); assert.equal(g.money, 70 - shopItem(g, "sawed").price);
+  assert.ok(g.owned.includes("sawed")); assert.equal(buy(g, "sawed").reason, "owned");
+  for (let i = 0; i < 60; i++) step(g, DT, {});
+  assert.equal(g.cur, "sawed", "satın alınan silah ele geçer");
+  g.money = 100; assert.equal(buy(g, "fl2").ok, true);
+  for (let i = 0; i < 60; i++) step(g, DT, {});
+  assert.equal(g.slot, "light"); assert.equal(g.flashModel, "fl2"); assert.equal(g.lightOn, true);
+});
+
+test("fener satın alınmadan açılmaz; model menzili düşman hızlanmasını belirler", () => {
+  const g = createGame(5);
+  step(g, DT, { light: true });
+  assert.equal(g.slot, "gun"); assert.ok(g.events.some((e) => e.t === "noLight"));
+  assert.ok(RULES.flashlight.stats.fl3.range > RULES.flashlight.stats.fl1.range);
+});
+
+test("dükkan yerleşimi labirent/düşman dizilimini bozmaz ve paralar dükkandan uzak çıkar", () => {
+  const a = createGame(9), b = createGame(9);
+  assert.deepEqual(a.shop, b.shop);
+  for (let i = 0; i < 4000; i++) step(a, DT, {});
+  for (const c of a.coins) assert.ok(Math.hypot(c.x - a.shop.x, c.y - a.shop.y) >= 1.5);
+});

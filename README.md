@@ -98,7 +98,7 @@ Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
 Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
 
-## Karanlık Bataklık (gozkirpma, v3.7)
+## Karanlık Bataklık (gozkirpma, v3.8)
 Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık, mezarlık dekorlu bir bataklık labirentinde ilerlersin.
 Kural: gözlerin AÇIKKEN gölgeler (cadı, kabak kafa) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
 6 ışık böceğini topla, yakalanma. Ayrıntılı tasarım: `gozkirpma/DESIGN.md`.
@@ -135,3 +135,6 @@ Varlık lisansları: KayKit Spooktober Seasonal Pack 1.1 (Kay Lousberg, CC0). PS
 ### Çok lobili sunucu (v3.7)
 `node gozkirpma/server/server.mjs [port]` — internetten gelen herkes aynı lobiye girer; bir lobi en fazla 20 kişi (`rules.lobby.maxPlayers`). 20 dolunca otomatik yeni lobi açılır; lobi 20'nin altına inerse sonradan gelenler önce boşluğu olan en küçük numaralı lobiye yerleşir; boş lobiler silinir. `/health` lobi doluluklarını verir.
 SINIR: sunucuyu ben barındıramam. Herkesin aynı lobide buluşması için sunucunun internette sürekli açık bir adreste çalışması ve adresin uygulamada (⚙ ayarlar ya da `rules.lobby.net.url`) girilmesi gerekir.
+
+### Dükkan (v3.8)
+Labirentte "DÜKKAN" tabelalı bir sunak var (başlangıçtan en az 8 karo uzakta). Yanına yaklaşınca panel otomatik açılır, uzaklaşınca kapanır. Topladığın paralarla silah (Kısa Çifte 45, Üst Üste Çifte 60, Çifte Namlu 75) ve el feneri (Küçük 30 / Orta 60 / Güçlü 90; menzilleri 8/11/14) alırsın. El feneri artık yalnızca dükkandan alınır. Fiyatlar `rules.shop`, fener menzilleri `rules.flashlight.stats`. Test: `node tools/shop-ui-test.mjs`.

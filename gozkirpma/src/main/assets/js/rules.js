@@ -63,13 +63,29 @@ export const RULES = {
     haloR: 2.2, haloK: 0.55,                 // oyuncunun etrafındaki yumuşak ışık
     color: [1.0, 0.93, 0.78],
     enemyBoost: 1.3,                         // fener yanıkken, ışık menzilindeki gölgeler bu kadar hızlı koşar (ışığa çekilirler)
-    models: ["fl1", "fl2", "fl3"],           // her oyunda tohuma göre biri seçilir
+    models: ["fl1", "fl2", "fl3"],
+    stats: { fl1: { range: 8, k: 1.8 }, fl2: { range: 11, k: 2.2 }, fl3: { range: 14, k: 2.8 } },   // model başına menzil/parlaklık (range, k üsttekileri ezer)
     // Elde tutuş: grip = modeldeki sap konumu (el buraya gelir), scale = boyut, at = elde duruş kayması, lensY = mercek ucunun model y'si, handScale/roll = el boyu/dönüşü
     hold: {
       fl1: { grip: [0, -0.007, 0.039], scale: 1.7, at: [0.02, 0.0], hand: [0, 0, 0], lensY: 0.0472, handScale: 0.18, roll: 0 },
       fl2: { grip: [0, -0.018, 0.052], scale: 1.25, at: [0.02, 0.0], hand: [0, 0, 0], lensY: 0.07, handScale: 0.18, roll: 0 },
       fl3: { grip: [0, -0.015, 0.043], scale: 1.5, at: [0.02, 0.0], hand: [0, 0, 0], lensY: 0.0558, handScale: 0.18, roll: 0 },
     },
+  },
+  // Dükkan: labirentte bir yerde; yanına yaklaşınca (radius) otomatik açılır, uzaklaşınca kapanır. Fiyatlar para cinsinden (1 para = coins.value).
+  // fener: model -> menzil (range, karo) ve parlaklık (k); satın alınan en son fener ele alınır. silah: rules.weapons anahtarı.
+  shop: {
+    radius: 1.7, minStartDist: 8, minFlyDist: 3,
+    items: [
+      { id: "fl1", kind: "light", price: 30 },
+      { id: "sawed", kind: "gun", price: 45 },
+      { id: "fl2", kind: "light", price: 60 },
+      { id: "overUnder", kind: "gun", price: 60 },
+      { id: "double", kind: "gun", price: 75 },
+      { id: "fl3", kind: "light", price: 90 },
+    ],
+    names: { fl1: "Küçük Fener", fl2: "Orta Fener", fl3: "Güçlü Fener" },
+    light: { c: [1.0, 0.75, 0.3], r: 3.4, k: 1.2 },
   },
   switch: { seconds: 0.55 },                 // silah/fener değiştirme animasyonu: eski eşya iner, yenisi kalkar
   // Para: labirentte rastgele yerlerde belirir; her biri `value` para verir. Beklemeye devam ettikçe yenileri rastgele yerlerde oluşur.

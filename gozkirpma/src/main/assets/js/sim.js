@@ -161,14 +161,48 @@ export function createGame(seed = 1, rules = RULES) {
     enemies, flies, boxes, gunItems, props, lights, players: [],      // players: diğer oyuncular (çok oyunculu için), {id,name,x,y,yaw,walk,moving}
     shells: R.ammo.start, owned: [R.weapons.start], cur: R.weapons.start, cooldown: 0, recoil: 0, flash: 0,
     coins: [], money: 0, coinT: 0, crand,
-    slot: "gun", sw: null, raise: 1, lightOn: false, flashModel: R.flashlight.models[seed % R.flashlight.models.length],   // elde: silah ya da fener; sw = geçiş animasyonu
+    slot: "gun", sw: null, raise: 1, lightOn: false, flashModel: null, flashOwned: [], nearShop: false,   // elde: silah ya da fener; sw = geçiş animasyonu
     collected: 0, time: 0, kills: 0, shots: 0, hits: 0,
     eyesClosed: false, forced: 0, dry: 0, danger: 0,
     state: "play", killer: -1, events: [],
   };
+  placeShop(g);
   for (let i = 0; i < R.coins.start; i++) spawnCoin(g, 5);
   return g;
 }
+
+// Dükkan: başlangıçtan yeterince uzak, ışık böceklerinden ayrı, ulaşılabilir bir açık karo (para akışıyla seçilir; labirent akışı bozulmaz).
+function placeShop(g) {
+  const C = g.rules.shop, S = g.S, cand = [];
+  for (let y = 1; y < S - 1; y++) for (let x = 1; x < S - 1; x++) {
+    if (g.map[y * S + x] || g.distStart[y * S + x] < C.minStartDist) continue;
+    if (g.flies.some((f) => Math.hypot(f.x - x - 0.5, f.y - y - 0.5) < C.minFlyDist)) continue;
+    cand.push([x, y]);
+  }
+  const [x, y] = cand.length ? cand[Math.floor(g.crand() * cand.length)] : [1, 1];
+  g.shop = { x: x + 0.5, y: y + 0.5 };
+  g.props.push({ kind: "shrine", x: g.shop.x, y: g.shop.y, yaw: g.crand() * 6.28, big: true, shop: true });
+  g.lights.push({ x: g.shop.x, y: g.shop.y, ...C.light });
+  g.signs = [{ x: g.shop.x, y: g.shop.y, z: 0.9, text: "DÜKKAN", c: "#ffd45a" }];
+}
+
+export function shopItem(g, id) { return g.rules.shop.items.find((it) => it.id === id) || null; }
+export function owns(g, it) { return it.kind === "light" ? g.flashOwned.includes(it.id) : g.owned.includes(it.id); }
+// Dükkandan satın al. { ok } ya da { ok:false, reason: "far"|"money"|"owned"|"unknown" }
+export function buy(g, id) {
+  const it = shopItem(g, id);
+  if (!it) return { ok: false, reason: "unknown" };
+  if (!g.nearShop) return { ok: false, reason: "far" };
+  if (owns(g, it)) return { ok: false, reason: "owned" };
+  const cost = it.price;
+  if (g.money < cost) return { ok: false, reason: "money" };
+  g.money -= cost;
+  if (it.kind === "light") { g.flashOwned.push(it.id); g.flashModel = it.id; if (!g.sw) beginSwitch(g, { slot: "light" }); }
+  else { g.owned.push(it.id); if (!g.sw) beginSwitch(g, { slot: "gun", weapon: it.id }); }
+  emit(g, { t: "buy", id, kind: it.kind, money: g.money });
+  return { ok: true };
+}
+export function flashStat(g) { const F = g.rules.flashlight, st = (F.stats && F.stats[g.flashModel]) || {}; return { range: st.range ?? F.range, k: st.k ?? F.k }; }
 
 // Para: rastgele açık karoya koy (oyuncudan uzak, diğer paralardan uzak, ulaşılabilir). Yer bulunamazsa false.
 export function spawnCoin(g, minDist) {
@@ -180,6 +214,7 @@ export function spawnCoin(g, minDist) {
     const x = cx + 0.5, y = cy + 0.5;
     if (Math.hypot(x - g.px, y - g.py) < md) continue;
     if (g.coins.some((c) => Math.hypot(c.x - x, c.y - y) < C.minCoinDist)) continue;
+    if (g.shop && Math.hypot(g.shop.x - x, g.shop.y - y) < 1.5) continue;
     g.coins.push({ x, y, ph: g.crand() * 6, taken: false });
     return true;
   }
@@ -268,7 +303,7 @@ export function enemySpeed(g, e) {
   let v = (E.baseSpeed + E.speedPerFly * g.collected) * E.types[e.type].speed;
   if (g.lightOn) {                                   // fener yanıkken menzildeki gölgeler ışığa koşar
     const F = g.rules.flashlight;
-    if (Math.hypot(e.x - g.px, e.y - g.py) < F.range && hasLine(g, g.px, g.py, e.x, e.y)) v *= F.enemyBoost;
+    if (Math.hypot(e.x - g.px, e.y - g.py) < flashStat(g).range && hasLine(g, g.px, g.py, e.x, e.y)) v *= F.enemyBoost;
   }
   return v;
 }
@@ -387,6 +422,7 @@ function switchWeapon(g) {                           // R / SİLAH DEĞİŞ: fen
 }
 function toggleLight(g) {
   if (g.sw) return;
+  if (!g.flashOwned.length && g.slot !== "light") { emit(g, { t: "noLight" }); return; }
   beginSwitch(g, g.slot === "light" ? { slot: "gun", weapon: g.cur } : { slot: "light" });
 }
 
@@ -421,6 +457,11 @@ export function step(g, dt, input = {}) {
   // Oyuncuya dönük bakış: göz kapalıyken yönü oyuncuya çevir (donmuşken pozu korur)
   g.danger = Math.max(0, Math.min(1, 1 - nearestEnemyDist(g) / g.rules.danger.range));
 
+  // Dükkan: yaklaşınca otomatik açılır, uzaklaşınca kapanır
+  if (g.shop) {
+    const near = Math.hypot(g.shop.x - g.px, g.shop.y - g.py) < g.rules.shop.radius;
+    if (near !== g.nearShop) { g.nearShop = near; emit(g, { t: near ? "shopOpen" : "shopClose" }); }
+  }
   // Para: bekledikçe rastgele yerlerde yenisi oluşur
   g.coinT += dt;
   if (g.coinT >= g.rules.coins.spawnEvery && g.coins.length < g.rules.coins.max) { g.coinT = 0; spawnCoin(g); }
