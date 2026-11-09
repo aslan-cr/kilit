@@ -264,6 +264,7 @@ class MainActivity : Activity() {
             val dest = File(dir, "${e.pkg}.apk")
             val old = if (dest.exists()) parse(dest) else null
             if (old != null && old.vCode > e.vCode) {
+                skippedOld = true
                 if (warn) toastUi("${e.label}: dosya eski sürüm, atlandı")
                 return null
             }
@@ -293,6 +294,7 @@ class MainActivity : Activity() {
 
     // ---------- Otomatik güncelleme (GitHub Release) ----------
 
+    @Volatile private var skippedOld = false
     private val checking = java.util.concurrent.atomic.AtomicBoolean(false)
 
     private fun checkUpdates(silent: Boolean = false) {
@@ -324,15 +326,10 @@ class MainActivity : Activity() {
                 val json = JSONObject(body)
                 val tag = json.optString("tag_name")
                 val prefs = getSharedPreferences("guncelle", MODE_PRIVATE)
-                if (tag == prefs.getString("tag2", "") && entries().isNotEmpty()) {
-                    setStatus("Kontrol edildi: en son yayın ($tag) zaten indirilmiş. Listeden kurabilirsin.")
-                    runOnUiThread { refresh() }
-                    return@Thread
-                }
-
                 val assets = json.getJSONArray("assets")
                 val added = mutableListOf<Entry>()
                 var failed = 0
+                val failedNames = mutableListOf<String>()
                 val total = (0 until assets.length()).count { assets.getJSONObject(it).getString("name").lowercase().endsWith(".apk") }
                 var n = 0
                 for (i in 0 until assets.length()) {
@@ -340,10 +337,11 @@ class MainActivity : Activity() {
                     if (!a.getString("name").lowercase().endsWith(".apk")) continue
                     n++
                     setStatus("Yayın $tag: indiriliyor $n/$total - ${a.getString("name")}", WARN)
-                    // Aynı boyutta dosya zaten varsa yeniden indirme.
-                    val have = dir.listFiles { f -> f.name.endsWith(".apk") }
-                        ?.firstOrNull { it.length() == a.optLong("size", -1) }
-                    if (have != null) continue
+                    val aname = a.getString("name")
+                    val aid = a.optLong("id", -1).toString()
+                    // Bu yayındaki dosya daha önce indirildiyse ve hâlâ duruyorsa tekrar indirme.
+                    val knownPkg = prefs.getString("p_$aname", null)
+                    if (prefs.getString("a_$aname", "") == aid && knownPkg != null && File(dir, "$knownPkg.apk").exists()) continue
                     // Bir APK inmezse diğerleri yine denensin; hiçbiri sessizce atlanmasın.
                     try {
                         val dl = URL(a.getString("browser_download_url"))
@@ -352,20 +350,25 @@ class MainActivity : Activity() {
                         dl.readTimeout = 60000
                         dl.instanceFollowRedirects = true
                         if (dl.responseCode == 200) {
+                            skippedOld = false
                             val e = dl.inputStream.use { importStream(it, warn = false) }
-                            if (e != null) { added.add(e); runOnUiThread { refresh() } }
+                            if (e != null) {
+                                added.add(e)
+                                prefs.edit().putString("a_$aname", aid).putString("p_$aname", e.pkg).apply()
+                                runOnUiThread { refresh() }
+                            } else if (!skippedOld) {
+                                failed++; failedNames.add("$aname (geçersiz dosya)")
+                            }
                         } else {
-                            failed++
+                            failed++; failedNames.add("$aname (HTTP ${dl.responseCode})")
                         }
                         dl.disconnect()
-                    } catch (_: Exception) {
-                        failed++
+                    } catch (ex: Exception) {
+                        failed++; failedNames.add("$aname (${ex.message ?: ex.javaClass.simpleName})")
                     }
                 }
-                // Etiket yalnızca hepsi indiyse kaydedilir; yoksa sonraki açılışta yeniden denenir.
-                if (failed == 0) prefs.edit().putString("tag2", tag).apply()
                 setStatus(
-                    if (failed > 0) "Yayın $tag: $failed dosya indirilemedi, tekrar dene."
+                    if (failed > 0) "Yayın $tag: indirilemeyen: ${failedNames.joinToString(", ")}. Tekrar dene."
                     else "Yayın $tag kontrol edildi: ${added.size} yeni dosya indi.",
                     if (failed > 0) WARN else GOOD
                 )
