@@ -52,7 +52,11 @@ class MainActivity : Activity() {
                         "gz" -> "application/octet-stream"
                         else -> MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
                     }
-                    val res = WebResourceResponse(mime, "utf-8", assets.open(path))
+                    // Android derleyicisi assets içindeki ".gz" uzantısını silip dosyayı açık hâliyle paketler.
+                    val stream = try { assets.open(path) } catch (e: java.io.FileNotFoundException) {
+                        if (path.endsWith(".gz")) assets.open(path.removeSuffix(".gz")) else throw e
+                    }
+                    val res = WebResourceResponse(mime, "utf-8", stream)
                     res.responseHeaders = mapOf("Access-Control-Allow-Origin" to "*")
                     res
                 } catch (_: Exception) {
