@@ -199,7 +199,7 @@ button.small { padding: 5px 12px; font-size: .8rem; }
 #eyeDbg { position: fixed; left: 10px; bottom: 10px; z-index: 4; padding: 4px 8px; border-radius: 8px; background: rgba(0,0,0,.55); color: #b6f0c0; font: 600 12px/1.2 system-ui, sans-serif; pointer-events: none; }
 
 /* Dükkan paneli: yaklaşınca otomatik açılır */
-#shop { position: fixed; top: 44px; left: 10px; z-index: 6; width: min(330px, 70vw); max-height: 66vh; overflow: auto; padding: 10px 12px; border-radius: 14px; background: rgba(14, 10, 4, .88); border: 1px solid #8a6a22; color: #f3e2b0; touch-action: manipulation; }
+#shop { position: fixed; top: 58px; left: 10px; z-index: 6; width: min(330px, 70vw); max-height: 66vh; overflow: auto; padding: 10px 12px; border-radius: 14px; background: rgba(14, 10, 4, .88); border: 1px solid #8a6a22; color: #f3e2b0; touch-action: manipulation; }
 #shop .shopHead { display: flex; justify-content: space-between; font-weight: 800; letter-spacing: .06em; margin-bottom: 6px; color: #ffd45a; }
 #shopList { display: grid; gap: 6px; }
 #shopList .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 10px; background: rgba(255, 220, 120, .07); }

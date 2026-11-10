@@ -100,6 +100,20 @@ export function createAuth({ store = browserStore(), crypto = globalThis.crypto,
       return { ...emptyStats(), ...load("gk_guest_stats", {}) };
     },
 
+    // Cüzdan: hesapta kalıcı para ve satın alınanlar (silah/fener). Oyun kazanılsa da kaybedilse de toplanan para buraya eklenir.
+    wallet() {
+      const k = store.get("gk_session"), users = load("gk_users", {});
+      const w = k && users[k] ? users[k].wallet : load("gk_guest_wallet", null);
+      return { money: 0, guns: [], lights: [], ...(w || {}) };
+    },
+    saveWallet(w) {
+      const k = store.get("gk_session"), users = load("gk_users", {});
+      const clean = { money: Math.max(0, Math.floor(w.money || 0)), guns: [...new Set(w.guns || [])], lights: [...new Set(w.lights || [])] };
+      if (k && users[k]) { users[k].wallet = clean; save("gk_users", users); } else save("gk_guest_wallet", clean);
+      return { ...clean };
+    },
+    addMoney(n) { const w = api.wallet(); w.money += Math.max(0, Math.floor(n || 0)); return api.saveWallet(w); },
+
     // Oyun bitince: { win, time (sn), kills, coins (toplanan para) }
     recordGame({ win, time, kills, coins }) {
       const k = store.get("gk_session"), users = load("gk_users", {});
