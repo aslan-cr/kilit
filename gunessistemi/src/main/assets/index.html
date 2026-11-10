@@ -3,26 +3,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Güneş Sistemi Modeli</title>
 <style>
-:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#05060d;--fg:#e8ecf5;--mut:#8b93a7;--pn:#151a30;--ac:#ffd36b}
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#0a1030;--fg:#eef1f8;--mut:#a3accb;--pn:#141e4a;--pn2:#1f2c63;--ln:#3a4a8c;--ac:#ffc233;--tel:#6fe0d0;
+--ui:ui-rounded,"SF Pro Rounded","Nunito","Varela Round","Trebuchet MS",system-ui,sans-serif}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:13px system-ui,-apple-system,sans-serif;overflow:hidden}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 var(--ui);overflow:hidden}
 body{display:flex;flex-direction:column}
-#bar{display:flex;gap:8px;align-items:center;padding:6px 8px;flex-wrap:wrap;background:var(--pn)}
-#bar b{font-size:12px;flex:1;min-width:150px}
-select,button,input{background:#222a47;color:var(--fg);border:1px solid #2f3960;border-radius:8px;padding:5px 8px;font:inherit}
+#bar{display:flex;gap:8px 10px;align-items:center;padding:8px 12px;flex-wrap:wrap;background:var(--pn);border-bottom:3px solid var(--ac)}
+#bar b{flex:1 1 100%;font-size:clamp(17px,3.2vw,24px);font-weight:800;letter-spacing:.01em;font-variant-numeric:tabular-nums;line-height:1.25}
+@media(min-width:900px){#bar b{flex:1 1 auto;min-width:0}}
+select,button,input{background:var(--pn2);color:var(--fg);border:2px solid var(--ln);border-radius:14px;padding:0 14px;min-height:48px;font:inherit;font-weight:600;box-sizing:border-box}
+button{cursor:pointer;transition:transform .12s,background .12s}
+button:active{transform:scale(.94);background:var(--ln)}
+#now{background:var(--ac);color:#1a1300;border-color:var(--ac);font-weight:800}
+#zi,#zo{min-width:48px;font-size:22px;padding:0}
+#bar label{display:inline-flex;align-items:center;gap:8px;font-weight:600;color:var(--mut)}
+#tl{accent-color:var(--ac);min-height:48px;padding:0;border:0;background:none;width:110px!important}
+:is(select,button,input,#cv,#c):focus-visible{outline:3px solid var(--tel);outline-offset:2px}
 #cw{position:relative;flex:1;min-height:0}
 canvas{width:100%;height:100%;display:block;touch-action:none}
-#info{position:absolute;left:8px;top:6px;font-size:12px;color:var(--fg);text-shadow:0 0 4px #000;pointer-events:none;max-width:90%}
-#chips{display:flex;gap:6px;overflow-x:auto;padding:6px 8px;background:var(--pn)}
-#chips button{white-space:nowrap;flex:none}
-#chips button.on{background:var(--ac);color:#111;border-color:var(--ac)}
-#fp{position:absolute;left:6px;top:6px;right:6px;max-height:80%;overflow:auto;background:#151a30f2;border:1px solid #2f3960;border-radius:10px;padding:8px;z-index:5}#fp[hidden]{display:none}#fp h4{margin:10px 0 4px;font-size:12px;color:var(--ac)}#fp label{display:inline-flex;align-items:center;gap:4px;margin:3px 12px 3px 0;white-space:nowrap}#fp input{padding:0}#note{font-size:10.5px;color:var(--mut);padding:3px 8px 5px;background:var(--pn)}
+#info{position:absolute;left:10px;top:10px;font-size:14px;line-height:1.45;color:var(--fg);background:#0a1030d9;border-left:4px solid var(--ac);border-radius:4px 12px 12px 4px;padding:8px 12px;pointer-events:none;max-width:min(92%,560px)}
+#chips{display:flex;gap:8px;overflow-x:auto;padding:8px 12px;background:var(--pn);scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+#chips button{white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:8px;border-radius:999px;min-width:48px}
+#chips button::before{content:"";width:14px;height:14px;border-radius:50%;background:var(--ac);flex:none;box-shadow:0 0 0 2px #0a103080}
+#chips button:first-child::before{background:radial-gradient(circle,#fff6c0,#ffc233 55%,#ff9a28)}
+#chips button:nth-child(3)::before{background:#b5b0a8}#chips button:nth-child(4)::before{background:#e8c98a}#chips button:nth-child(5)::before{background:#4a90e2}#chips button:nth-child(6)::before{background:#d1603d}#chips button:nth-child(7)::before{background:#d8b48a}#chips button:nth-child(8)::before{background:#e3cf9a}#chips button:nth-child(9)::before{background:#8fd8e0}#chips button:nth-child(10)::before{background:#4a63d9}#chips button:nth-child(11)::before{background:#aaa}#chips button:nth-child(12)::before{background:#c9a98a}#chips button:nth-child(13)::before{background:#ddd}#chips button:nth-child(14)::before{background:#d49a7a}#chips button:nth-child(15)::before{background:#e0e0f0}#chips button:nth-child(16)::before{background:#9fe8ff}
+#chips button.on{background:var(--ac);color:#1a1300;border-color:var(--ac);font-weight:800;transform:scale(1.04)}
+#fp{position:absolute;left:8px;top:8px;right:8px;bottom:8px;overflow:auto;background:#101842f7;border:2px solid var(--ln);border-radius:18px;padding:12px 16px;z-index:5;overscroll-behavior:contain}
+#fp[hidden]{display:none}
+#fp h4{margin:18px 0 6px;font-size:17px;font-weight:800;color:var(--ac)}
+#fp label{display:inline-flex;align-items:center;gap:10px;margin:2px 10px 2px 0;min-height:48px;padding:0 12px 0 4px;white-space:nowrap}
+#fp input{width:26px;height:26px;min-height:0;padding:0;accent-color:var(--ac)}
+#fp>div:first-child{position:sticky;top:-12px;background:#101842;padding:6px 0;z-index:1}
+#note{font-size:12px;line-height:1.4;color:var(--mut);padding:6px 12px 8px;background:var(--pn);max-height:4.4em;overflow:auto}
+@media(prefers-reduced-motion:reduce){button{transition:none}button:active,#chips button.on{transform:none}}
 </style></head><body>
 <div id="bar"><b id="dt"></b>
 <select id="sp"><option value="1">Gerçek zaman</option><option value="86400">1 gün/sn</option><option value="864000">10 gün/sn</option><option value="31557600">1 yıl/sn</option><option value="315576000">10 yıl/sn</option><option value="0">Duraklat</option></select>
-<button id="now">Şimdi</button><input id="dp" type="date" style="width:125px">
-<label>Eğim <input id="tl" type="range" min="0" max="75" value="35" style="width:70px;padding:0"></label>
-<button id="fb">☰ Seç</button><button id="zi">＋</button><button id="zo">－</button></div>
+<button id="now">Şimdi</button><input id="dp" type="date" style="width:150px">
+<label>Eğim <input id="tl" type="range" min="0" max="75" value="35" ></label>
+<button id="fb">☰ Neler görünsün?</button><button id="zi" aria-label="Yakınlaştır">＋</button><button id="zo" aria-label="Uzaklaştır">－</button></div>
 <div id="cw"><canvas id="c"></canvas><div id="info"></div><div id="fp" hidden></div></div>
 <div id="chips"></div>
 <div id="note">Gezegen ve cüce gezegen konumları yörünge elemanlarından o anki tarih için hesaplanır. Uydu ve yapay uydu konumları yaklaşık yörünge periyotlarından üretilir; canlı TLE verisi bu sayfadan alınamadığı için gerçek anlık konumlar değildir. Uzaklıklar karekök ölçeklidir, cisim boyutları büyütülmüştür.</div>
@@ -95,10 +116,10 @@ else{const nd=pDist();if(pd)zm=Math.min(80,Math.max(.15,zm*nd/pd));pd=nd;moved+=
 cv.onpointerup=e=>{if(pts.size==1&&moved<6&&foc<0){let best=-1,bd=26;sp.forEach(s=>{const d=Math.hypot(s.x-e.offsetX,s.y-e.offsetY);if(d<bd){bd=d;best=s.i}});if(best>=0)focusOn(best)}pts.delete(e.pointerId)};
 cv.onpointercancel=e=>pts.delete(e.pointerId);
 cv.addEventListener("wheel",e=>{e.preventDefault();zm=Math.min(80,Math.max(.15,zm*Math.exp(-e.deltaY*.001)))},{passive:false});
-function label(s,x,y,c){ctx.fillStyle=c||"#cfd6ea";ctx.font="10.5px system-ui";ctx.fillText(s,x+6,y-5)}
+function label(s,x,y,c){ctx.fillStyle=c||"#cfd6ea";ctx.font="600 13px ui-rounded,Nunito,system-ui,sans-serif";ctx.lineWidth=3;ctx.strokeStyle="#0a1030";ctx.lineJoin="round";ctx.strokeText(s,x+6,y-5);ctx.fillText(s,x+6,y-5);ctx.lineWidth=1}
 function draw(){
 const T=(t-J2000)/3.15576e12,days=(t-J2000)/864e5,yrs=days/365.25,ct=Math.cos(tilt),st=Math.sin(tilt);
-ctx.fillStyle="#05060d";ctx.fillRect(0,0,W,H);
+ctx.fillStyle="#0a1030";ctx.fillRect(0,0,W,H);
 ctx.fillStyle="#fff";for(const s of stars){ctx.globalAlpha=.3+s[2]*.3;ctx.fillRect(s[0]*W,s[1]*H,s[2],s[2])}ctx.globalAlpha=1;
 const P=B.map(b=>posM(b,b.ml(T)));
 dt_.textContent=new Date(t).toLocaleString("tr-TR",{timeZone:TZ,dateStyle:"medium",timeStyle:"medium"})+" ("+TZ+") · Kahramanmaraş: "+(()=>{const ev=P[2],lam=Math.atan2(ev[1],ev[0])+Math.PI,eps=23.44*D2R,dec=Math.asin(Math.sin(eps)*Math.sin(lam)),ra=Math.atan2(Math.cos(eps)*Math.sin(lam),Math.cos(lam)),ha=(280.46061837+360.98564736629*days+36.94)*D2R-ra,fi=37.58*D2R,alt=Math.asin(Math.sin(fi)*Math.sin(dec)+Math.cos(fi)*Math.cos(dec)*Math.cos(ha))/D2R;return alt>0?"gündüz ☀ "+alt.toFixed(0)+"°":"gece ☾"})();
@@ -139,7 +160,7 @@ function frame(now){t+=(now-last)*speed;last=now;draw();requestAnimationFrame(fr
 const hid=new Set(),fp=document.getElementById("fp");
 function grp(title,items){const h=document.createElement("h4");h.textContent=title;fp.appendChild(h);items.forEach(([k,l])=>{const lb=document.createElement("label"),cb=document.createElement("input");cb.type="checkbox";cb.checked=true;cb.onchange=()=>{cb.checked?hid.delete(k):hid.add(k)};lb.append(cb,l);fp.appendChild(lb)})}
 const tb=document.createElement("div");
-[["Tümünü seç",1],["Hiçbirini seçme",0],["Kapat",2]].forEach(([l,v])=>{const bt=document.createElement("button");bt.textContent=l;bt.style.marginRight="6px";bt.onclick=()=>{if(v==2){fp.hidden=true;return}fp.querySelectorAll("input").forEach(c=>{c.checked=!!v;c.onchange()})};tb.appendChild(bt)});
+[["Tümünü seç",1],["Hiçbirini seçme",0],["Kapat",2]].forEach(([l,v])=>{const bt=document.createElement("button");bt.textContent=l;bt.style.marginRight="8px";bt.onclick=()=>{if(v==2){fp.hidden=true;return}fp.querySelectorAll("input").forEach(c=>{c.checked=!!v;c.onchange()})};tb.appendChild(bt)});
 fp.appendChild(tb);
 grp("Güneş, gezegenler, cüce gezegenler, kuyruklu yıldız",[["b:Güneş","Güneş"],...B.map(b=>["b:"+b.n,b.n])]);
 grp("Kuşaklar",[["k:ast","Asteroit kuşağı"],["k:kb","Kuiper kuşağı"],["k:tro","Truva asteroitleri"]]);

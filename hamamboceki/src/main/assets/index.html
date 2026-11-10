@@ -1,28 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dancing Cockroaches</title>
+<title>Hamamböceği Diskosu</title>
 <style>
-:root{--bg:#1b1030;--fg:#fff4e0;--btn:#ffd23f;--btnfg:#1b1030;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:"Trebuchet MS",Verdana,sans-serif;overflow:hidden}
-canvas{display:block;width:100%;height:100%}
-.ui{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;gap:10px}
-button{font:inherit;font-weight:700;font-size:16px;padding:12px 20px;border:0;border-radius:999px;background:var(--btn);color:var(--btnfg);cursor:pointer}
-button:focus-visible{outline:3px solid #fff;outline-offset:2px}
-h1{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:0;right:0;margin:0;text-align:center;font-size:clamp(20px,5vw,34px);letter-spacing:.5px}
-#sc{position:fixed;top:calc(58px + env(safe-area-inset-top,0px));left:0;right:0;text-align:center;font-weight:700;color:#ffd23f;pointer-events:none}canvas{touch-action:manipulation;cursor:crosshair}
-#sc{white-space:pre-line;line-height:1.4;font-size:15px}#ov{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;background:rgba(27,16,48,.86);padding:20px;text-align:center}.card{max-width:340px}#ov h2{margin:0 0 10px;font-size:30px}#ov p{margin:0 0 18px;line-height:1.5}.ui{z-index:6}#x{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:12px;z-index:6;width:44px;height:44px;padding:0;font-size:20px;line-height:1;display:none;background:rgba(255,255,255,.18);color:#fff4e0}
+:root{--bg:#1b1030;--porselen:#f4f8f5;--murdum:#1b1030;--fayans:#2ad4d0;--pembe:#c42473;--sari:#ffd23f;box-sizing:border-box;color-scheme:dark}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--porselen);font-family:"Arial Rounded MT Bold","Nunito","Trebuchet MS",system-ui,sans-serif;overflow:hidden}
+canvas{display:block;width:100%;height:100%;touch-action:manipulation;cursor:crosshair}
+button{font:inherit;font-weight:800;font-size:18px;min-height:48px;padding:12px 26px;border:0;border-radius:16px;background:var(--pembe);color:#fff;cursor:pointer;box-shadow:0 4px 0 #7d1148;transition:transform .08s,box-shadow .08s}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #7d1148}
+button:focus-visible{outline:4px solid var(--sari);outline-offset:3px}
+h1{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:0;right:0;margin:0;text-align:center;font-size:clamp(20px,4.5vw,30px);color:var(--fayans);text-shadow:0 2px 0 #0b0618;pointer-events:none}
+#sc{position:fixed;top:calc(52px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);max-width:calc(100vw - 140px);box-sizing:border-box;padding:8px 18px;border-radius:14px;background:var(--porselen);color:var(--murdum);border-bottom:4px solid var(--fayans);text-align:center;font-weight:800;white-space:pre-line;line-height:1.35;font-size:15px;pointer-events:none}
+.ui{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;z-index:6}
+#snd{background:var(--porselen);color:var(--murdum);box-shadow:0 4px 0 #8aa39b;font-size:16px}
+#x{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:12px;z-index:6;width:52px;height:52px;padding:0;font-size:22px;line-height:1;display:none;background:var(--porselen);color:var(--murdum);box-shadow:0 4px 0 #8aa39b}
+#ov{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;text-align:center;overflow:auto;background-color:rgba(27,16,48,.92);background-image:linear-gradient(rgba(42,212,208,.12) 2px,transparent 2px),linear-gradient(90deg,rgba(42,212,208,.12) 2px,transparent 2px);background-size:64px 64px}
+.card{max-width:380px;box-sizing:border-box;padding:26px 24px 24px;border-radius:22px;background:var(--porselen);color:var(--murdum);border:6px solid var(--fayans);box-shadow:0 8px 0 #0b0618}
+#ov h2{margin:0 0 12px;font-size:clamp(28px,7vw,38px);line-height:1.1;color:var(--pembe);transform-origin:50% 80%;animation:dans .484s steps(1) infinite}
+#ov p{margin:0 0 20px;line-height:1.5;font-family:system-ui,"Segoe UI",Roboto,sans-serif;font-size:16px;text-align:left}
+@keyframes dans{0%{transform:rotate(-2.5deg) scale(1.04)}50%{transform:rotate(2.5deg) scale(1)}}
+@media (prefers-reduced-motion:reduce){#ov h2{animation:none}button{transition:none}}
+@media (max-height:420px){#ov p{font-size:14px;margin-bottom:12px}.card{padding:16px}}
 </style>
 </head>
 <body>
-<h1>Cockroach Disco</h1>
+<h1>Hamamböceği Diskosu</h1>
 <canvas id="c"></canvas>
 <div id="sc"></div>
-<button id="x" aria-label="Quit">X</button>
-<div id="ov"><div class="card"><h2 id="ot">Cockroach Disco</h2><p id="op">You have 60 seconds. Tap to swat. Chain hits for combos and squash several at once for a bonus. Gold roaches give +2 seconds. Reach combo 15 for a MEGA swatter. Flies are fast but worth 30. Never squash a ladybug: -2 seconds.</p><button id="go">Start</button></div></div>
-<div class="ui"><button id="snd">Play music</button></div>
+<button id="x" aria-label="Oyundan çık">✕</button>
+<div id="ov"><div class="card"><h2 id="ot">Hamamböceği Diskosu</h2><p id="op">60 saniyen var. Hamamböceklerine dokunup vur. Üst üste vurursan kombo yaparsın, birkaçını aynı anda ezersen bonus alırsın. Altın böcekler +2 saniye verir. Kombo 15 olunca dev tokmak gelir. Sinekler hızlıdır, 30 puan eder. Uğur böceğine vurma: -2 saniye.</p><button id="go">Başla</button></div></div>
+<div class="ui"><button id="snd">Müziği aç</button></div>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 let W,H,D;
@@ -31,25 +40,25 @@ addEventListener('resize',size);size();
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const BPM=124,BEAT=60/BPM;
 const cols=['#e63e8b','#2ad4d0','#ffd23f','#7b5cff'];
-let ghosts=[],swats=[],floats=[],parts=[],splats=[],shake=0,swings=0,hitSw=0,kills=0,score=0,combo=0,best=0,lastRank='Newbie',playing=false,endAt=0,bestCombo=0,startBest=0,hudS='';
+let ghosts=[],swats=[],floats=[],parts=[],splats=[],shake=0,swings=0,hitSw=0,kills=0,score=0,combo=0,best=0,lastRank='Çaylak',playing=false,endAt=0,bestCombo=0,startBest=0,hudS='';
 try{best=+localStorage.getItem('rbest')||0}catch(e){}
-function rank(){return kills>=100?'Exterminator':kills>=50?'Pest Control Pro':kills>=25?'Swatter':kills>=10?'Rookie':'Newbie'}
+function rank(){return kills>=100?'Yok Edici':kills>=50?'İlaçlama Ustası':kills>=25?'Tokmakçı':kills>=10?'Acemi':'Çaylak'}
 function hud(){
   const left=playing?Math.max(0,Math.ceil(endAt-performance.now()/1000)):60;
-  const s='Time '+left+'s   Score '+score+'   Best '+best+'\n'+(combo>1?'Combo x'+combo+'   ':'')+rank()+(playing&&kills>=30?'   They are running away!':'');
+  const s='Süre '+left+' sn   Puan '+score+'   En iyi '+best+'\n'+(combo>1?'Kombo x'+combo+'   ':'')+rank()+(playing&&kills>=30?'   Kaçıyorlar!':'');
   if(s!==hudS){hudS=s;document.getElementById('sc').textContent=s}
 }
 function endGame(q){
   playing=false;document.getElementById('x').style.display='none';sfx('end');
   const nb=score>startBest;
-  document.getElementById('ot').textContent=q===true?'Round ended':'Time’s up!';
-  document.getElementById('op').textContent='Score '+score+(nb?' - new best!':' - best '+best)+'. Squashed '+kills+', best combo x'+bestCombo+'. Rank: '+rank()+'. Accuracy '+(swings?Math.round(hitSw/swings*100):0)+'%.';
-  document.getElementById('go').textContent='Play again';
+  document.getElementById('ot').textContent=q===true?'Tur bitti':'Süre doldu!';
+  document.getElementById('op').textContent='Puan '+score+(nb?' - yeni rekor!':' - en iyi '+best)+'. Ezilen '+kills+', en iyi kombo x'+bestCombo+'. Rütbe: '+rank()+'. İsabet %'+(swings?Math.round(hitSw/swings*100):0)+'.';
+  document.getElementById('go').textContent='Tekrar oyna';
   document.getElementById('ov').style.display='flex';
 }
 function startGame(){
   const now=performance.now()/1000;
-  kills=0;score=0;combo=0;bestCombo=0;lastRank='Newbie';startBest=best;lastSwat=-9;floats=[];ghosts=[];parts=[];splats=[];swings=0;hitSw=0;
+  kills=0;score=0;combo=0;bestCombo=0;lastRank='Çaylak';startBest=best;lastSwat=-9;floats=[];ghosts=[];parts=[];splats=[];swings=0;hitSw=0;
   roaches.splice(0,roaches.length,...slots.map(p=>spawn(now,p[0],p[1])));
   if(!ac)document.getElementById('snd').click();setTimeout(()=>sfx('start'),150);
   endAt=now+60;playing=true;
@@ -61,9 +70,9 @@ document.getElementById('x').onclick=()=>{
   if(!playing)return;
   playing=false;best=startBest;try{localStorage.setItem('rbest',best)}catch(e){}
   document.getElementById('x').style.display='none';
-  document.getElementById('ot').textContent='Cockroach Disco';
+  document.getElementById('ot').textContent='Hamamböceği Diskosu';
   document.getElementById('op').textContent=introT;
-  document.getElementById('go').textContent='Start';
+  document.getElementById('go').textContent='Başla';
   document.getElementById('ov').style.display='flex';
   score=0;combo=0;kills=0;hud();
 };
@@ -141,21 +150,21 @@ cv.addEventListener('pointerdown',e=>{
     }
   }
   if(hit){
-    hitSw++;if(combo<15&&combo+hit>=15)sfx('mega');if(combo<15&&combo+hit>=15)floats.push({x:W/2,y:H*.35,t0:now+.3,txt:'MEGA SWAT! Bigger swatter'});
+    hitSw++;if(combo<15&&combo+hit>=15)sfx('mega');if(combo<15&&combo+hit>=15)floats.push({x:W/2,y:H*.35,t0:now+.3,txt:'DEV TOKMAK! Daha büyük tokmak'});
     shake=reduce?-99:now;try{navigator.vibrate&&navigator.vibrate(hit>1?[30,30,60]:25)}catch(e){}
     combo+=hit;bestCombo=Math.max(bestCombo,combo);
     if(Math.floor(combo/5)>Math.floor((combo-hit)/5))sfx('combo');
     const tb=Math.floor(combo/10)-Math.floor((combo-hit)/10);
-    if(tb>0){sfx('bonus');const lv=kills>=30?Math.floor((kills-30)/10):0,sec=tb*Math.min(3,1+Math.floor(lv/2));endAt+=sec;floats.push({x:W/2,y:H*.25,t0:now+.1,txt:'+'+sec+'s time'})}
+    if(tb>0){sfx('bonus');const lv=kills>=30?Math.floor((kills-30)/10):0,sec=tb*Math.min(3,1+Math.floor(lv/2));endAt+=sec;floats.push({x:W/2,y:H*.25,t0:now+.1,txt:'+'+sec+' sn süre'})}
     const mult=Math.min(8,1+Math.floor(combo/5));
     const pts=(gp+(hit>1?(hit-1)*25:0))*mult;score+=pts;
-    floats.push({x:px,y:py-30,t0:now,txt:'+'+pts+(hit>1?'  '+hit+' at once!':'')+(mult>1?'  x'+mult:'')});
+    floats.push({x:px,y:py-30,t0:now,txt:'+'+pts+(hit>1?'  '+hit+' birden!':'')+(mult>1?'  x'+mult:'')});
     if(score>best){best=score;try{localStorage.setItem('rbest',best)}catch(e){}}
-    const rk=rank();if(rk!==lastRank){lastRank=rk;floats.push({x:W/2,y:H*.3,t0:now+.2,txt:'Rank: '+rk+'!'})}
+    const rk=rank();if(rk!==lastRank){lastRank=rk;floats.push({x:W/2,y:H*.3,t0:now+.2,txt:'Rütbe: '+rk+'!'})}
     pop(gp>=50);
   }else{combo=0;if(!bombs)sfx('miss')}
-  if(ladies){endAt-=2;combo=0;floats.push({x:px,y:py+34,t0:now+.1,txt:'Bad luck! -2s'})}
-  if(bombs){sfx('bomb');endAt-=3;combo=0;shake=reduce?-99:now;floats.push({x:px,y:py+34,t0:now+.1,txt:'BOOM! -3s'});try{navigator.vibrate&&navigator.vibrate([80,40,80])}catch(e){}}
+  if(ladies){endAt-=2;combo=0;floats.push({x:px,y:py+34,t0:now+.1,txt:'Olmadı! -2 sn'})}
+  if(bombs){sfx('bomb');endAt-=3;combo=0;shake=reduce?-99:now;floats.push({x:px,y:py+34,t0:now+.1,txt:'PATLADI! -3 sn'});try{navigator.vibrate&&navigator.vibrate([80,40,80])}catch(e){}}
   hud();
 });
 
@@ -283,7 +292,7 @@ function frame(ms){
   parts=parts.filter(p=>t-p.t0<.7);
   parts.forEach(p=>{const a=t-p.t0;ctx.globalAlpha=1-a/.7;ctx.fillStyle=p.gold?'#ffd23f':'#7a3b1d';ctx.beginPath();ctx.arc(p.x+p.vx*a,p.y+p.vy*a+500*a*a,3.5,0,7);ctx.fill()});ctx.globalAlpha=1;
   floats=floats.filter(f=>t-f.t0<1.1);
-  floats.forEach(f=>{const a=t-f.t0;if(a<0)return;ctx.save();ctx.globalAlpha=1-a/1.1;ctx.font='bold '+Math.round(Math.min(W,H)*.045+10)+'px "Trebuchet MS",sans-serif';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#1b1030';ctx.fillStyle='#ffd23f';const yy=f.y-a*60;ctx.strokeText(f.txt,f.x,yy);ctx.fillText(f.txt,f.x,yy);ctx.restore()});
+  floats.forEach(f=>{const a=t-f.t0;if(a<0)return;ctx.save();ctx.globalAlpha=1-a/1.1;ctx.font='800 '+Math.round(Math.min(W,H)*.045+10)+'px "Arial Rounded MT Bold","Trebuchet MS",sans-serif';ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#1b1030';ctx.fillStyle='#ffd23f';const yy=f.y-a*60;ctx.strokeText(f.txt,f.x,yy);ctx.fillText(f.txt,f.x,yy);ctx.restore()});
   ctx.restore();
   if(playing){const fr=Math.max(0,Math.min(1,(endAt-t)/60));ctx.fillStyle=fr<.2?'#e0533a':'#ffd23f';ctx.fillRect(0,0,W*fr,5)}
   if(playing&&endAt-t<=0)endGame();
@@ -351,8 +360,8 @@ document.getElementById('snd').onclick=function(){
   try{
     if(!ac)setup();
     on=!on;
-    if(on){ac.resume();next=ac.currentTime+.05;gs=0;timer=setInterval(tick,25);this.textContent='Mute music'}
-    else{clearInterval(timer);this.textContent='Play music'}
+    if(on){ac.resume();next=ac.currentTime+.05;gs=0;timer=setInterval(tick,25);this.textContent='Müziği kapat'}
+    else{clearInterval(timer);this.textContent='Müziği aç'}
   }catch(e){}
 };
 </script>

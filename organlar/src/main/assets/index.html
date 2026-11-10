@@ -216,6 +216,188 @@ input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;bor
  .search-results{max-height:calc(100% - 190px)}
  .studio-footer{bottom:6px}
 }
+
+/* ===== Levha teması: anatomi atlası çizim kâğıdı =====
+ Renkler: mürekkep #1d4a73, kâğıt #e6eef3, damar #d93a45, işaret #f6c026, yazı #14283a */
+:root{--ink:#1d4a73;--paper:#e6eef3;--grid:#c6d6e1;--red:#d93a45;--mark:#f6c026;--fg:#14283a;--muted:#4a6275;--primary:#1d4a73;--teal:#1d4a73;--border:#1d4a7340;
+ --serif:"Noto Serif","Droid Serif",Rockwell,"Roboto Slab",Georgia,serif;
+ --sans:"Noto Sans",Roboto,"Segoe UI","Trebuchet MS",system-ui,sans-serif;
+ font-family:var(--sans);color:var(--fg);background:var(--paper)}
+html,body{background:var(--paper)}
+.studio{background:
+ linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/48px 48px,
+ linear-gradient(var(--grid) 1px,transparent 1px) 0 0/48px 48px,var(--paper)}
+/* cetvel işaretleri: sol ve alt kenar */
+.studio::before,.studio::after{content:"";position:absolute;pointer-events:none;z-index:1;opacity:.55}
+.studio::before{left:0;top:0;bottom:0;width:12px;background:repeating-linear-gradient(to bottom,var(--ink) 0 1px,transparent 1px 12px)}
+.studio::after{left:0;right:0;bottom:0;height:12px;background:repeating-linear-gradient(to right,var(--ink) 0 1px,transparent 1px 12px)}
+.vignette{display:none}
+.scene canvas:focus-visible{outline:3px solid var(--ink);outline-offset:-3px}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-offset:2px;box-shadow:0 0 0 6px var(--mark)}
+.glass{background:#fff;border:2px solid var(--ink);border-radius:12px;box-shadow:0 4px 0 #1d4a7333;-webkit-backdrop-filter:none;backdrop-filter:none}
+.badge{font-size:13px;font-weight:700;letter-spacing:0;color:#fff;background:var(--red);border:0;border-radius:6px;padding:2px 8px;transform:rotate(-4deg)}
+.small-number{font-size:13px;color:var(--muted)}
+
+/* kimlik: levha başlığı */
+.identity{left:44px;top:28px}
+.eyebrow{font-size:14px;font-weight:600;letter-spacing:0;color:var(--muted);display:flex;align-items:center;gap:8px}
+.status-dot{display:none}
+h1{font-family:var(--serif);font-size:34px;font-weight:800;letter-spacing:-.5px;color:var(--ink);margin:4px 0 6px}
+.identity-meta{font-size:14px;color:var(--muted)}
+.identity-meta span{padding:0 4px;color:inherit}
+
+/* üst düğmeler */
+.top-actions{top:26px;right:30px}
+.top-actions button{height:52px;min-width:52px;border:2px solid var(--ink);background:#fff;border-radius:12px;font-size:16px;font-weight:700;color:var(--ink);padding:0 18px;box-shadow:0 3px 0 #1d4a7333}
+.top-actions button:hover{background:#eef5fa}
+.top-actions button:active{transform:translateY(2px);box-shadow:none}
+.top-actions .icon-button{width:52px;padding:0}
+.top-actions kbd{display:none}
+.top-actions svg{width:22px;height:22px;stroke-width:2.4}
+
+/* sistemler: numaralı örnek listesi */
+.layers-panel{left:44px;top:170px;bottom:150px;width:286px;padding:14px 12px 0}
+.panel-heading{font-family:var(--serif);font-size:18px;font-weight:800;color:var(--ink);min-height:28px}
+.panel-heading .small-number{background:var(--paper);color:var(--ink);height:26px;padding:0 10px;font-weight:700}
+.icon-button{min-width:48px;min-height:48px}
+.layer-presets{background:var(--paper);border-radius:10px;padding:4px;gap:4px;margin:10px 0 6px}
+.layer-presets button{height:48px;font-size:14px;font-weight:700;color:var(--ink);border-radius:8px}
+.layer-presets button[aria-pressed=true]{background:var(--ink);color:#fff;box-shadow:none}
+.system-row{min-height:52px;border-bottom:1px dashed var(--grid)}
+.system-name{min-height:52px;font-size:15px;font-weight:600;color:var(--muted);gap:10px;border-radius:8px}
+.system-row.enabled .system-name{color:var(--fg)}
+.system-name:hover{background:var(--paper)}
+.system-dot{width:16px;height:16px;border-radius:4px;box-shadow:0 0 0 2px #fff,0 0 0 3px #14283a40}
+.system-row:not(.enabled) .system-dot{opacity:.35}
+.system-count{font-size:13px;color:var(--muted)}
+.sw{width:48px;height:28px;background:#9db3c4}
+.sw::after{inset:-12px -4px}
+.sw i{top:3px;left:3px;width:22px;height:22px;box-shadow:none}
+.sw[aria-checked=true]{background:var(--ink)}
+.sw[aria-checked=true] i{transform:translateX(20px)}
+.system-list{padding-right:10px}
+.panel-foot{font-size:14px;min-height:52px;color:var(--muted);border-top:2px solid var(--paper)}
+.panel-foot button{font-size:14px;font-weight:700;color:var(--red);padding:14px 8px;min-height:48px}
+
+/* arama */
+.search-panel{top:92px;width:370px;padding:12px 16px 16px;border-radius:12px}
+.search-panel input{height:52px;font-size:17px;border:2px solid var(--ink);border-radius:10px;background:var(--paper)}
+.search-panel input:focus{background:#fff}
+.search-results{border:2px solid var(--paper);border-radius:10px}
+.search-results button{min-height:52px;font-size:16px;font-weight:600}
+.search-results button:hover{background:var(--paper)}
+.search-results .nm small{font-size:13px;color:var(--muted);font-weight:400}
+.search-empty,.search-note{font-size:15px;color:var(--muted)}
+
+/* kamera: açı seçici */
+.view-controls{right:30px;padding:6px;gap:4px;border-radius:12px}
+.view-controls button{width:52px;height:52px;font-size:17px;font-weight:800;color:var(--ink);border-radius:8px}
+.view-controls button:hover:not(:disabled){background:var(--paper)}
+.view-controls .active{background:var(--ink);color:#fff;box-shadow:none}
+.view-controls i{background:var(--grid);height:2px}
+
+/* alt: patlatma ve levha altyazısı */
+.scene-caption{bottom:152px;color:var(--ink);letter-spacing:0;font-size:16px;font-family:var(--serif);font-weight:700;gap:14px}
+.caption-line{width:36px;height:2px;background:var(--ink);opacity:.5}
+.bottom-dock{bottom:46px;width:500px;padding:14px 20px;gap:20px}
+.explode-label{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.explode-label output{background:var(--mark);border:0;border-radius:6px;font-size:15px;font-weight:800;color:var(--fg);padding:3px 8px}
+.explode-label output span{color:var(--fg);font-size:13px}
+input[type=range]{height:44px}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(to right,var(--red) var(--p,0%),var(--grid) var(--p,0%))}
+input[type=range]::-webkit-slider-thumb{width:30px;height:30px;margin-top:-11px;border:4px solid var(--ink);background:#fff;box-shadow:none}
+input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:var(--grid)}
+input[type=range]::-moz-range-progress{height:8px;border-radius:4px;background:var(--red)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border:4px solid var(--ink);background:#fff}
+.slider-endpoints{font-size:13px;color:var(--muted)}
+.dock-reset,.dock-layers{font-size:13px;font-weight:700;color:var(--ink);min-width:56px;min-height:56px;justify-content:center;border-left:2px solid var(--paper)}
+.dock-layers{border-left:0;border-right:2px solid var(--paper)}
+.studio-footer{left:44px;right:30px;bottom:18px;font-size:14px;color:var(--muted)}
+.studio-footer b{color:var(--grid)}
+.studio-footer button{font-size:14px;font-weight:600;color:var(--ink);min-height:48px;padding:0 8px;background:#ffffffcc;border-radius:8px}
+
+/* yükleme */
+.loading{border-radius:12px;padding:22px 26px}
+.loading strong{font-family:var(--serif);font-size:18px;font-weight:800;color:var(--ink)}
+.loading span{font-size:14px;color:var(--muted)}
+.loading-track{height:8px;border-radius:4px;background:var(--grid)}
+.loading-track i{background:var(--red);border-radius:4px}
+.loading.error button{min-height:48px;border:2px solid var(--ink);border-radius:10px;font-weight:700;color:var(--ink)}
+.loading>svg{animation:nabiz 1.2s ease-in-out infinite;color:var(--red)}
+@keyframes nabiz{50%{transform:scale(1.25)}}
+
+/* ayrıntı: örnek etiketi (delikli kart) */
+.detail-sheet{top:96px;bottom:150px;right:104px;width:340px;padding:26px 22px 20px;border-radius:12px 12px 12px 12px;animation:etiket .28s ease-out}
+@keyframes etiket{from{opacity:0;transform:translateY(10px) rotate(1deg)}}
+.detail-sheet::before{content:"";position:absolute;left:50%;top:8px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--paper);border:2px solid var(--ink)}
+.detail-sheet .close,.about-sheet .close{min-width:48px;min-height:48px;top:6px;right:6px;color:var(--ink);border-radius:10px}
+.detail-sheet .close:hover,.about-sheet .close:hover{background:var(--paper)}
+.detail-header{gap:6px;padding-right:44px;padding-top:6px}
+.detail-accent{width:100%;height:10px;border-radius:3px;order:-1}
+.detail-header .eyebrow{font-size:14px;font-weight:700;color:var(--ink)}
+.structure-title{font-family:var(--serif);font-size:27px;font-weight:800;letter-spacing:-.3px;color:var(--ink)}
+.structure-sub{font-size:14px;color:var(--muted);font-style:italic;margin-top:0}
+.structure-description{font-size:17px;line-height:1.6;color:var(--fg)}
+.context-note{font-size:14px;color:var(--muted)}
+.structure-meta{border-block:2px dashed var(--grid);font-size:14px;color:var(--muted);gap:24px}
+.structure-meta strong{font-size:16px;font-weight:700;color:var(--fg)}
+.member-list h3{font-size:15px;font-weight:700;color:var(--ink)}
+.member-list button{min-height:48px;font-size:15px;color:var(--fg);border-bottom:1px dashed var(--grid)}
+.member-list p{font-size:14px;color:var(--muted)}
+.source-link{font-size:14px;color:var(--ink);min-height:48px;text-decoration:underline}
+.detail-actions{border-top:2px solid var(--paper);gap:6px}
+.primary-action{font-size:16px;font-weight:700;min-height:52px;background:var(--red);border:0;border-radius:10px;box-shadow:0 3px 0 #8f1f28;gap:10px}
+.primary-action:hover,.primary-action.active{background:#b82d37}
+.primary-action:active{transform:translateY(2px);box-shadow:none}
+.primary-action svg:last-child{display:none}
+.secondary-action{font-size:15px;font-weight:600;color:var(--ink);min-height:48px}
+.secondary-action:hover{background:var(--paper)}
+
+/* hakkında */
+.about-sheet{background:#fff;border-radius:12px 0 0 12px;border-width:0 0 0 2px}
+.about-sheet .desc{font-size:18px;color:var(--fg)}
+.about-copy{font-size:16px;color:var(--fg)}
+.about-copy strong{color:var(--ink)}
+.about-copy h3{font-family:var(--serif);font-size:18px;color:var(--ink)}
+.about-copy a{font-size:16px;min-height:48px;color:var(--ink)}
+.scrim{background:#14283a40}
+.part-hover{background:var(--fg);font-size:15px;font-weight:600;border-radius:8px;border-left:6px solid var(--mark)}
+
+@media(max-width:1000px){.layers-panel{width:250px;left:36px}.identity{left:36px}.detail-sheet{right:92px;width:300px}.system-count{display:block}.view-controls{right:20px}}
+@media(max-width:767px){
+ .studio::before,.studio::after{display:none}
+ .identity{left:max(16px,env(safe-area-inset-left))}
+ h1{font-size:23px}
+ .identity-meta{font-size:12px}
+ .top-actions button,.top-actions .icon-button{width:52px;min-width:52px;height:52px;border-radius:12px}
+ .layers-panel.mobile-open{background:#fff;bottom:calc(150px + env(safe-area-inset-bottom))}
+ .layer-presets button{height:48px;font-size:15px}
+ .view-controls{top:max(116px,calc(env(safe-area-inset-top) + 98px))}
+ .view-controls button{width:52px;height:52px}
+ .bottom-dock{bottom:calc(60px + env(safe-area-inset-bottom));padding:10px 12px;gap:12px}
+ .explode-label{font-size:14px}
+ .scene-caption{bottom:calc(170px + env(safe-area-inset-bottom));font-size:14px}
+ .studio-footer{bottom:calc(6px + env(safe-area-inset-bottom));left:12px;right:12px;justify-content:center}
+ .detail-sheet{left:12px;right:12px;top:auto;bottom:calc(150px + env(safe-area-inset-bottom));max-height:52%;width:auto;padding:22px 16px 12px;background:#fff}
+ .detail-sheet::before{display:none}
+ .structure-title{font-size:22px}
+ .structure-description{font-size:16px}
+ .detail-sheet .close,.about-sheet .close{min-width:48px;min-height:48px}
+ .about-sheet{border-radius:0}
+}
+@media(max-width:350px){h1{font-size:20px}}
+@media(max-height:600px) and (orientation:landscape){
+ .identity{left:16px;top:12px}h1{font-size:22px}
+ .top-actions{top:10px}
+ .layers-panel.mobile-open{background:#fff}
+ .bottom-dock{bottom:54px;width:420px;padding:8px 14px}
+ .view-controls{top:72px}
+ .view-controls button{width:48px;height:52px}
+ .detail-sheet,.detail-sheet.is-isolated{top:10px;bottom:10px;padding:20px 14px 12px}
+ body.has-detail .bottom-dock{right:324px}
+ .studio-footer{bottom:4px;left:16px}
+ .studio::before,.studio::after{display:none}
+}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style></head>
 <body>
@@ -224,9 +406,8 @@ input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;bor
  <div class="vignette"></div>
 
  <header class="identity">
-  <div class="eyebrow"><span class="status-dot"></span>ETKİLEŞİMLİ ANATOMİ</div>
   <h1>İnsan Vücudu Atlası<span class="badge">3D</span></h1>
-  <div class="identity-meta"><span id="metaCount" style="padding:0;color:inherit">2.234</span> modellenmiş parça <span>·</span> BodyParts3D</div>
+  <div class="identity-meta"><span id="metaCount" style="padding:0;color:inherit">2.234</span> parçalık gerçek model</div>
  </header>
 
  <nav class="top-actions" aria-label="Gezgin panelleri">
@@ -258,7 +439,7 @@ input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;bor
   <button id="bReset" title="Sıfırla" aria-label="Görünümü ve katmanları sıfırla"><svg width="17" height="17" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
  </nav>
 
- <div class="scene-caption"><span class="caption-line"></span><span id="caption">YETİŞKİN İNSAN · ERKEK</span><span class="caption-line"></span></div>
+ <div class="scene-caption"><span class="caption-line"></span><span id="caption">Yetişkin insan vücudu</span><span class="caption-line"></span></div>
 
  <div class="bottom-dock glass">
   <button class="mobile-only dock-layers" id="bLayers" aria-label="Sistem katmanlarını aç"><svg width="20" height="20" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg><span>Sistemler</span></button>
@@ -270,7 +451,7 @@ input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;bor
   <button class="dock-reset" id="dockReset" aria-label="Birleştir ve sıfırla"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span>Sıfırla</span></button>
  </div>
 
- <footer class="studio-footer"><span id="footHint">Sürükleyerek döndür <b>·</b> İki parmakla yakınlaştır <b>·</b> Dokunarak incele</span><button id="bCredits">Kaynak ve atıflar <svg width="12" height="12" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></button></footer>
+ <footer class="studio-footer"><span id="footHint">Sürükle: döndür. İki parmak: yakınlaştır. Dokun: incele.</span><button id="bCredits">Kaynak ve atıflar </button></footer>
 
  <div class="loading glass" id="loading" role="status"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></svg><div><strong>Anatomi hazırlanıyor</strong><span id="loadTxt">0% · 2.234 parça yükleniyor</span><div class="loading-track"><i id="loadBar"></i></div></div></div>
  <div class="loading glass error" id="errBox" role="alert" hidden><p id="errTxt"></p><button onclick="location.reload()">Yeniden yükle</button></div>
@@ -279,7 +460,7 @@ input[type=range]::-moz-range-thumb{width:10px;height:10px;border-radius:50%;bor
  <div class="scrim" id="scrim" hidden></div>
  <aside class="about-sheet glass" id="about" hidden aria-label="Kaynak ve kapsam">
   <button class="close" id="aboutClose" aria-label="Kapat"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
-  <div class="eyebrow">KAYNAK VE KAPSAM</div>
+  <div class="eyebrow">Kaynak ve kapsam</div>
   <h2 class="structure-title" style="margin-top:12px">Ortaya çıkan bir beden.</h2>
   <p class="desc">BodyParts3D’deki yetişkin erkek referans anatomisini keşfedin.</p>
   <div class="about-copy">

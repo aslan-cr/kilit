@@ -185,10 +185,10 @@ function renderDetail(){
  var sel=S.selected.map(function(id){return partsById.get(id)}).filter(Boolean),first=sel[0],sys=SYS[first.system];
  var tr=trName(chosen.name),known=EXPL[chosen.name.toLowerCase().replace(/^(left|right) /,"")];
  var h='<button class="close" id="dClose" aria-label="Kapat">'+icon(IC.x,18)+'</button>';
- h+='<div class="detail-header"><div class="detail-accent" style="background:'+(sys?sys.color:"#999")+'"></div><div class="eyebrow">'+esc(sys?sys.name.toLocaleUpperCase("tr"):"ANATOMİ")+'</div>';
+ h+='<div class="detail-header"><div class="detail-accent" style="background:'+(sys?sys.color:"#999")+'"></div><div class="eyebrow">'+esc(sys?sys.name:"Anatomi")+'</div>';
  h+='<h2 class="structure-title" id="dTitle" tabindex="-1"'+(tr?'':' style="text-transform:capitalize"')+'>'+esc(tr||chosen.name)+'</h2>'+(tr?'<div class="structure-sub">'+esc(chosen.name)+'</div>':'')+'</div>';
  h+='<div class="detail-scroll"><p class="structure-description">'+esc(explanation(chosen.name,first.system))+'</p>';
- if(!known)h+='<span class="context-note">Sistem özeti · yapı kaynak anatomiden belirlendi</span>';
+ if(!known)h+='<span class="context-note">Bu bir sistem özeti; yapı kaynak anatomiden belirlendi.</span>';
  h+='<div class="structure-meta"><span>Atlas referansı<strong>'+esc(chosen.id)+'</strong></span><span>Seçili parça<strong>'+fmt(S.selected.length)+'</strong></span></div>';
  if(sel.length>1){
   h+='<div class="member-list"><h3>İçerdiği yapılar</h3>'+sel.slice(0,50).map(function(p){var t=trName(p.name);return '<button data-id="'+p.id+'"><span>'+esc(t||p.name)+'</span>'+icon(IC.chev,14)+'</button>'}).join("");
@@ -229,8 +229,8 @@ function ui(){
  $("bRot").setAttribute("aria-label",S.rotate?"Dönmeyi duraklat":"Vücudu döndür");
  // alt dock
  var pct=Math.round(S.explode*100);$("exOut").innerHTML=pct+"<span>%</span>";$("exr").style.setProperty("--p",pct+"%");
- $("caption").textContent=S.isolate?(chosen?(trName(chosen.name)||chosen.name).toLocaleUpperCase("tr"):"SEÇİLİ YAPI"):S.explode>.95?"ANATOMİK ENVANTER":S.explode>.05?"AYRILMIŞ YAPILAR":"YETİŞKİN İNSAN · ERKEK";
- $("footHint").innerHTML=(S.explode>.8?"Sürükleyerek kaydır":"Sürükleyerek döndür")+" <b>·</b> İki parmakla yakınlaştır <b>·</b> Dokunarak incele";
+ $("caption").textContent=S.isolate?(chosen?(trName(chosen.name)||chosen.name).toLocaleLowerCase("tr"):"Seçili yapı"):S.explode>.95?"Her parça ayrı":S.explode>.05?"Parçalar ayrılıyor":"Yetişkin insan vücudu";
+ $("footHint").innerHTML=(S.explode>.8?"Sürükle: kaydır.":"Sürükle: döndür.")+" İki parmak: yakınlaştır. Dokun: incele.";
 }
 
 function wireUi(){
