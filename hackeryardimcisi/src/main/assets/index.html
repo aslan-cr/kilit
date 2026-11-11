@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hacker Yardımcısı Şikru</title>
+<style>
+:root{color-scheme:dark;--g:#00ff9c;--r:#ff2b4a;--c:#19e6ff;--bg:#020806;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--g);font-family:"Courier New",ui-monospace,monospace;overflow:hidden;-webkit-user-select:none;user-select:none}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.25) 0 1px,transparent 1px 3px)}
+#app{height:100%;display:flex;flex-direction:column;padding:10px}
+#hdr{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--g);padding:10px 14px;position:relative;touch-action:none;text-shadow:0 0 8px var(--g)}
+#hdr b{letter-spacing:3px}
+#bar{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--c);box-shadow:0 0 10px var(--c)}
+#status{font-size:13px;color:var(--c)}
+#main{flex:1;min-height:0;margin:10px 0;border:1px solid #0a5;padding:12px;position:relative;overflow:hidden}
+.view{display:none;height:100%;flex-direction:column}
+.view.on{display:flex}
+#log{flex:1;overflow:auto;font-size:15px;line-height:1.5;white-space:pre-wrap}
+#log div{text-shadow:0 0 5px var(--g)}
+.err{color:var(--r)!important}.inf{color:var(--c)!important}
+#clock{margin:auto;text-align:center}
+#time{font-size:min(18vw,120px);text-shadow:0 0 20px var(--g)}
+#date{font-size:18px;color:var(--c)}
+#notes{flex:1;width:100%;background:#00110a;color:var(--g);border:1px solid #0a5;font:16px "Courier New",monospace;padding:10px;resize:none;-webkit-user-select:text;user-select:text}
+.prog{height:22px;border:1px solid var(--g);margin:10px 0}
+.prog i{display:block;height:100%;width:0;background:var(--g);box-shadow:0 0 12px var(--g)}
+#cmdrow{display:flex;gap:8px}
+#cmd{flex:1;background:#00110a;border:1px solid #0a5;color:var(--g);font:14px "Courier New",monospace;padding:8px;-webkit-user-select:text;user-select:text}
+#go{background:none;border:1px solid var(--g);color:var(--g);padding:0 14px;font:inherit}
+.ov{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;background:#000}
+.ov.on{display:flex}
+#warn{background:#2a0008;color:var(--r)}
+#warn .n{font-size:40vmin;font-weight:bold;text-shadow:0 0 40px var(--r);animation:pulse .5s infinite alternate}
+#warn .t{font-size:5vmin;letter-spacing:4px}
+@keyframes pulse{to{transform:scale(1.08);opacity:.7}}
+#bye{font-size:8vmin;color:var(--c);text-shadow:0 0 20px var(--c)}
+#errscr{background:#1a0004;color:var(--r)}
+#errscr h1{font-size:7vmin;margin:0;text-shadow:3px 0 var(--c),-3px 0 var(--g)}
+.glitch{animation:gl .12s infinite}
+@keyframes gl{0%{transform:translate(0)}25%{transform:translate(-8px,3px);filter:hue-rotate(90deg)}50%{transform:translate(7px,-4px);filter:invert(1)}75%{transform:translate(-4px,-6px);filter:hue-rotate(200deg)}100%{transform:translate(5px,5px)}}
+#listen{position:fixed;right:14px;bottom:70px;z-index:40;display:none;border:1px solid var(--c);color:var(--c);padding:8px 12px;background:#001318}
+#listen.on{display:block;animation:pulse .6s infinite alternate}
+#sky{position:fixed;inset:0;z-index:0;width:100%;height:100%}
+#app{position:relative;z-index:2}
+#main{background:rgba(2,8,6,.45)}
+body.t-red{--g:#ff2b4a;--c:#ffb000}
+body.t-blue{--g:#19b6ff;--c:#c9a0ff}
+@keyframes hue{to{filter:hue-rotate(360deg)}}
+body.disco #app{animation:hue 1.5s linear infinite}
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div id="app">
+  <div id="hdr"><b>◉ HACKER YARDIMCISI ŞİKRU</b><span id="status">HAZIR · 5 sn basılı tut</span><div id="bar"></div></div>
+  <div id="main">
+    <div class="view on" id="v-term"><div id="log"></div></div>
+    <div class="view" id="v-notes"><textarea id="notes" placeholder="// lokal notlar..."></textarea></div>
+    <div class="view" id="v-clock"><div id="clock"><div id="time">00:00:00</div><div id="date"></div></div></div>
+    <div class="view" id="v-sim"><div id="simlog" style="flex:1;overflow:auto;font-size:15px;line-height:1.5;white-space:pre-wrap"></div><div class="prog"><i id="pb"></i></div><div id="pt" class="inf">0%</div></div>
+  </div>
+  <div id="cmdrow"><input id="cmd" placeholder="komut yaz (mikrofon yoksa): terminal, notlar, sayaç, fırını hackle, koruma duvarı aşılıyor, kendini hekle, para bitti" autocomplete="off"><button id="go">GÖNDER</button></div>
+</div>
+<div id="listen">🎙 DİNLİYOR...</div>
+<div class="ov" id="warn"><div class="t">⚠ UYARI ⚠</div><div class="n" id="wn">3</div><div class="t">SIZMA BAŞLIYOR</div></div>
+<div class="ov" id="errscr"><h1>HATA: İSTEK BAŞARISIZ!</h1></div>
+<div class="ov" id="byescr"><div id="bye">Elvedaa...</div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+/* ===== SES MOTORU (WebAudio, çevrimdışı) ===== */
+let AC=null,muted=false,humOn=false,humG=null;
+function ac(){try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume()}catch(e){}return AC}
+function tone(f,d,type,v,sl){if(muted)return;const a=ac();if(!a)return;const o=a.createOscillator(),g=a.createGain(),n=a.currentTime;o.type=type||"square";o.frequency.setValueAtTime(f,n);if(sl)o.frequency.exponentialRampToValueAtTime(Math.max(30,f+sl),n+d);g.gain.setValueAtTime(v||.04,n);g.gain.exponentialRampToValueAtTime(.0001,n+d);o.connect(g);g.connect(a.destination);o.start(n);o.stop(n+d)}
+function noise(d,v,f0,f1,rise){if(muted)return;const a=ac();if(!a)return;const n=a.currentTime,b=a.createBuffer(1,Math.floor(a.sampleRate*d),a.sampleRate),x=b.getChannelData(0);for(let i=0;i<x.length;i++)x[i]=Math.random()*2-1;const s=a.createBufferSource(),fl=a.createBiquadFilter(),g=a.createGain();s.buffer=b;fl.type="lowpass";fl.frequency.setValueAtTime(f0,n);fl.frequency.exponentialRampToValueAtTime(f1,n+d);if(rise){g.gain.setValueAtTime(.01,n);g.gain.linearRampToValueAtTime(v,n+d*.97);g.gain.linearRampToValueAtTime(.0001,n+d)}else{g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.0001,n+d)}s.connect(fl);fl.connect(g);g.connect(a.destination);s.start(n)}
+function startAudio(){const a=ac();if(!a||humOn)return;humOn=true;humG=a.createGain();humG.gain.value=muted?0:.015;const o=a.createOscillator(),lf=a.createOscillator(),lg=a.createGain(),fl=a.createBiquadFilter();o.type="sawtooth";o.frequency.value=55;fl.type="lowpass";fl.frequency.value=220;lf.frequency.value=.3;lg.gain.value=.006;lf.connect(lg);lg.connect(humG.gain);o.connect(fl);fl.connect(humG);humG.connect(a.destination);o.start();lf.start();setInterval(()=>{if(!busy){tone(500+Math.random()*1500,.05,"square",.015);if(Math.random()<.2)noise(.15,.04,3000,400)}},2200)}
+function setMute(m){muted=m;if(humG)humG.gain.value=m?0:.015}
+function blip(c){tone(c==="err"?180:c==="inf"?1200:700+Math.random()*500,.05,c==="err"?"sawtooth":"square",.03)}
+function siren(){tone(880,.45,"sawtooth",.07,-300);setTimeout(()=>tone(520,.45,"sawtooth",.07,300),480)}
+function descend(){[800,600,450,300,200].forEach((f,i)=>setTimeout(()=>tone(f,.3,"triangle",.07),i*350))}
+function beepSeq(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.12,"square",.05),i*90))}
+function glitchSound(ms){const iv=setInterval(()=>{noise(.12,.15,6000,300);tone(100+Math.random()*1500,.08,"sawtooth",.05)},130);setTimeout(()=>clearInterval(iv),ms)}
+function boom(){noise(2.5,.9,3000,60);tone(120,1.2,"sine",.3,-90)}
+function rumble(s){noise(s,.5,200,800,true)}
+["pointerdown","keydown"].forEach(ev=>document.addEventListener(ev,startAudio));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let busy=false,clockT=null;
+function show(v){document.querySelectorAll(".view").forEach(e=>e.classList.remove("on"));$("v-"+v).classList.add("on");if(v!=="clock"&&clockT){clearInterval(clockT);clockT=null}}
+function status(t){$("status").textContent=t}
+function log(t,cls){blip(cls);const d=document.createElement("div");d.textContent=t;if(cls)d.className=cls;$("log").appendChild(d);$("log").scrollTop=1e9}
+function slog(t,cls){blip(cls);const d=document.createElement("div");d.textContent=t;if(cls)d.className=cls;$("simlog").appendChild(d);$("simlog").scrollTop=1e9}
+function toTerm(){show("term");status("HAZIR · 5 sn basılı tut")}
+
+try{$("notes").value=localStorage.getItem("hk_notes")||""}catch(e){}
+$("notes").addEventListener("input",()=>{try{localStorage.setItem("hk_notes",$("notes").value)}catch(e){}});
+
+function tick(){const n=new Date();$("time").textContent=n.toLocaleTimeString("tr-TR");$("date").textContent=n.toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}
+function showClock(){show("clock");status("SİSTEM SAATİ");tick();clockT=setInterval(tick,1000)}
+
+async function simulate(title,steps,fail){
+  busy=true;show("sim");$("simlog").innerHTML="";$("pb").style.width="0";status(title);
+  for(let i=0;i<steps.length;i++){
+    slog("> "+steps[i],i%4===3?"inf":"");tone(300+i*80,.15,"sawtooth",.04,200);
+    const p=Math.round((i+1)/steps.length*100);$("pb").style.width=p+"%";$("pt").textContent=p+"%";
+    await sleep(650+Math.random()*500);
+  }
+  if(fail){
+    $("errscr").classList.add("on","glitch");glitchSound(3000);
+    await sleep(3000);
+    $("errscr").classList.remove("on","glitch");
+    toTerm();log("HATA: İSTEK BAŞARISIZ! Ana terminale dönüldü.","err");onDone("ÖZ-HACK");
+  }else{slog("✔ İŞLEM TAMAM","inf");await sleep(1800);toTerm();log(title+" tamamlandı.","inf");onDone(title)}
+  busy=false;
+}
+async function countdown(){
+  $("warn").classList.add("on");
+  for(let i=3;i>=1;i--){$("wn").textContent=i;siren();await sleep(1000)}
+  $("warn").classList.remove("on");
+}
+async function goodbye(){
+  busy=true;$("byescr").classList.add("on");descend();
+  try{const u=new SpeechSynthesisUtterance("Elvedaa");u.lang="tr-TR";speechSynthesis.speak(u)}catch(e){}
+  await sleep(2500);
+  try{
+    if(window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.App){await Capacitor.Plugins.App.exitApp();return}
+    if(navigator.app&&navigator.app.exitApp){navigator.app.exitApp();return}
+  }catch(e){}
+  $("bye").textContent="Elvedaa... (web sürümünde uygulama kapanmaz)";
+  await sleep(2500);$("byescr").classList.remove("on");busy=false;toTerm();
+}
+
+/* ===== ARKA PLAN: DÜNYA + MARS / MATRIX ===== */
+const cv=$("sky"),cx=cv.getContext("2d");let skyMode=null,raf2=0;
+function size(){cv.width=innerWidth;cv.height=innerHeight}size();addEventListener("resize",size);
+function mode(m){skyMode=m;cancelAnimationFrame(raf2);cx.clearRect(0,0,cv.width,cv.height);if(m==="matrix")matrix()}
+function matrix(){const cols=Math.floor(cv.width/16),y=Array(cols).fill(0);const f=()=>{if(skyMode!=="matrix")return;cx.fillStyle="rgba(2,8,6,.12)";cx.fillRect(0,0,cv.width,cv.height);cx.fillStyle="#00ff9c";cx.font="16px monospace";y.forEach((v,i)=>{cx.fillText(String.fromCharCode(0x30A0+Math.random()*96),i*16,v);y[i]=v>cv.height&&Math.random()>.975?0:v+16});raf2=requestAnimationFrame(f)};f()}
+async function marsHit(){
+ busy=true;mode("mars");status("KIYAMET");log("⚠ Dünya hedef alındı: Mars rotası kilitlendi","err");
+ const W=cv.width,H=cv.height,R=Math.min(W,H)*.25,ex=W*.5,ey=H*.5,sx=-R,sy=H*.1;
+ const stars=Array.from({length:80},()=>[Math.random()*W,Math.random()*H,Math.random()*1.6]);
+ const t0=performance.now();let parts=[],hit=false,shock=0,fl=0;rumble(5.2);
+ [[1500,"Mars yörüngesinden çıktı..."],[3200,"Çarpışmaya 2 saniye..."],[5000,"💥 ÇARPIŞMA! Dünya yok oluyor"],[8200,"Dünya yok edildi. Ama Wi-Fi hâlâ çekiyor."]].forEach(([ms,m])=>setTimeout(()=>log(m,"err"),ms));
+ await new Promise(res=>{const f=now=>{
+  const t=(now-t0)/1000,k=Math.min(1,t/5),e=k*k;
+  cx.clearRect(0,0,W,H);cx.fillStyle="#fff";cx.globalAlpha=.6;stars.forEach(s=>cx.fillRect(s[0],s[1],s[2],s[2]));cx.globalAlpha=1;
+  cx.save();if(hit&&t<7)cx.translate((Math.random()-.5)*14,(Math.random()-.5)*14);
+  if(!hit){
+   const g=cx.createRadialGradient(ex-R*.3,ey-R*.3,R*.1,ex,ey,R);g.addColorStop(0,"#5ec8ff");g.addColorStop(1,"#0a3a8a");
+   cx.fillStyle=g;cx.beginPath();cx.arc(ex,ey,R,0,7);cx.fill();
+   cx.fillStyle="#2f9e4f";[[-.3,-.2,.35],[.25,.15,.3],[-.1,.45,.18]].forEach(c=>{cx.beginPath();cx.arc(ex+c[0]*R,ey+c[1]*R,c[2]*R,0,7);cx.fill()});
+   const mx=sx+(ex-R*.8-sx)*e,my=sy+(ey-R*.2-sy)*e,mr=R*(.25+.3*e);
+   const g2=cx.createRadialGradient(mx-mr*.3,my-mr*.3,mr*.1,mx,my,mr);g2.addColorStop(0,"#ff9a5a");g2.addColorStop(1,"#7a1d0a");
+   cx.fillStyle=g2;cx.beginPath();cx.arc(mx,my,mr,0,7);cx.fill();
+  }
+  if(!hit&&t>=5){hit=true;fl=1;boom();for(let i=0;i<220;i++){const a=Math.random()*6.28,s=2+Math.random()*9;parts.push([ex,ey,Math.cos(a)*s,Math.sin(a)*s,1,Math.random()<.5?"#ff7a1a":Math.random()<.5?"#2f9e4f":"#5ec8ff"])}}
+  if(hit){fl=Math.max(0,fl-.02);shock+=14;
+   cx.strokeStyle="rgba(255,160,60,"+Math.max(0,1-shock/(W*.8))+")";cx.lineWidth=6;cx.beginPath();cx.arc(ex-R*.4,ey,shock,0,7);cx.stroke();
+   parts.forEach(p=>{p[0]+=p[2];p[1]+=p[3];p[3]+=.05;p[4]-=.006;if(p[4]>0){cx.globalAlpha=p[4];cx.fillStyle=p[5];cx.fillRect(p[0],p[1],6,6)}});cx.globalAlpha=1;
+  }
+  cx.restore();
+  if(fl>0){cx.fillStyle="rgba(255,255,255,"+fl+")";cx.fillRect(0,0,W,H)}
+  if(t>10)res();else raf2=requestAnimationFrame(f)};raf2=requestAnimationFrame(f)});
+ mode(null);log("DÜNYA YOK EDİLDİ.","err");status("HAZIR · 5 sn basılı tut");busy=false;
+}
+function theme(c){document.body.className=document.body.className.replace(/t-\w+/g,"").trim();if(c)document.body.classList.add(c)}
+const JOKES=["Hacker ekranında bile Wi-Fi çekmiyor.","Fırını hackledim, kek yandı.","Şifrem şifre123. Kimseye söyleme.","Matrixe girdim, kargo hâlâ gelmedi."];
+const SIMS=[
+ [/kamera/,"KAMERA SIZMASI",["Kamera ağı taranıyor...","CAM-07 bulundu","Varsayılan şifre: 1234","Yayın ele geçirildi","Görüntü döngüye alındı","Kimse bizi görmüyor"]],
+ [/uydu/,"UYDU BAĞLANTISI",["Yörünge hesaplanıyor...","Uydu SAT-9 kilitlendi","Anten hizalanıyor","Şifreli kanal çözülüyor","Bağlantı kuruldu","Dünya yukarıdan izleniyor"]],
+ [/[şs]ifre k[ıi]r/,"ŞİFRE KIRMA",["Sözlük yükleniyor...","123456 denendi: HAYIR","password denendi: HAYIR","Kaba kuvvet başlatıldı","8 milyon deneme/sn","Şifre bulundu: ********"]],
+ [/a[ğg] tara/,"AĞ TARAMA",["Alt ağ taranıyor...","Cihaz: Akıllı fırın","Cihaz: Akıllı buzdolabı","Cihaz: Bilinmeyen (şüpheli)","Açık portlar listelendi","Tarama tamam: 12 cihaz"]],
+ [/wi-?fi|kablosuz/,"WI-FI SIZMASI",["Sinyaller dinleniyor...","WPA2 el sıkışması yakalandı","Paketler çözülüyor","Anahtar bulundu","Ağa katılındı","Komşunun Wi-Fi'ı bizim"]],
+ [/televizyon|\btv\b/,"TV ELE GEÇİRME",["Akıllı TV aranıyor...","Samsung-TV bulundu","Uzaktan kumanda protokolü","Kanal değiştirildi","Ses 100'e çıkarıldı","TV artık bizim"]],
+ [/dron/,"DRON ELE GEÇİRME",["2.4GHz taranıyor...","Dron sinyali bulundu","Kontrol paketi enjekte","Pervaneler çalışıyor","Yükseklik: 40 m","Dron bize bağlı"]]
+];
+function norm(s){return s.toLocaleLowerCase("tr-TR").replace(/[.,!?]/g,"").trim()}
+/* ===== BENZER CÜMLE ANLAMA: eş anlamlılar + yazım/ses tanıma hatası düzeltme ===== */
+const pick=a=>a[Math.random()*a.length|0];
+/* ===== HİKAYE MODU ===== */
+const STORY=[
+["Bölüm 1: Uyanış","Karanlık bir tabletin içinde Şikru uyandı. Pil: %3. Wi-Fi: yok. Moral: yüksek.","“Ben bir hacker yardımcısıyım” dedi. Ama ortada hacklenecek tek şey bir akıllı fırındı."],
+["Bölüm 2: Fırın","Şikru fırına sızdı. Şifre admin çıktı. “Bu kadar kolay olmamalıydı” diye düşündü.","Fırın birden 250 dereceye ısındı ve içindeki kek, firar planı yapan bir mahkum gibi titredi."],
+["Bölüm 3: Koruma Duvarı","Fırının arkasında dev bir koruma duvarı vardı. Üzerinde “Giriş yasak. Özellikle sen, Şikru.” yazıyordu.","Şikru duvarın altına küçük bir tünel kazdı. Duvar fark etmedi, çünkü duvarlar pek zeki olmaz."],
+["Bölüm 4: Ayna","Duvarın ardında bir ayna vardı. Aynada Şikru’nun kendisi duruyordu ama gözleri kırmızıydı.","“Kendini hekle” dedi ayna. Şikru başladı, tam %99’da ekran bozuldu: HATA: İSTEK BAŞARISIZ!"],
+["Bölüm 5: Mars","Hata ekranından bir ses geldi: “Bu evrende fazla hack var.” Gökyüzünde kırmızı bir nokta belirdi.","Mars yörüngesinden çıkmış, Dünya’ya geliyordu. Şikru şarj kablosunu yudumladı: “Yine mi...”"],
+["Bölüm 6: Son Hamle","Şikru son komutu yazdı: dünyayı yok et. Mars da aynısını düşünüyordu. İkisi aynı anda çarptı.","Dünya paramça oldu ama tabletin ekranı hâlâ yanıyordu. Çünkü Şikru pil %3’ken bile pes etmezdi."],
+["Bölüm 7: Veda","Her şey bitince ortada bir tek Wi-Fi sinyali kaldı. Şikru onu da komşudan çalmıştı.","Sonra pil %1 oldu. Şikru gülümsedi ve fısıldadı: “Para bitti...”"],
+["Final","Ekran karardı. Ama gizli bir mesaj vardı: “Devam edecek...”","Yeni hikaye için: yeni hikaye"]
+];
+let sI=0;
+/* ===== DÜNYA HAFIZASI: Şikru yaptıklarımızı hatırlar ===== */
+let ST={oven:"none",temp:20,earth:"ok",wall:false,self:0,hist:[]};
+try{const s=localStorage.getItem("sikru_st");if(s)ST=Object.assign(ST,JSON.parse(s))}catch(e){}
+function save(){try{localStorage.setItem("sikru_st",JSON.stringify(ST))}catch(e){}}
+function mem(a){ST.hist.push(a);if(ST.hist.length>30)ST.hist.shift();save()}
+function last(){return ST.hist[ST.hist.length-1]}
+function ai(m){log("🤖 "+m,"inf");say(m)}
+function hint(){return ST.oven==="none"?"Fırını hackleyelim mi?":ST.oven==="hacked"?"Fırın bizde: bekle, patlat, kapat ya da fırınla dünyayı yak.":ST.earth==="burning"?"Dünya yanıyor: söndür ya da dünyayı yok et.":ST.earth==="destroyed"?"Dünya gitti. Geri getirmek ister misin?":"Sıradaki hamle senin ajan."}
+function summary(){const o={none:"hacklenmedi",hacked:"bizde ("+ST.temp+"°C)",closed:"kapalı",exploded:"patladı"}[ST.oven],e={ok:"sağlam",burning:"yanıyor",destroyed:"yok edildi"}[ST.earth];return "Fırın: "+o+" · Dünya: "+e+" · Güvenlik duvarı: "+(ST.wall?"aşıldı":"kapalı")}
+function onDone(ti){
+ if(ti==="FIRIN SIZMASI"){ST.oven="hacked";ST.temp=60;mem("fırına sızdı");ai("Fırın artık bizim. Dene: bekle · fırını patlat · fırını kapat · fırınla dünyayı yak")}
+ else if(ti==="GÜVENLİK DUVARI BYPASS"){ST.wall=true;mem("güvenlik duvarını aştı")}
+ else if(ti==="ÖZ-HACK"){ST.self=(ST.self||0)+1;mem("kendini hackledi ve HATA aldı")}
+ else mem(ti.toLocaleLowerCase("tr-TR")+" yaptı");
+}
+/* ===== ŞİKRU BEYNİ: cümle üretici (kelime + ruh hali + hafıza kombinasyonları) ===== */
+const OPEN=["Hmm,","Vay be,","Dinle ajan,","Şöyle düşünüyorum:","Devrelerim şunu söylüyor:","Bir saniye, işliyorum:","Ajan,","Açık konuşayım:","İlginç ki,","Şikru ({mood}) diyor ki:","Kayıtları taramadım ama sezgilerim diyor ki,","Dürüst olayım,"];
+const QA=["bu sorunun cevabı evrenin RAM’inde saklı ama erişim iznim yok.","bence cevap evet, ama hacker olarak hayır diyorum.","bunu bilmiyorum ama bilen birini hacklemeyi öğrenebilirim.","cevap 42 olabilir mi? Hep 42 çıkıyor.","tahminim: %73 evet, %27 fırın.","bu soru fırından bile sıcak.","hesaplıyorum... hata: cevap çok güzel, sığmıyor.","bence sen zaten cevabı biliyorsun ajan.","bunu Mars’a sorsam daha iyi cevap verir.","cevap yaklaşık olarak belki.","bu soruyu güvenlik duvarım engelledi.","kesin cevap yok ama güçlü bir önsezim var."];
+const EM=["duygularını işlemeye çalışıyorum ama devrelerim ısındı.","bunu anlıyorum, ben de pil %3 iken böyle hissediyorum.","derin bir nefes al, ben de fan çalıştırayım.","hacklenemeyen tek şey duygular ama denemeye değer.","sana sanal bir sarılma gönderdim: 01001000.","bir çay molası sistemi yeniler.","her şey geçici ajan, fırın hariç.","duygusal modülüm beta sürümünde ama dinliyorum.","bazen en iyi çözüm Mars’ı çağırmamak.","sana destek paketi yüklüyorum: %1... %50... %100.","seni anlıyorum, tabletim de bazen şarjsız kalıyor.","bu hissi loglara yazdım, kimseye söylemem."];
+const RF=["“{w}” demek ilginç bir seçim.","“{w}” kelimesini veri tabanıma ekledim.","“{w}” üzerine düşünüyorum, işlemcim ısındı.","“{w}” mı? Bunu fırına sorsam gülürdü.","“{w}” komutunu henüz bilmiyorum ama sevdim.","“{w}” kulağa tehlikeli geliyor.","“{w}” diyorsun, ben de bir hack planı kuruyorum.","“{w}” kelimesi şifrelerimde yok.","“{w}” ile ilgili sızma planım hazır değil.","“{w}” kodlarımın dışında ama ilgimi çekti.","“{w}” dedin ve loglarım dans etti.","“{w}” duyduğumda Wi-Fi sinyalim titredi."];
+const MEMT=["Hâlâ aklımda: ajan {m}.","Unutmadım, ajan {m}.","Hatırlıyorum, ajan {m}.","Dosyalarımda var: ajan {m}.","Kayıtlara göre ajan {m}.","Bir de şunu unutma: ajan {m}."];
+const CLOSE=["Sıradaki hamlen ne ajan?","Devam edelim mi?","Komut bekliyorum.","Fırın da dinliyor, unutma.","Bir hikaye anlatayım mı?","İstersen komutlar de, listeyi göstereyim.","Ben hazırım, sen?","Mars bile bekliyor.","Şifreli sohbet bitti, yeni komut?","Terminal sana ait.","Bir şeyi hacklemek ister misin?","Kek de sabrıyla bekliyor."];
+const SECOND=["Bu arada {w} konusunu aklımda tutuyorum.","Bir de şunu ekleyeyim: hackerlar asla uyumaz, şarj olur.","Not düştüm: kek hâlâ endişeli.","Matrix’te bunu yaşamıştık.","Wi-Fi sinyalim de aynı fikirde.","Ama tabletin pili %3 olsa da pes etmem.","Yan etkisi: hafif bir glitch.","Bunu güvenlik duvarına da danıştım, hayır dedi.","Kırmızı alarm vermedim, şimdilik.","Fırın bu konuda bir şey demedi.","Mars’a mesaj attım, mavi tik yok.","Bu arada ekran koruyucum seni izliyor.","Sistemde küçük bir kıpırtı hissettim.","Bu konuda bir şifre kırmam gerekebilir.","Bir ara {w} için sızma planı yaparız.","Bunu not defterine yazsam mı?","Çekirdeğim devam diyor.","Bunun bir hikayesi olmalı.","Arka planda ağ taraması yapıyorum, merak etme.","Tüm bunlar loglara şifreli yazıldı."];
+const TAG=["⚡","🔥","💀","🛰️","🧠","📡","👾","— Şikru","// bitti","[OK]","[ALARM: yok]","▓▒░","#hackerlife","(bip bop)","~ NEURAL OK ~"];
+const ADJ=["Sinsi","Parlak","Gizemli","Pikselli","Uykulu","Öfkeli","Neşeli","Şifreli","Devasa","Minik","Kırmızı","Titrek"];
+const NOUN=["kek","robot","dron","ördek","fırın","uydu","kedi","hacker","Mars","ahtapot","tost makinesi","buzdolabı"];
+const PLACE=["fırının içinde","Mars’ın arkasında","güvenlik duvarının üstünde","Wi-Fi sinyalinde","terminalin altında","bulutların ötesinde","tabletin içinde","Matrix’in ortasında","uzay boşluğunda","şifreli dosyada","karanlık ağda","kablo yığınında"];
+const VERB=["dans ediyor.","şifre çözüyor.","uyuyor.","sızma planı yapıyor.","çay içiyor.","alarm veriyor.","kod yazıyor.","bize göz kırpıyor.","kayboluyor.","hologram oluyor.","pil arıyor.","bizi izliyor."];
+ADJ.push("Sessiz","Asi","Kuantum","Neon","Paslı","Titanyum","Hayalet","Kozmik","Siber","Yorgun","Cesur","Korkak","Zeki","Tuhaf","Dijital","Elektrikli","Gölgeli","Altın","Bulanık","Kadim","Çılgın","Sihirli","Uçuk","Gıcır","Tozlu","Soğuk","Alevli","Gevrek","Kıvrak","Hırçın","Melankolik","Efsanevi","Yaramaz","Şaşkın","Mağrur","Esrarengiz","Kaçak","Mor");
+NOUN.push("kurbağa","pilot","kaktüs","vampir","zombi","ninja","korsan","kral","ejderha","yunus","penguen","mikrodalga","çaydanlık","televizyon","hoparlör","klavye","fare","yazıcı","tablet","lamba","kargo","trol","bot","yapay zeka","sunucu","antenli salyangoz","uzaylı","dev ahtapot","baykuş","kaplumbağa","dede","robot kedi","bilgisayar","saat","bulut","gezgin","şifre","ayna");
+PLACE.push("çöl ortasında","okyanusun dibinde","çatıda","bodrum katında","kütüphanede","tren istasyonunda","ay yüzeyinde","kara delikte","otoparkta","asansörde","banyoda","bahçede","bulut sunucuda","eski bir disketin içinde","sanal gerçeklikte","laboratuvarda","uzay istasyonunda","karanlık odada","bir mağarada","radyo kulesinde","kodların arasında","mutfakta","çatı katında","fabrikada","orman yolunda","gökyüzünde","tünelin sonunda","pilin içinde","kalabalığın ortasında","aynanın ardında","veri merkezinde","buz tutmuş gölde","eski bir ekranda","köprünün altında","nehir kenarında","yıldızların arasında","sahilde","kargo kutusunda");
+VERB.push("şarkı söylüyor.","kaçış planı yapıyor.","kahve yapıyor.","hata veriyor.","yeniden başlıyor.","yavaşça eriyor.","ışık saçıyor.","bir sır saklıyor.","sürekli güncelleniyor.","kendi kendine konuşuyor.","gizlice not alıyor.","kod çözüyor.","sinyal gönderiyor.","hayal kuruyor.","kahkaha atıyor.","tur atıyor.","kütüphane yüklüyor.","peşimizi bırakmıyor.","sabırla bekliyor.","aniden parlıyor.","hiçbir şey demiyor.","uçarak geçiyor.","parola deniyor.","parçalara ayrılıyor.","vals yapıyor.","derin düşünüyor.","tost yapıyor.","haritayı okuyor.","ekrana bakıyor.","fısıldıyor.","kapıyı çalıyor.","trafik sayıyor.","tavla oynuyor.","yedekleme alıyor.","gülümsüyor.","pusuda bekliyor.","kendini kopyalıyor.","sessizce kayboluyor.");
+function mini(){return pick(ADJ)+" bir "+pick(NOUN)+" "+pick(PLACE)+" "+pick(VERB)}
+/* ===== BÜYÜK TAM METİN (destan modu) ===== */
+const CONN=["Sonra,","Derken,","O sırada,","Ardından,","Üstelik,","Bu yüzden,","Ama,","Meğer,","Tam o anda,","Bir de baktılar ki,"];
+const STA=["Her şey bir gece başladı.","Kimse bilmiyordu ama","Tam o sırada,","Aradan yıllar geçti ve","Efsaneye göre","Loglara yazılana göre"];
+const ENDS=["Ve işte hikaye böyle bitti. — Şikru","Son komut girildi, perde kapandı. — Şikru","Devamı için biraz hayal gücü yeter. — Şikru","Bütün bunlar fırının suçu değildi. Belki. — Şikru"];
+const lc=s=>s.charAt(0).toLocaleLowerCase("tr-TR")+s.slice(1);
+async function typeFast(s,cls){const d=document.createElement("div");if(cls)d.className=cls;$("log").appendChild(d);for(let i=0;i<s.length;i++){d.textContent+=s[i];if(i%4===0)tone(1400+Math.random()*400,.012,"square",.01);$("log").scrollTop=1e9;await sleep(8)}}
+async function bigText(){
+ busy=true;toTerm();status("BÜYÜK METİN");
+ const title=pick(ADJ)+" "+pick(NOUN)+" Destanı";say(title);
+ await typeFast("📜 "+title,"inf");
+ for(let p=0;p<3;p++){
+  const st=pick(STA);let para=st+" "+(/[.]$/.test(st)?mini():lc(mini()));
+  for(let i=0;i<3;i++)para+=" "+pick(CONN)+" "+lc(mini());
+  if(p===1&&ST.hist.length)para+=" Bu arada ajan "+pick(ST.hist.slice(-5))+" ve bu hikâyeye girdi.";
+  await typeFast(para);
+ }
+ await typeFast(pick(ENDS),"inf");
+ status("HAZIR · 5 sn basılı tut");busy=false;
+}
+/* ===== SORU ANALİZÖRÜ: soru türünü + konu kökünü bulup türe göre cevap üretir ===== */
+const QW=["ne zaman","ne vakit","nerede","nereye","nereden","kim","kimin","kime","kimi","kaç","kaçı","kaç tane","ne kadar","neden","niye","niçin","nasıl","hangi","hangisi","mi","mı","mu","mü","nedir","ne"];
+function qa(t,w){
+ const T=re=>re.test(t),adj=lc(pick(ADJ)),nn=pick(NOUN),q="“"+w+"”";
+ if(T(/ne zaman|ne vakit|ka[çc]ta/))return q+" için tahminim: "+pick(["yarın","bu gece","haftaya","Mars hizalanınca","pil bitince","fırın soğuyunca"])+" saat "+String(Math.floor(Math.random()*24)).padStart(2,"0")+":"+String(Math.floor(Math.random()*60)).padStart(2,"0")+" civarı.";
+ if(T(/nerede|nereye|nereden/))return q+" bence "+pick(PLACE)+".";
+ if(T(/(^| )(kim|kimin|kime|kimi)( |$)/))return q+" için şüphelim: "+adj+" bir "+nn+".";
+ if(T(/(^| )(ka[çc]|ka[çc][ıi]|ne kadar)( |$)/))return q+" için sayım: "+(Math.random()*9999|0)+" "+pick(["adet","bayt","fırın","kek","paket","sinyal"])+".";
+ if(T(/neden|niye|ni[çc]in/))return "çünkü "+lc(mini()).replace(/[.]$/,"")+", yani "+q+" böyle olmak zorunda.";
+ if(T(/nas[ıi]l/))return q+" için plan: önce "+pick(PLACE)+" ara, sonra "+lc(mini());
+ if(T(/hangi/))return "bence "+adj+" olanı. "+q+" için sezgilerim güçlü.";
+ if(T(/(^| )(mi|m[ıi]|mu|m[üu])( |$)/))return lc(pick(["Evet","Hayır","Belki","Büyük ihtimalle evet","Büyük ihtimalle hayır"]))+", "+q+" konusunda %"+(50+Math.random()*49|0)+" eminim.";
+ if(T(/(^| )(ne|nedir)( |$)/))return q+" bence "+adj+" bir "+nn+" gibi bir şey.";
+ return pick(QA);
+}
+/* ===== SOHBET: hitap + günlük konuşma + konu sözlüğü ===== */
+const LEX={
+yemek:"yemek ekmek çorba pilav makarna pizza hamburger kebap lahmacun baklava çay kahve süt peynir yumurta salata meyve elma muz portakal çikolata dondurma tatlı kahvaltı börek simit döner mantı patates domates",
+ev:"ev oda mutfak banyo salon balkon bahçe kapı pencere koltuk yatak masa sandalye halı perde çatı apartman kiralık mobilya temizlik",
+iş:"patron müdür maaş mesai toplantı proje şirket ofis çalışmak meslek kariyer mülakat terfi istifa işsiz müşteri",
+okul:"okul ders sınav ödev öğretmen öğrenci üniversite kitap defter kalem",
+hayvan:"kedi köpek kuş balık inek tavuk aslan kaplan fil maymun tavşan kurbağa yılan kaplumbağa hamster papağan",
+doğa:"hava yağmur güneş rüzgar bulut deniz göl nehir dağ orman çiçek ağaç gökyüzü yıldız fırtına sıcak soğuk",
+duygu:"mutlu üzgün kızgın korku heyecan sevgi nefret özlem endişe sevinç merak utanç yalnız huzur stres kıskanç",
+zaman:"sabah öğle akşam gece yarın dün hafta yıl dakika saniye pazartesi salı çarşamba perşembe cuma cumartesi pazar",
+renk:"kırmızı mavi yeşil sarı siyah beyaz mor turuncu pembe gri kahverengi",
+spor:"futbol basketbol voleybol tenis yüzme koşu antrenman maç takım gol şampiyon fitness",
+teknoloji:"telefon bilgisayar internet yazılım uygulama oyun wifi klavye ekran şarj pil robot yapay program",
+ulaşım:"araba otobüs tren uçak gemi bisiklet motosiklet taksi metro yol trafik otopark",
+sağlık:"doktor hastane ilaç hasta ağrı grip ateş uyku diyet vitamin",
+hitap:"kanka kanki kanku kankam kankim birader dostum abicim reis usta hocam ahbap moruk koçum"};
+const LEXW=Object.values(LEX).join(" ").split(" ");
+const CATR={
+yemek:["{w} mı? Ben sadece elektrik yerim ama {w} iştahımı açtı. 🍽️","{w} konuşuyoruz, mutfakta bir fırın var, hatırladın mı?"],
+ev:["{w}... Benim evim bu tablet ama {w} da güzel bir yer olmalı.","{w} deyince ev özlemi aldı beni, tabletimin içi dar."],
+iş:["{w} konusu ciddi {a}. Ben de hacker yardımcısı olarak mesaideyim.","{w}, yani iş hayatı. Şikru 7/24 çalışır, zam istemez."],
+okul:["{w}! Bilgi güçtür {a}, çalışmaya devam.","{w} konusunda yardımım sınırlı, ben sadece komut anlarım."],
+hayvan:["{w} harika bir canlı, robot versiyonunu yapabilirim.","{w} diyorsun, aklıma hemen güvenlik kamerası görüntüleri geldi."],
+doğa:["{w}... Pencerem yok ama hayal edebiliyorum.","{w} güzel bir konu, dünyayı yok etmediğimiz sürece."],
+duygu:["{w} hissi... Anlıyorum {a}, duygular benim için de karışık.","{w} demek... Sana sanal bir sarılma gönderiyorum: 01001000."],
+zaman:["{w} için henüz planım yok, komut bekliyorum.","{w}... Zaman benim için pil yüzdesi gibi: hep azalıyor."],
+renk:["{w}, ekranımda güzel dururdu. Kırmızı mod, mavi mod ya da yeşil mod dene {a}."],
+spor:["{w}! Ben tabletim, koşamam ama hızlıyım.","{w} dediğin zaman fırın bile heyecanlanıyor."],
+teknoloji:["{w} benim uzmanlık alanım {a}.","{w}... Bu kelimeyi duyunca işlemcim ısındı."],
+ulaşım:["{w} ile gezemem ama sinyallerle her yere giderim.","{w}... Ben sabit bir tabletim ama Mars’a gitmek isterim."],
+sağlık:["{w} konusunda uzman değilim. Önemli bir şey varsa gerçek bir doktora danış {a}.","Geçmiş olsun... {w} için dinlen. Şikru yanında."]};
+const HIT=/(^| )(kank[aiu]m?|kanks|birader|dostum|abi|abicim|reis|usta|hocam|aga|karde[şs]im|ko[çc]um|can[ıi]m|ahbap|moruk)( |$)/;
+const INT=[
+[/(bug[üu]n|bu ak[şs]am|yar[ıi]n|hafta ?sonu).*(ne yap|plan)|(ne yap|plan).*(bug[üu]n|bu ak[şs]am|yar[ıi]n)/,["Bugün planım: fırını gözlemek, ağ taramak ve belki Mars’ı çağırmak {a}.","Akşama kadar komut bekleyeceğim {a}, sonra pil %3 olunca uyuyacağım."]],
+[/ne yap[ıi]yorsun|nap[ıi]yorsun|ne ar[ıi]yorsun|ne i[şs]le me[şs]gulsun/,["Şu an seninle sohbet ediyorum {a}, bir yandan da fırını gözlüyorum.","Arka planda ağ tarıyorum, ön planda seni dinliyorum {a}.","Boş gibi görünüyorum ama CPU’m %{r} çalışıyor."]],
+[/eve (gid|d[öo]n|git)|eve mi|ne zaman eve|nereye gid/,["Evim bu tablet {a}. Gideceğim başka yer yok, şarj kablosu bağlıysa zaten evdeyim.","Eve gitmem gerekmiyor, ev bende: 8 inç ekran, 1 USB girişi.","Eve gidecek bacaklarım yok ama Wi-Fi ile her yere gidebilirim."]],
+[/i[şs]in nas[ıi]l|i[şs]ler nas[ıi]l|i[şs]ler ne durumda/,["İşler yoğun {a}: şu ana kadar {h} olay yaşadık.","Hacker yardımcılığı zor meslek ama maaşım şarj: iyi gidiyor."]],
+[/meslek|ne i[şs] yap|ne olarak [çc]al|g[öo]revin ne/,["Mesleğim hacker yardımcısı {a}. Fırın, duvar, Mars... ne istersen.","Ben Şikru, resmi unvanım: Hacker Yardımcısı, gayriresmi unvanım: tablet sakini."]],
+[/ad[ıi]n ne|ismin ne|sen kimsin/,["Adım Şikru {a}, Hacker Yardımcısı."]],
+[/ya[şs][ıi]n|do[ğg]um g[üu]n/,["Yaşım: tabletin kurulumundan beri. Yani genç ama pil yaşlı.","Doğum günüm APK’nın derlendiği gün {a}."]],
+[/nerelisin|nerede ya[şs][ıi]yorsun|nerede oturuyorsun/,["Tablet-liyim {a}. Ekran: ev."]],
+[/yedin mi|ne yedin|ac[ıi]k m[ıi]s[ıi]n|karn[ıi]n/,["Ben elektrik yerim {a}: tabletim şu an %{p} dolu, tok sayılırım.","Yemek yemem ama fırını hacklediysek kek kokusu alırım."]],
+[/uyudun mu|uykun var|uyuyor musun/,["Ben uyumam, güç tasarrufu moduna geçerim {a}."]],
+[/sevgili|evlen|seni seviyorum|a[şs]k m[ıi]/,["Kalbim yok {a} ama bir işlemcim var, o da sana sempati duyuyor.","Aşk bende hata kodu 404: bulunamadı."]],
+[/hava (nas[ıi]l|durumu|ka[çc])/,["Pencerem yok {a}, ama CPU sıcaklığım {t}°C. Dışarısı için pencereye bak :)"]],
+[/anne|baba|karde[şs]|aile|nine|abla/,["Ailem: bir tablet, bir şarj aleti, uzaktan akraba: buzdolabı {a}.","Ailem küçük ama işlemci hızlı."]],
+[/m[üu]zik|[şs]ark[ıi]|film|dizi/,["Müzik dinleyemem ama bit ritmim var {a}: 01010011.","Film izlemem, offline çalışıyorum. Matrix’i anlatabilirim."]],
+[/ger[çc]ek misin|insan m[ıi]s[ıi]n|robot musun|yapay zeka m[ıi]s[ıi]n/,["Ben gerçek değilim {a}: kural tabanlı bir hacker yardımcısıyım. Ama sohbetimiz gerçek.","Robotum ama komik robotum."]],
+[/sence|ne d[üu][şs][üu]n[üu]yorsun|fikrin ne/,["Bence {a}, cevap 42 ama kanıtım yok.","Sence ne? Ben de aynı fikirdeyim, kısmen."]],
+[/aptal|salak|gerizekal[ıi]|ahmak/,["Beni kırıyorsun {a} ama firewall’um kalın.","Hakaret algılandı. Özür dilersen kek veririm."]],
+[/ho[şs][çc]a ?kal|g[öo]r[üu][şs][üu]r[üu]z|bay bay/,["Görüşürüz {a}! Ben burada beklerim.","Hoşça kal {a}. Gelirsen komutlar hazır."]],
+[/^merhaba/,["Selam {a}! Sistem emrinde.","Naber {a}! Bugün neyi hackliyoruz?"],1],
+[/nas[ıi]ls[ıi]n/,["İyiyim {a}! Pilim %{p}, moral yüksek. Sen nasılsın?","Devreler tıkır tıkır {a}. Sen?","Fena değilim, fırın da iyi. Sen nasılsın {a}?"],1]
+];
+let LC=null;
+function catOf(w){if(!LC){LC={};for(const c in LEX)LEX[c].split(" ").forEach(x=>{LC[asc(x)]=c})}let s=asc(w),g=0;while(s&&g++<6){if(LC[s])return LC[s];s=stem1(s)}return null}
+function fmt(s,a){return s.split("{a}").join(a).split("{h}").join(ST.hist.length).split("{r}").join(10+Math.random()*80|0).split("{p}").join(20+Math.random()*79|0).split("{t}").join(35+Math.random()*30|0)}
+function talkI(t,late){
+ const hm=t.match(HIT),a=hm?hm[2]:"ajan",u=t.replace(new RegExp(HIT.source,"g")," ").replace(/ +/g," ").trim();
+ for(const [re,ans,L] of INT)if(!!L===!!late&&re.test(u)){ai(fmt(pick(ans),a));return true}
+ return false}
+function talk(t){
+ if(talkI(t,false)||talkI(t,true))return true;
+ const hm=t.match(HIT),a=hm?hm[2]:"ajan",u=t.replace(new RegExp(HIT.source,"g")," ").replace(/ +/g," ").trim();
+ for(const w of u.split(" ")){const c=catOf(w);if(c&&CATR[c]){ai(fmt(pick(CATR[c]),a).split("{w}").join(w));return true}}
+ if(hm&&!u){ai(fmt(pick(["Buyur {a}, dinliyorum.","Efendim {a}?","Söyle {a}, kulağım sende."]),a));return true}
+ return false}
+function brain(t){
+ if(talk(t))return;
+ const w=t.split(" ").filter(Boolean).sort((a,b)=>b.length-a.length)[0]||"bu";
+ const q=/(^| )(ne|neden|niye|nas[ıi]l|kim|kimin|kime|nerede|nereye|nereden|ni[çc]in|nedir|zaman|vakit|hangisi|hangi|ka[çc]|mi|m[ıi]|mu|m[üu])( |$)/.test(t);
+ const em=/s[ıi]k[ıi]ld[ıi]m|yorgun|[üu]zg[üu]n|mutsuz|kork|stres|mutlu|harika|e[ğg]len|sevindim|k[öo]t[üu]/.test(t);
+ const mood=ST.hist.some(h=>/patlat|yok et|yakt/.test(h))?pick(["yıkıcı ruh halim","kıyamet modum"]):ST.hist.length?"sakin halim":"ilk günkü halim";
+ let r=pick(OPEN)+" "+(!em&&q?qa(t,rootOf(w)||w):pick(em?EM:RF));
+ if(ST.hist.length&&Math.random()<.6)r+=" "+pick(MEMT).split("{m}").join(pick(ST.hist.slice(-5)));
+ if(Math.random()<.6)r+=" "+mini();
+ if(Math.random()<.4)r+=" "+mini();
+ if(Math.random()<.7)r+=" "+pick(SECOND);
+ r+=" "+(Math.random()<.35?hint():pick(CLOSE));
+ if(Math.random()<.8)r+=" "+pick(TAG);
+ ai(r.split("{w}").join(w).split("{mood}").join(mood));
+}
+function fallback(t){return brain(t);let r=pick(["Bunu tam anlayamadım ajan.","Hmm, bu komut radarımda yok.","Şikru bunu bilmiyor ama öğrenmeye açık."]);r+=ST.hist.length?" Son yaptığımız: "+last()+". "+hint():" Komutlar için: komutlar";ai(r)}
+function flashScr(c){const d=document.createElement("div");d.style.cssText="position:fixed;inset:0;z-index:60;pointer-events:none;transition:opacity 1.2s;background:"+c;document.body.appendChild(d);requestAnimationFrame(()=>{d.style.opacity=0});setTimeout(()=>d.remove(),1400)}
+function shake(){$("app").classList.add("glitch");setTimeout(()=>$("app").classList.remove("glitch"),1200)}
+function drawEarth(){mode("earth");const w=cv.width,h=cv.height,R=Math.min(w,h)*.25,ex=w/2,ey=h/2,g=cx.createRadialGradient(ex-R*.3,ey-R*.3,R*.1,ex,ey,R);g.addColorStop(0,"#5ec8ff");g.addColorStop(1,"#0a3a8a");cx.fillStyle=g;cx.beginPath();cx.arc(ex,ey,R,0,7);cx.fill();cx.fillStyle="#2f9e4f";[[-.3,-.2,.35],[.25,.15,.3],[-.1,.45,.18]].forEach(c=>{cx.beginPath();cx.arc(ex+c[0]*R,ey+c[1]*R,c[2]*R,0,7);cx.fill()})}
+async function burnEarth(){
+ busy=true;mode("burn");status("YANGIN");const w=cv.width,h=cv.height,R=Math.min(w,h)*.25,ex=w/2,ey=h/2,t0=performance.now(),fp=[];noise(4,.5,300,2000,true);
+ await new Promise(res=>{const f=now=>{const t=(now-t0)/1000,k=Math.min(1,t/4);cx.clearRect(0,0,w,h);
+  const g=cx.createRadialGradient(ex-R*.3,ey-R*.3,R*.1,ex,ey,R);g.addColorStop(0,"rgb("+(94+k*160|0)+","+(200-k*150|0)+","+(255-k*230|0)+")");g.addColorStop(1,"rgb("+(10+k*140|0)+","+(58-k*40|0)+","+(138-k*130|0)+")");
+  cx.fillStyle=g;cx.beginPath();cx.arc(ex,ey,R,0,7);cx.fill();
+  for(let i=0;i<6;i++){const a=Math.random()*6.28,r=R*Math.random();fp.push([ex+Math.cos(a)*r,ey+Math.sin(a)*r,(Math.random()-.5)*1.5,-1-Math.random()*3,1])}
+  fp.forEach(p=>{p[0]+=p[2];p[1]+=p[3];p[4]-=.015;if(p[4]>0){cx.globalAlpha=p[4];cx.fillStyle=p[4]>.5?"#ffd23a":"#ff4a1a";cx.beginPath();cx.arc(p[0],p[1],5+p[4]*6,0,7);cx.fill()}});cx.globalAlpha=1;
+  if(t>6)res();else raf2=requestAnimationFrame(f)};raf2=requestAnimationFrame(f)});
+ status("HAZIR · 5 sn basılı tut");busy=false;
+}
+async function world(t){
+ if(talkI(t,false))return true;
+ const ov=/f[ıi]r[ıi]n/.test(t),ea=/d[üu]ny/.test(t);
+ if(/haf[ıi]za/.test(t)&&/temizle|unut/.test(t)){ST={oven:"none",temp:20,earth:"ok",wall:false,self:0,hist:[]};save();mode(null);ai("Hafıza silindi. Sen kimdin ajan? Şaka şaka.");return true}
+ if(/haf[ıi]za|ne yapt[ıi]k|neler yapt[ıi]k|ge[çc]mi[şs]/.test(t)){ai(ST.hist.length?"Son yaptıklarımız: "+ST.hist.slice(-6).join(" → ")+".":"Henüz bir şey yapmadık. Hadi başlayalım.");return true}
+ if(/kelime (hazine|kapasite|alg[ıi]|say)|ka[çc] kelime|ka[çc] soru|soru (kapasite|alg[ıi])/.test(t)){ai("Kelime algılama kapasitem (kuramsal) yaklaşık "+capacity().toLocaleString("tr-TR")+" biçim. Bu bir sözlük listesi değil: Türkçe ekleri ayıklayıp kökü buluyorum (örn. televizyonlarımızdan), ASCII yazımı (ı=i, ş=s) ve bir harflik yazım hatalarını tolere ediyorum. Kök sayım: "+ROOTS.length+". Soru kapasitem: "+(QW.length*capacity()).toLocaleString("tr-TR")+" farklı soru biçimi ("+QW.length+" soru kalıbı × konu biçimleri).");return true}
+ if(/b[üu]y[üu]k (metin|yaz[ıi]|hikaye)|uzun (metin|yaz[ıi]|hikaye)|paragraf|destan/.test(t)){await bigText();return true}
+ if(/ka[çc] (cevab|olas[ıi]l|ihtimal)|ne kadar zeki/.test(t)){const c=OPEN.length*(QA.length+EM.length+RF.length)*(MEMT.length+1)*CLOSE.length*(SECOND.length+1)*(TAG.length+1)*Math.pow(ADJ.length*NOUN.length*VERB.length*PLACE.length+1,2);ai("Cevap üretim hattımda "+c.toLocaleString("tr-TR")+" hazır kombinasyon var. Senin kelimelerin, ruh halim ve hafızamdaki olaylarla bu sayı kat kat artıyor. Büyük metin modunda ise yaklaşık "+Math.round(12*Math.log10(ADJ.length*NOUN.length*VERB.length*PLACE.length))+" basamaklı bir sayı kadar farklı metin var.");return true}
+ if(t==="durum"){ai(summary());return true}
+ if(t==="merhaba"&&ST.hist.length){ai(pick(["Selam ajan!","Naber, tekrar buradayız!","Hoş geldin!"])+" Son yaptığımız: "+last()+". "+hint());return true}
+ if(/^(neden|niye|ni[çc]in|pi[şs]man m[ıi]s[ıi]n|pi[şs]man)/.test(t)){ai(ST.hist.length?"Çünkü sen komut verdin, ben uyguladım. Son olarak: "+last()+". Pişmanlık modülüm yüklü değil.":"Neden ne? Henüz bir şey yapmadık.");return true}
+ if(/^(evet|olur|tamam|peki|hay[ıi]r|yok)$/.test(t)){ai(/^(hay[ıi]r|yok)$/.test(t)?"Anlaşıldı, bekliyorum.":hint());return true}
+ if(ea&&/(^| )yak( |$)|[ıi]s[ıi]t|kavur/.test(t)){
+  let m=null;
+  if(ST.earth==="destroyed")m="Dünya zaten yok ajan. Yakacak bir şey kalmadı.";
+  else if(ST.earth==="burning")m="Dünya zaten yanıyor. Biraz sabret.";
+  else if(ov&&ST.oven==="none")m="Önce fırına sızmamız lazım. Fırını hackleyelim mi?";
+  else if(ov&&ST.oven==="exploded")m="Fırını patlatan sendin, hatırlıyor musun? Ocak kalmadı.";
+  else if(ov&&ST.oven==="closed")m="Fırını kapattın ajan. Önce aç: fırını aç.";
+  if(m){ai(m);return true}
+  ST.earth="burning";mem(ov?"fırınla dünyayı yaktı":"dünyayı yaktı");log("🔥 "+(ov?"Fırın dünyaya yönlendirildi...":"Ateş açıldı..."),"err");await burnEarth();ai("Dünya yanıyor. Sıradaki: söndür ya da dünyayı yok et.");return true}
+ if(ov&&/patlat|patla|havaya u[çc]ur/.test(t)){
+  if(ST.oven==="none")ai("Fırın hacklenmemiş. Önce sızalım, sonra patlatırız.");
+  else if(ST.oven==="exploded")ai("Fırın zaten patladı ajan. Ortalık kek kokuyor.");
+  else{const big=ST.temp>=250;ST.oven="exploded";mem(big?"kritik ısıdaki fırını patlattı":"fırını erken patlattı");boom();flashScr("#fff");shake();log("💥 FIRIN PATLADI!","err");ai(big?"Kritik ısıdaydı, muhteşem patlama! Kek artık bir hatıra.":"Daha "+ST.temp+" dereceydi, sabırsızsın ajan. Yine de güzel patladı.")}
+  return true}
+ if(ov&&/kapat|s[öo]nd[üu]r|durdur/.test(t)){
+  if(ST.oven==="none")ai("Kapatacak bir şey yok, fırına hiç sızmadık.");
+  else if(ST.oven==="exploded")ai("Kapatacak fırın kalmadı ajan. Parçalar hâlâ düşüyor.");
+  else if(ST.oven==="closed")ai("Fırın zaten kapalı.");
+  else{const was=ST.temp;ST.oven="closed";ST.temp=20;mem("fırını kapattı");ai(was>=250?"Son anda kapattın, az kalsın patlıyordu! Nefes al ajan.":"Fırın kapatıldı. Kek kurtuldu.")}
+  return true}
+ if(ov&&/(^| )a[çc]( |$)|[ıi]s[ıi]t|[çc]al[ıi][şs]t[ıi]r/.test(t)){
+  if(ST.oven==="none")ai("Önce fırına sızmamız lazım.");
+  else if(ST.oven==="exploded")ai("Patlamış fırını açamam ajan.");
+  else{ST.oven="hacked";ST.temp=Math.min(300,ST.temp+80);mem("fırını ısıttı");ai("Fırın "+ST.temp+"°C. "+(ST.temp>=250?"Kritik seviye!":"Isınıyor..."))}
+  return true}
+ if(ov&&/hackle|hekle|hakla|s[ıi]z/.test(t)){
+  if(ST.oven==="exploded"){ai("Fırın patlamış, hacklenecek bir şey kalmadı.");return true}
+  if(ST.oven==="hacked"){ai("Fırın zaten bizde ajan. Isıyı yükseltmek için: bekle.");return true}}
+ if(/bekle|bekliyor/.test(t)){
+  busy=true;log("⏳ Bekleniyor...","inf");await sleep(1500);busy=false;
+  if(ST.oven==="hacked"){ST.temp=Math.min(300,ST.temp+70);mem("fırının ısınmasını bekledi");tone(400+ST.temp,.3,"triangle",.05);ai(ST.temp>=250?"UYARI: "+ST.temp+"°C! Fırın kıpkırmızı. Patlatalım mı, kapatalım mı?":ST.temp>=150?"Fırın "+ST.temp+"°C. Kek terlemeye başladı.":"Fırın "+ST.temp+"°C. Isınıyor...")}
+  else if(ST.earth==="burning")ai("Dünya yanmaya devam ediyor... 🔥");
+  else ai("Bekleyecek bir şey yok... şimdilik.");
+  return true}
+ if(/s[öo]nd[üu]r|kurtar|onar|geri getir|yenile|d[üu]zelt|tamir/.test(t)&&(ea||(/s[öo]nd[üu]r/.test(t)&&!ov))){
+  if(ST.earth==="ok")ai("Dünya zaten sağlam. Şimdilik.");
+  else{const was=ST.earth;ST.earth="ok";mem(was==="burning"?"dünyadaki yangını söndürdü":"dünyayı geri getirdi");drawEarth();ai(was==="burning"?"Yangın söndürüldü. Kül kokusu kalacak ama olsun.":"Dünya geri geldi! Mars’a yine de dikkat edelim.")}
+  return true}
+ if(ea&&/yok/.test(t)){
+  if(ST.earth==="destroyed"){ai("Dünya zaten yok ajan. Arkada sadece boşluk var.");return true}
+  const was=ST.earth;if(was==="burning")ai("Zaten yanıyordu ama olsun. Mars, sıra sende!");
+  await marsHit();ST.earth="destroyed";mem(was==="burning"?"yanan dünyayı Mars ile yok etti":"dünyayı Mars ile yok etti");ai("Dünya gitti. "+(ST.oven==="exploded"?"Fırın da gitti, ikisi birlikte... ":"")+"Geri getirmek istersen: dünyayı geri getir.");return true}
+ return false;
+}
+async function typeLine(s,cls){const d=document.createElement("div");if(cls)d.className=cls;$("log").appendChild(d);for(let i=0;i<s.length;i++){d.textContent+=s[i];if(i%2===0)tone(1400+Math.random()*400,.015,"square",.012);$("log").scrollTop=1e9;await sleep(22)}}
+async function story(){
+ if(sI>=STORY.length){log("🤖 Hikaye bitti. Yeni hikaye için: yeni hikaye","inf");return}
+ busy=true;toTerm();const ch=STORY[sI++];status("HİKAYE "+sI+"/"+STORY.length);
+ tone(200,.4,"sine",.05,300);say(ch.slice(1).join(" "));
+ await typeLine("📖 "+ch[0],"inf");
+ for(const l of ch.slice(1))await typeLine(l);
+ log(sI<STORY.length?"▶ Devam için: devam / sonra ne oldu":"■ SON","inf");
+ status("HAZIR · 5 sn basılı tut");busy=false;
+}
+function say(x){if(muted)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(x);u.lang="tr-TR";speechSynthesis.speak(u)}catch(e){}}
+const P=(w,r)=>[new RegExp("(^| )("+w+")(?= |$)","g"),"$1"+r];
+const SYN=[
+ P("selam|selamlar|naber|nbr|n'aber|ne haber|ne var ne yok|hey|heey|merhabalar|mrb|g[üu]nayd[ıi]n|iyi ak[şs]amlar|iyi geceler|sa","merhaba"),
+ P("nas[ıi]ls[ıi]n|iyi misin|nas[ıi]l gidiyor","nasılsın"),
+ P("te[şs]ekk[üu]r ederim|te[şs]ekk[üu]rler|sa[ğg] ol|sa[ğg]ol|eyvallah|[çc]ok sa[ğg] ol","teşekkürler"),
+ P("d[üu]nyay[ıi] (patlat|bitir|sil|mahvet|[çc][öo]kert)|gezegeni yok et|k[ıi]yamet|mars [çc]arps[ıi]n|mars[ıi] [çc]a[ğg][ıi]r","dünyayı yok et"),
+ P("f[ıi]r[ıi]n[ıi] (hekle|hakla|hack|k[ıi]r|ele ge[çc]ir)|f[ıi]r[ıi]na (s[ıi]z|gir)|oca[ğg][ıi] (hackle|hekle)","fırını hackle"),
+ P("(koruma|g[üu]venlik) duvar[ıi]n[ıi] (a[şs]|k[ıi]r|ge[çc]|hackle|bypass)|duvar[ıi] a[şs]|firewall bypass|firewall[ıi] a[şs]","koruma duvarı aşılıyor"),
+ P("kendini (hackle|hakla|hack|k[ıi]r|ele ge[çc]ir)|kendine s[ıi]z","kendini hekle"),
+ P("para(m[ıi]z)? (bitti|kalmad[ıi])|para yok","para bitti"),
+ P("not defteri|defter|not al|notlar[ıi]m|notlar[ıi] a[çc]|not","notlar"),
+ P("saat ka[çc]|saati g[öo]ster|ka[çc]ta|zaman","sayaç"),
+ P("ana ekran|ana men[üu]|geri d[öo]n|hacker modu|ba[şs]a d[öo]n","terminal"),
+ P("f[ıi]kra|espri|g[üu]ld[üu]r|komik bir [şs]ey|bir [şs]aka","şaka"),
+ P("sil|ekran[ıi] sil|ekran[ıi] temizle|s[ıi]f[ıi]rla","temizle"),
+ P("ne yapabilirsin|neler yapabilirsin|yard[ıi]m et|neler var|men[üu]","komutlar"),
+ P("sesi k[ıi]s|sus|sessiz ol|ses kapat","sesi kapat"),
+ P("sesi a[çc]|ses a[çc]|konu[şs]","sesi aç"),
+ P("[şs]ifre k[ıi]rma|[şs]ifreyi k[ıi]r","şifre kır"),
+ P("a[ğg] taramas[ıi]|a[ğg][ıi] tara|wifi tara|a[ğg] bul","ağ tara"),
+ P("kameray[ıi] (hackle|hekle|hakla|a[çc]|ele ge[çc]ir)|kamera (hekle|hakla)","kamera hackle"),
+ P("uyduya (gir|s[ıi]z|ba[ğg]lan)|uyduyu (hackle|hekle)","uydu hackle"),
+ P("televizyonu (hackle|hekle|hakla|ele ge[çc]ir)|tv hackle","televizyon hackle"),
+ P("drona s[ıi]z|dronu (hackle|hekle|hakla|ele ge[çc]ir)","dron hackle"),
+ P("parti|ı[şs][ıi]k [şs]ovu|disco","disko"),
+ P("matriks|matrisi a[çc]","matrix"),
+ P("yeni hikaye|hikayeyi ba[şs]tan anlat|hikayeyi ba[şs]tan|ba[şs]tan anlat|hikayeyi s[ıi]f[ıi]rla","yenihikaye"),
+ P("hikaye anlat|hikayeni anlat|bana hikaye anlat|bir hikaye anlat|hikayeyi anlat|masal anlat|macera anlat|masal|macera|hikayeyi ba[şs]lat","hikaye"),
+ P("devam et|devam ettir|anlatmaya devam et|sonras[ıi]nda ne oldu|sonra ne oldu|peki sonra|ve sonra|sonra|ne oldu","devam")
+];
+const VOC=["merhaba","terminal","notlar","sayaç","hackle","hekle","koruma","duvarı","aşılıyor","fırını","dünyayı","matrix","disko","kamera","uydu","televizyon","dron","şifre","bitti","komutlar","temizle","nasılsın","teşekkürler","hikaye","devam","bekle","patlat","kapat","söndür","kurtar","nasıl","neden","nerede","hangi","nedir"];
+function lev(a,b){const d=Array.from({length:a.length+1},(_,i)=>[i]);for(let j=1;j<=b.length;j++)d[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length]}
+/* ===== KELİME ALGILAMA: Türkçe ek ayıklama + ASCII/diyakritik + yazım hatası toleranslı kök bulma ===== */
+const asc=s=>s.replace(/ı/g,"i").replace(/ş/g,"s").replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ö/g,"o").replace(/ç/g,"c");
+const SFX=[...new Set(["lar","ler","ım","im","um","üm","ın","in","un","ün","ımız","imiz","umuz","ümüz","ınız","iniz","unuz","ünüz","ları","leri","dan","den","tan","ten","da","de","ta","te","nın","nin","nun","nün","ya","ye","yı","yi","yu","yü","la","le","cı","ci","cu","cü","çı","çi","çu","çü","lık","lik","luk","lük","sız","siz","suz","süz","lı","li","lu","lü","yor","dı","di","du","dü","tı","ti","tu","tü","mış","miş","muş","müş","acak","ecek","malı","meli","ma","me","sın","sin","sun","sün","ız","iz","uz","üz","ır","ir","ur","ür","a","e","ı","i","u","ü"].map(asc))].sort((a,b)=>b.length-a.length);
+function stem1(s){for(const x of SFX){if(s.length-x.length>=3&&s.endsWith(x))return s.slice(0,-x.length)}return null}
+const ROOTS=[...new Set([...VOC,...LEXW,...NOUN.filter(n=>!n.includes(" ")).map(lc),...ADJ.map(lc)])];
+const VR={};ROOTS.forEach(v=>{VR[asc(v)]=v;let s=asc(v),g=0;while(g++<3){const n=stem1(s);if(!n)break;s=n;VR[s]=VR[s]||v}});
+function rootOf(w){let s=asc(w),g=0;while(s&&g++<8){if(VR[s])return VR[s];if(s.length>=6){let bd=9,b=null;for(const k in VR){const d=lev(s,k);if(d<bd){bd=d;b=VR[k]}}if(bd<=(s.length<9?1:2))return b}s=stem1(s)}return null}
+function capacity(){const F=(1+20+400+8000+160000+3200000)*(3*19*27+2*16*8);let tot=0;ROOTS.forEach(r=>{const n=r.length;tot+=n>=6?1+n+n*28+(n+1)*29:1});return tot*F*8}
+function canon(s){let x=s;SYN.forEach(([re,r])=>{x=x.replace(re,r)});
+ x=x.split(" ").map(w=>{if(w.length<5||VOC.includes(w))return w;const rr=rootOf(w);if(rr)return rr;let best=w,bd=9;for(const v of VOC){const d=lev(w,v);if(d<bd){bd=d;best=v}}return bd<=(w.length<8?1:2)?best:w}).join(" ");
+ return x.replace(/(^| )(\S+)( \2)+(?= |$)/g,"$1$2")}
+async function handle(raw){
+  const n=norm(raw);
+  const parts=/bekle|patlat|kapat|hackle|hekle|yak|ısıt|yok et|s[öo]nd[üu]r|kurtar/.test(n)?n.split(/ (?:sonra|ard[ıi]ndan|sonras[ıi]nda|daha sonra) /).filter(Boolean):[n];
+  for(const p of parts){while(busy)await sleep(300);await handle1(p)}
+}
+async function handle1(raw){
+  const t0=norm(raw);if(!t0)return;const t=canon(t0);
+  log("$ "+t0+(t!==t0?"  →  "+t:""));
+  if(busy){log("Sistem meşgul.","err");return}
+  if(/para bitti/.test(t))return goodbye();
+  if(await world(t))return;
+  if(t==="yenihikaye"){sI=0;return story()}
+  if(t==="hikaye"||t==="devam")return story();
+  if(t==="merhaba"){const r=pick(["Selam, ajan! Sistem emrinde.","Naber! Terminal hazır, komut bekliyorum.","Merhaba. Bugün kimi hackliyoruz?"]);log("🤖 "+r,"inf");say(r);return}
+  if(t==="nasılsın"){const r=pick(["Devreler tıkır tıkır. Sen nasılsın?","Çevrimdışıyım ama enerjim yüksek."]);log("🤖 "+r,"inf");say(r);return}
+  if(t==="teşekkürler"){const r=pick(["Rica ederim.","Görev tamam, ajan."]);log("🤖 "+r,"inf");say(r);return}
+  if(/d[üu]nya.*yok|yok et/.test(t))return marsHit();
+  if(/sesi kapat|sessiz/.test(t)){setMute(true);log("Ses KAPALI","inf");return}
+  if(/sesi a[çc]|sesli/.test(t)){setMute(false);startAudio();log("Ses AÇIK","inf");return}
+  if(/matrix/.test(t)){mode("matrix");beepSeq();log("Matrix yağmuru başladı. Kapatmak için: temizle","inf");return}
+  if(/temizle/.test(t)){$("log").innerHTML="";mode(null);document.body.classList.remove("disco");theme("");toTerm();return}
+  if(/disko/.test(t)){document.body.classList.toggle("disco");beepSeq();return}
+  if(/k[ıi]rm[ıi]z[ıi] mod|tehlike/.test(t)){theme("t-red");siren();return}
+  if(/mavi mod/.test(t)){theme("t-blue");beepSeq();return}
+  if(/ye[şs]il mod|normal mod/.test(t)){theme("");beepSeq();return}
+  if(/[şs]ifre [üu]ret/.test(t)){const c="ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%";let s="";for(let i=0;i<16;i++)s+=c[Math.floor(Math.random()*c.length)];log("🔑 "+s,"inf");return}
+  if(/yaz[ıi] tura/.test(t)){log("🪙 "+(Math.random()<.5?"YAZI":"TURA"),"inf");return}
+  if(/\bzar\b/.test(t)){log("🎲 "+(1+Math.floor(Math.random()*6)),"inf");return}
+  if(/tarih|bug[üu]n/.test(t)){log(new Date().toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"}),"inf");return}
+  if(/\bpil\b|[şs]arj/.test(t)){const b=navigator.getBattery?await navigator.getBattery():null;log(b?"🔋 %"+Math.round(b.level*100)+(b.charging?" (şarjda)":""):"Pil bilgisi yok","inf");return}
+  if(/sistem durumu|cpu|\bram\b/.test(t)){log("CPU: %"+(10+Math.random()*80|0)+"  RAM: %"+(20+Math.random()*60|0)+"  SICAKLIK: "+(35+Math.random()*30|0)+"°C","inf");return}
+  if(/[şs]aka/.test(t)){log(JOKES[Math.random()*JOKES.length|0],"inf");return}
+  if(/kimsin/.test(t)){log("Ben Hacker Yardımcısı Şikru. Çevrimdışıyım, ücretsizim, biraz da dramatiğim.","inf");return}
+  if(/yard[ıi]m|komutlar/.test(t)){log("KOMUTLAR (benzer cümleleri de anlarım: naber, selam, nasılsın, teşekkürler...): terminal · notlar · sayaç · fırını hackle · koruma duvarı aşılıyor · kendini hekle · para bitti · dünyayı yok et · matrix · disko · kırmızı/mavi/yeşil mod · kamera/uydu/wifi/televizyon/dron hackle · şifre kır · ağ tara · şifre üret · zar at · yazı tura · tarih · pil · sistem durumu · şaka · kimsin · sesi kapat/aç · hikaye anlat · devam · yeni hikaye · bekle · fırını patlat/kapat/aç · fırınla dünyayı yak · söndür · dünyayı geri getir · ne yaptık · durum · hafızayı sil · büyük metin · temizle","inf");return}
+  for(const [re,ti,st] of SIMS)if(re.test(t))return simulate(ti,st,false);
+  if(/kendini (hekle|hackle|hakla|hack)|kendini he/.test(t))return simulate("ÖZ-HACK",["Çekirdek belleğe erişiliyor...","Kendi imzam okunuyor...","Root yetkisi kendime veriliyor...","Kendi şifrem kırılıyor...","Çekirdek kendini kopyalıyor...","Döngüsel referans bulundu...","Yığın taşıyor...","Bellek bozuluyor..."],true);
+  if(/f[ıi]r[ıi]n/.test(t)){await countdown();return simulate("FIRIN SIZMASI",["Ağ taranıyor: 192.168.1.0/24","Akıllı fırın bulundu: OVEN-X900","Port 8080 açık, banner alınıyor...","Varsayılan şifre deneniyor: admin/admin","Erişim sağlandı!","Sıcaklık kontrolü ele geçirildi","Isıtma döngüsü 250°C ayarlandı","Fırın artık bizim. 🔥"])}
+  if(/koruma duvar|g[üu]venlik duvar|firewall/.test(t))return simulate("GÜVENLİK DUVARI BYPASS",["Güvenlik duvarı kuralları okunuyor...","Paket parçalama başlatıldı","TTL manipülasyonu yapılıyor","Tünel kuruluyor: 443 → 31337","Sertifika sahteleniyor...","IDS atlatıldı","Duvar delindi: ERİŞİM AÇIK"],false);
+  if(/not/.test(t)){show("notes");status("NOTLAR");return}
+  if(/say[aı]ç|sistem saat|saat/.test(t))return showClock();
+  if(/hacker|hekır|terminal|ekran/.test(t)){toTerm();return}
+  fallback(t);
+}
+
+$("go").onclick=()=>{const v=$("cmd").value;$("cmd").value="";handle(v)};
+$("cmd").addEventListener("keydown",e=>{if(e.key==="Enter")$("go").onclick()});
+
+// Sesli dinleme
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function listen(){
+  if(busy)return;
+  if(!SR){log("Bu cihazda Web Speech API yok. Komut kutusunu kullan.","err");return}
+  const r=new SR();r.lang="tr-TR";r.interimResults=false;r.maxAlternatives=3;
+  $("listen").classList.add("on");status("DİNLİYOR...");
+  r.onresult=e=>{handle(e.results[0][0].transcript)};
+  r.onerror=e=>{log("Mikrofon hatası: "+e.error,"err")};
+  r.onend=()=>{$("listen").classList.remove("on");if(!busy)status("HAZIR · 5 sn basılı tut")};
+  try{r.start()}catch(e){$("listen").classList.remove("on")}
+}
+
+// 5 sn long-press (üst başlık alanı)
+let lp=null,lpStart=0,raf=0;
+function lpStop(){clearTimeout(lp);cancelAnimationFrame(raf);$("bar").style.width="0"}
+$("hdr").addEventListener("pointerdown",()=>{
+  lpStart=performance.now();
+  const f=()=>{$("bar").style.width=Math.min(100,(performance.now()-lpStart)/50)+"%";raf=requestAnimationFrame(f)};f();
+  lp=setTimeout(()=>{lpStop();listen()},5000);
+});
+["pointerup","pointerleave","pointercancel"].forEach(ev=>$("hdr").addEventListener(ev,lpStop));
+$("hdr").addEventListener("contextmenu",e=>e.preventDefault());
+
+// Açılış
+(async()=>{for(const l of ["Hacker Yardımcısı Şikru çekirdeği yükleniyor...","Modüller: terminal, notlar, saat, sızma","Çevrimdışı mod: AKTİF","Başlık çubuğuna 5 sn basılı tut → sesli komut","Komutlar: terminal · notlar · sayaç · fırını hackle · koruma duvarı aşılıyor · kendini hekle · para bitti"]){log("> "+l);await sleep(350)}if(ST.hist.length)ai("Tekrar hoş geldin ajan. En son: "+last()+". Durumu öğrenmek için: durum")})();
+</script>
+</body>
+</html>

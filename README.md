@@ -150,3 +150,8 @@ Dükkan artık labirentte değil **lobide** (salonun ortasındaki "DÜKKAN" suna
 
 ### v4.1: Kişiye göre göz eşiği
 Gözü doğal olarak yarı açık duran (düşük göz kapağı) oyuncuda kamera "açık göz"ü kısmen kapalı okuyabiliyor ve sabit eşik tutmuyordu. Artık her gözün açık hâli sürekli ölçülür (`eyeLimits`/`updateBase`, `js/eyes.js`): kapanış = taban + 0.28 (en az 0.45), açılış = taban + 0.14 (en az 0.3). Taban hemen düşer, yavaş yükselir, kapalı göz tabanı şişirmez. Ekrandaki göz değeri satırında artık "eşik" de görünür. Test: `test/eyes.test.mjs`. SINIR: gerçek tablette doğrulanmadı.
+
+## Hacker Yardımcısı Şikru (hackeryardimcisi)
+Sayfa uygulaması: `hackeryardimcisi/src/main/assets/index.html`, internetsiz çalışır (terminal, notlar, saat, sızma animasyonları, hikaye modu, sohbet).
+GitHub derlemesi `hackeryardimcisi.apk` olarak Release'e koyar, Güncelleyici listeye kendiliğinden ekler.
+"para bitti" komutu uygulamayı kapatır. Sesle komut (Web Speech) WebView'de çalışmayabilir; komut kutusu her zaman çalışır.
