@@ -339,7 +339,39 @@ function brain(t){
  if(Math.random()<.8)r+=" "+pick(TAG);
  ai(r.split("{w}").join(w).split("{mood}").join(mood));
 }
-function fallback(t){return brain(t);let r=pick(["Bunu tam anlayamadım ajan.","Hmm, bu komut radarımda yok.","Şikru bunu bilmiyor ama öğrenmeye açık."]);r+=ST.hist.length?" Son yaptığımız: "+last()+". "+hint():" Komutlar için: komutlar";ai(r)}
+const AIP={};let aiN=0;
+window.__aiDone=(id,ok,txt)=>{const p=AIP[id];if(p){delete AIP[id];p([ok,txt])}};
+function aiKey(){try{return localStorage.getItem("sikru_key")||""}catch(e){return ""}}
+function askAI(q){return new Promise(res=>{
+  if(!aiKey()||!window.AndroidApp||!AndroidApp.ask)return res([false,"yok"]);
+  const id=++aiN;AIP[id]=res;
+  setTimeout(()=>{if(AIP[id]){delete AIP[id];res([false,"zaman aşımı"])}},40000);
+  AndroidApp.ask(id,aiKey(),(ST.hist.length?"[Son yaptığımız şeyler: "+ST.hist.slice(-5).join(", ")+"] ":"")+q)})}
+async function fallback(t,raw){
+  if(aiKey()){
+    log("🤖 düşünüyorum...","inf");
+    const [ok,x]=await askAI(raw||t);
+    if(ok){ai(x.replace(/[*#`_]/g,"").trim());return}
+    log("⚠ "+(/429/.test(x)?"Yapay zeka kotası doldu":/401|403/.test(x)?"Anahtar kabul edilmedi (ayarlar yaz)":"Yapay zekaya ulaşılamadı")+" → çevrimdışı cevap","err");
+  }
+  return brain(t);
+}
+function openKey(){
+  if($("keyov"))return;
+  const d=document.createElement("div");d.id="keyov";
+  d.style.cssText="position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px";
+  const b="padding:10px 14px;background:#00ff9c;color:#000;border:0;border-radius:6px;font-weight:bold";
+  d.innerHTML='<div style="background:#04110b;border:1px solid #00ff9c;border-radius:10px;padding:16px;max-width:520px;width:100%;color:#00ff9c">'
+   +'<b>🔑 Yapay zeka anahtarı (Gemini)</b>'
+   +'<p style="font-size:13px;opacity:.8;margin:8px 0">Anahtar yalnızca bu cihazda saklanır. Kota bitince ya da internet yoksa çevrimdışı cevap verilir.<br>Şu an: <b id="keyst"></b></p>'
+   +'<input id="keyin" type="password" autocomplete="off" placeholder="AIza..." style="width:100%;box-sizing:border-box;padding:10px;background:#000;color:#00ff9c;border:1px solid #00ff9c;border-radius:6px">'
+   +'<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button id="keysave" style="'+b+'">KAYDET</button><button id="keyclr" style="'+b+'">SİL</button><button id="keyx" style="'+b+'">KAPAT</button></div></div>';
+  document.body.appendChild(d);
+  const st=()=>{$("keyst").textContent=aiKey()?"AÇIK (anahtar kayıtlı)":"KAPALI (çevrimdışı)"};st();
+  $("keysave").onclick=()=>{const v=$("keyin").value.trim();if(!v)return;try{localStorage.setItem("sikru_key",v)}catch(e){}$("keyin").value="";st();log("🔑 Anahtar kaydedildi. Yapay zeka AÇIK.","inf")};
+  $("keyclr").onclick=()=>{try{localStorage.removeItem("sikru_key")}catch(e){}st();log("🔑 Anahtar silindi. Çevrimdışı moda dönüldü.","inf")};
+  $("keyx").onclick=()=>d.remove();
+}
 function flashScr(c){const d=document.createElement("div");d.style.cssText="position:fixed;inset:0;z-index:60;pointer-events:none;transition:opacity 1.2s;background:"+c;document.body.appendChild(d);requestAnimationFrame(()=>{d.style.opacity=0});setTimeout(()=>d.remove(),1400)}
 function shake(){$("app").classList.add("glitch");setTimeout(()=>$("app").classList.remove("glitch"),1200)}
 function drawEarth(){mode("earth");const w=cv.width,h=cv.height,R=Math.min(w,h)*.25,ex=w/2,ey=h/2,g=cx.createRadialGradient(ex-R*.3,ey-R*.3,R*.1,ex,ey,R);g.addColorStop(0,"#5ec8ff");g.addColorStop(1,"#0a3a8a");cx.fillStyle=g;cx.beginPath();cx.arc(ex,ey,R,0,7);cx.fill();cx.fillStyle="#2f9e4f";[[-.3,-.2,.35],[.25,.15,.3],[-.1,.45,.18]].forEach(c=>{cx.beginPath();cx.arc(ex+c[0]*R,ey+c[1]*R,c[2]*R,0,7);cx.fill()})}
@@ -473,6 +505,7 @@ async function handle1(raw){
   log("$ "+t0+(t!==t0?"  →  "+t:""));
   if(busy){log("Sistem meşgul.","err");return}
   if(/para bitti/.test(t))return goodbye();
+  if(/yapay zek|anahtar|ayarlar/.test(t0)){openKey();return}
   if(await world(t))return;
   if(t==="yenihikaye"){sI=0;return story()}
   if(t==="hikaye"||t==="devam")return story();
@@ -504,7 +537,7 @@ async function handle1(raw){
   if(/not/.test(t)){show("notes");status("NOTLAR");return}
   if(/say[aı]ç|sistem saat|saat/.test(t))return showClock();
   if(/hacker|hekır|terminal|ekran/.test(t)){toTerm();return}
-  fallback(t);
+  return fallback(t,t0);
 }
 
 $("go").onclick=()=>{const v=$("cmd").value;$("cmd").value="";handle(v)};

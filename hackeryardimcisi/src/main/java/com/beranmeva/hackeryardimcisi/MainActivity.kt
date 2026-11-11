@@ -13,7 +13,10 @@ import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import org.json.JSONArray
 import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -51,6 +54,53 @@ class MainActivity : Activity() {
 
             @JavascriptInterface
             fun listen(lang: String) { runOnUiThread { startListen() } }
+
+            // Gemini'ye soru sorar. İstek Android tarafında gider (WebView CORS sorunu olmasın).
+            @JavascriptInterface
+            fun ask(id: Int, key: String, prompt: String) {
+                Thread {
+                    var ok = false
+                    var out = ""
+                    for (model in MODELS) {
+                        try {
+                            val c = URL("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent")
+                                .openConnection() as HttpURLConnection
+                            c.requestMethod = "POST"
+                            c.connectTimeout = 10000
+                            c.readTimeout = 25000
+                            c.doOutput = true
+                            c.setRequestProperty("Content-Type", "application/json")
+                            c.setRequestProperty("x-goog-api-key", key.trim())
+                            val gen = JSONObject().put("maxOutputTokens", 400).put("temperature", 0.8)
+                            if (model.startsWith("gemini-2.5")) gen.put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
+                            val body = JSONObject()
+                                .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", SYSTEM))))
+                                .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
+                                .put("generationConfig", gen)
+                            c.outputStream.use { it.write(body.toString().toByteArray()) }
+                            val code = c.responseCode
+                            val txt = (if (code in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.readText() ?: ""
+                            if (code in 200..299) {
+                                out = JSONObject(txt).getJSONArray("candidates").getJSONObject(0)
+                                    .getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text")
+                                ok = out.isNotBlank()
+                                if (ok) break
+                                out = "bos cevap"
+                            } else {
+                                out = "HTTP " + code
+                                // model yok / parametre hatası: sıradaki modeli dene; kota ve anahtar hatasında dur
+                                if (code != 404 && code != 400) break
+                            }
+                        } catch (e: Exception) {
+                            out = e.javaClass.simpleName
+                            break
+                        }
+                    }
+                    val o = out
+                    val k = ok
+                    runOnUiThread { js("window.__aiDone(" + id + "," + k + "," + JSONObject.quote(o) + ")") }
+                }.start()
+            }
 
             @JavascriptInterface
             fun stopListen() { runOnUiThread { stopAll() } }
@@ -210,6 +260,11 @@ class MainActivity : Activity() {
     companion object {
         private const val IMMERSIVE = true
         private const val SILENCE_MS = 2000L
+        private val MODELS = listOf("gemini-2.5-flash", "gemini-flash-latest")
+        private const val SYSTEM = "Sen Hacker Yardımcısı Şikru adlı, esprili ve dostane bir terminal asistanısın. " +
+            "Türkçe konuş, en fazla 3 kısa cümleyle cevap ver, markdown ve yıldız kullanma. " +
+            "Cevapların bir ortaokul çocuğuna uygun olsun. Hackleme gerçek değil bir oyun/şaka; " +
+            "gerçek sistemlere sızma, zarar verme ya da tehlikeli bilgi verme, bunun yerine eğlenceli bir alternatif öner."
         // Sayfadaki Web Speech çağrısını uygulamanın kendi ses tanıyıcısına bağlar.
         private const val BRIDGE_JS = "navigator.app={exitApp:function(){AndroidApp.exit()}};" +
             "window.SpeechRecognition=function(){var s=this;s.lang='tr-TR';s.onresult=null;s.onerror=null;s.onend=null;" +
