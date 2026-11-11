@@ -71,8 +71,19 @@ class MainActivity : Activity() {
     private var want = false
     private val h = Handler(Looper.getMainLooper())
 
+    // Son duyulan (henüz gönderilmemiş) metin. 2 sn ses gelmezse otomatik gönderilir.
+    private var pending = ""
+    private val flush = Runnable { sendPending(); if (want) { try { rec?.cancel() } catch (e: Exception) {}; again(150) } }
+
+    private fun sendPending() {
+        val t = pending.trim()
+        pending = ""
+        if (t.isNotEmpty()) js("window.__srResult(" + JSONObject.quote(t) + ")")
+    }
+
     private fun stopAll() {
         want = false
+        pending = ""
         h.removeCallbacksAndMessages(null)
         try { rec?.cancel() } catch (e: Exception) {}
         rec?.destroy(); rec = null
@@ -106,10 +117,14 @@ class MainActivity : Activity() {
         r.setRecognitionListener(object : RecognitionListener {
             override fun onResults(b: Bundle?) {
                 val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+                h.removeCallbacks(flush)
+                pending = ""
                 if (t != null) js("window.__srResult(" + JSONObject.quote(t) + ")")
                 if (want) again(250) else js("window.__srEnd()")
             }
             override fun onError(code: Int) {
+                h.removeCallbacks(flush)
+                sendPending()
                 // 7 = ses yok, 6 = zaman aşımı, 8 = meşgul, 5 = iptal: dinlemeye devam et
                 if (want && (code == 7 || code == 6 || code == 5)) { again(250); return }
                 if (want && code == 8) { again(900); return }
@@ -121,13 +136,23 @@ class MainActivity : Activity() {
             override fun onRmsChanged(v: Float) {}
             override fun onBufferReceived(b: ByteArray?) {}
             override fun onEndOfSpeech() {}
-            override fun onPartialResults(b: Bundle?) {}
+            override fun onPartialResults(b: Bundle?) {
+                val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+                if (!t.isNullOrBlank()) {
+                    pending = t
+                    h.removeCallbacks(flush)
+                    h.postDelayed(flush, SILENCE_MS)
+                }
+            }
             override fun onEvent(t: Int, b: Bundle?) {}
         })
         val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "tr-TR")
         i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+        i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
+        i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
         r.startListening(i)
     }
 
@@ -184,6 +209,7 @@ class MainActivity : Activity() {
 
     companion object {
         private const val IMMERSIVE = true
+        private const val SILENCE_MS = 2000L
         // Sayfadaki Web Speech çağrısını uygulamanın kendi ses tanıyıcısına bağlar.
         private const val BRIDGE_JS = "navigator.app={exitApp:function(){AndroidApp.exit()}};" +
             "window.SpeechRecognition=function(){var s=this;s.lang='tr-TR';s.onresult=null;s.onerror=null;s.onend=null;" +
