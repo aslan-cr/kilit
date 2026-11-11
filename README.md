@@ -41,6 +41,8 @@ GitHub derlemesi artık `kilit.apk` ve `guncelle.apk` dosyalarını birlikte ür
 GitHub derlemesi bitince kilit.apk ve guncelle.apk bir Release olarak yayınlanır.
 Güncelleyici'de "Güncellemeleri kontrol et" düğmesi en son Release'teki APK'ları indirir,
 kurulu sürümle karşılaştırır, yeni olanı kurar. Depo herkese açık (public) olmalıdır.
+Güncelleyici 1.9'dan itibaren sadece yeni veya değişen APK'ları indirir: dosya boyutu ve (varsa) SHA-256 özeti
+cihazdakiyle aynıysa o dosya atlanır, bu yüzden kontrol çok daha hızlıdır.
 
 ## Yuvarlak sayaç ve koruma (v1.2)
 - Ekranda her uygulamanın üstünde yuvarlak bir sayaç durur: kalan süre, kullanıcı adı ve ilerleme halkası.

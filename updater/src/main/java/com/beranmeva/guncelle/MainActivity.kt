@@ -329,6 +329,7 @@ class MainActivity : Activity() {
                 val assets = json.getJSONArray("assets")
                 val added = mutableListOf<Entry>()
                 var failed = 0
+                var unchanged = 0
                 val failedNames = mutableListOf<String>()
                 val total = (0 until assets.length()).count { assets.getJSONObject(it).getString("name").lowercase().endsWith(".apk") }
                 var n = 0
@@ -336,12 +337,23 @@ class MainActivity : Activity() {
                     val a = assets.getJSONObject(i)
                     if (!a.getString("name").lowercase().endsWith(".apk")) continue
                     n++
-                    setStatus("Yayın $tag: indiriliyor $n/$total - ${a.getString("name")}", WARN)
+                    setStatus("Yayın $tag: bakılıyor $n/$total - ${a.getString("name")}", WARN)
                     val aname = a.getString("name")
-                    val aid = a.optLong("id", -1).toString()
-                    // Bu yayındaki dosya daha önce indirildiyse ve hâlâ duruyorsa tekrar indirme.
+                    val asize = a.optLong("size", -1)
+                    val adigest = a.optString("digest", "")
+                    // Her derleme yeni bir Release açar, dosya kimlikleri (id) hep değişir. Bu yüzden
+                    // kimliğe değil içeriğe bakılır: aynı boyutta ve (varsa) aynı özette dosya zaten
+                    // cihazdaysa tekrar indirilmez. Sadece değişen/yeni dosyalar iner.
                     val knownPkg = prefs.getString("p_$aname", null)
-                    if (prefs.getString("a_$aname", "") == aid && knownPkg != null && File(dir, "$knownPkg.apk").exists()) continue
+                    val local = if (knownPkg != null) File(dir, "$knownPkg.apk") else null
+                    if (local != null && local.exists() && asize > 0 && local.length() == asize) {
+                        val oldDigest = prefs.getString("d_$aname", "") ?: ""
+                        if (oldDigest.isEmpty() || adigest.isEmpty() || oldDigest == adigest) {
+                            if (adigest.isNotEmpty()) prefs.edit().putString("d_$aname", adigest).apply()
+                            unchanged++
+                            continue
+                        }
+                    }
                     // Bir APK inmezse diğerleri yine denensin; hiçbiri sessizce atlanmasın.
                     try {
                         val dl = URL(a.getString("browser_download_url"))
@@ -354,7 +366,7 @@ class MainActivity : Activity() {
                             val e = dl.inputStream.use { importStream(it, warn = false) }
                             if (e != null) {
                                 added.add(e)
-                                prefs.edit().putString("a_$aname", aid).putString("p_$aname", e.pkg).apply()
+                                prefs.edit().putString("d_$aname", adigest).putString("p_$aname", e.pkg).apply()
                                 runOnUiThread { refresh() }
                             } else if (!skippedOld) {
                                 failed++; failedNames.add("$aname (geçersiz dosya)")
@@ -369,7 +381,7 @@ class MainActivity : Activity() {
                 }
                 setStatus(
                     if (failed > 0) "Yayın $tag: indirilemeyen: ${failedNames.joinToString(", ")}. Tekrar dene."
-                    else "Yayın $tag kontrol edildi: ${added.size} yeni dosya indi.",
+                    else "Yayın $tag kontrol edildi: ${added.size} yeni/değişen dosya indi, $unchanged dosya aynı olduğu için atlandı.",
                     if (failed > 0) WARN else GOOD
                 )
                 runOnUiThread {
