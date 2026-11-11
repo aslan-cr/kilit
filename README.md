@@ -41,6 +41,8 @@ GitHub derlemesi artık `kilit.apk` ve `guncelle.apk` dosyalarını birlikte ür
 GitHub derlemesi bitince kilit.apk ve guncelle.apk bir Release olarak yayınlanır.
 Güncelleyici'de "Güncellemeleri kontrol et" düğmesi en son Release'teki APK'ları indirir,
 kurulu sürümle karşılaştırır, yeni olanı kurar. Depo herkese açık (public) olmalıdır.
+Güncelleyici 1.9'dan itibaren sadece yeni veya değişen APK'ları indirir: dosya boyutu ve (varsa) SHA-256 özeti
+cihazdakiyle aynıysa o dosya atlanır, bu yüzden kontrol çok daha hızlıdır.
 
 ## Yuvarlak sayaç ve koruma (v1.2)
 - Ekranda her uygulamanın üstünde yuvarlak bir sayaç durur: kalan süre, kullanıcı adı ve ilerleme halkası.
@@ -98,7 +100,7 @@ Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
 Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
 
-## Karanlık Bataklık (gozkirpma, v3.9)
+## Karanlık Bataklık (gozkirpma, v4.1)
 Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık, mezarlık dekorlu bir bataklık labirentinde ilerlersin.
 Kural: gözlerin AÇIKKEN gölgeler (Sıska Canavar, kabak kafa) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
 6 ışık böceğini topla, yakalanma. Ayrıntılı tasarım: `gozkirpma/DESIGN.md`.
@@ -144,3 +146,16 @@ Labirentte "DÜKKAN" tabelalı bir sunak var (başlangıçtan en az 8 karo uzakt
 - **Tavan yok:** Duvarlar yukarı doğru uzar ve karanlığa karışır; üstte sonsuz bir boşluk var (`rules.view.wallFade`, `voidHaze`).
 - **Her yöne bakış:** Sağ yarıda parmağı yukarı/aşağı sürükleyince yukarı/aşağı bakılır (sınır `player.pitchMax`). Klavye: Z yukarı, X aşağı. Ateş/hasar hâlâ yatay düzlemde. Debug: `?pitch=0.6`.
 - **Görüntü:** iç çözünürlük ~1.7x (en çok 576 px geniş), doku 64→128, yumuşak ölçekleme (`image-rendering: auto`). Yavaş cihazda kalite otomatik düşer.
+
+### v4.0: Dükkan lobide, para hesapta birikir
+Dükkan artık labirentte değil **lobide** (salonun ortasındaki "DÜKKAN" sunağı; yaklaşınca panel otomatik açılır). Oyunda topladığın paralar kazansan da kaybetsen de hesabının cüzdanına eklenir (`auth.wallet()`, `auth.addMoney()`); lobi çubuğunda 🪙 olarak görünür. Satın alınan silah ve fenerler cüzdanda kalır ve sonraki her oyunda elindedir. SINIR: hesap/cüzdan yalnızca bu cihazda (localStorage) tutulur, çevrimiçi hesap yok. Test: `node tools/shop-ui-test.mjs` (açılış, satın alma, yenileyince kalıcılık).
+
+### v4.1: Kişiye göre göz eşiği
+Gözü doğal olarak yarı açık duran (düşük göz kapağı) oyuncuda kamera "açık göz"ü kısmen kapalı okuyabiliyor ve sabit eşik tutmuyordu. Artık her gözün açık hâli sürekli ölçülür (`eyeLimits`/`updateBase`, `js/eyes.js`): kapanış = taban + 0.28 (en az 0.45), açılış = taban + 0.14 (en az 0.3). Taban hemen düşer, yavaş yükselir, kapalı göz tabanı şişirmez. Ekrandaki göz değeri satırında artık "eşik" de görünür. Test: `test/eyes.test.mjs`. SINIR: gerçek tablette doğrulanmadı.
+
+## Hacker Yardımcısı Şikru (hackeryardimcisi)
+Sayfa uygulaması: `hackeryardimcisi/src/main/assets/index.html`, internetsiz çalışır (terminal, notlar, saat, sızma animasyonları, hikaye modu, sohbet).
+GitHub derlemesi `hackeryardimcisi.apk` olarak Release'e koyar, Güncelleyici listeye kendiliğinden ekler.
+"para bitti" komutu uygulamayı kapatır. Başlığa 5 sn basılı tutunca mikrofon izni istenir ve sürekli dinleme açılır (tekrar 5 sn basınca kapanır). 2 sn ses gelmezse söylenen kısım komut olarak gönderilir, dinleme sürer (uygulamanın kendi Android ses tanıyıcısı, Google uygulaması gerekir). Komut kutusu her zaman çalışır.
+Yapay zeka (v1.4): komut kutusuna "ayarlar" yazınca Gemini API anahtarı girilir (aistudio.google.com/apikey). Anahtar yalnızca cihazda saklanır, depoya girmez.
+Anahtar varsa tanınmayan cümleleri Gemini cevaplar; kota bitince, internet yoksa ya da hata olursa yerleşik çevrimdışı cevap verilir. Bunun için INTERNET izni eklendi.

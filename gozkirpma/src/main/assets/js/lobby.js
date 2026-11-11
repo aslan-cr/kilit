@@ -1,6 +1,6 @@
 // Lobi sahnesi: kuzeyde 4 kabin (oda kurma yeri), altında ortak salon. Oyun dünyasıyla aynı şekle sahiptir,
 // böylece aynı çizici (render.js) ve aynı hareket kodu kullanılır. Saf mantık, DOM yok.
-import { createGame, movePlayer } from "./sim.js";
+import { createGame, movePlayer, setShop, updateShopNear } from "./sim.js";
 import { cabin, roomAt, spawnPoint } from "./rooms.js";
 
 export function createLobby(rules, seed = 7) {
@@ -38,6 +38,7 @@ export function createLobby(rules, seed = 7) {
   const sp = spawnPoint(R, 0);
   Object.assign(g, { map, S, props, lights, signs, enemies: [], flies: [], boxes: [], gunItems: [], players: [], px: sp.x, py: sp.y, yaw: -Math.PI / 2, state: "lobby",
     rooms: Array.from({ length: L.rooms }, () => ({ n: 0, st: "open", t: null })), myRoom: -1, myId: null, lobbyEvents: [] });
+  setShop(g, S / 2 + 0.5, hallEnd - 4.5);                       // salonun ortasında, iki sütunun arasında
   return g;
 }
 
@@ -45,6 +46,7 @@ export function createLobby(rules, seed = 7) {
 export function stepLobby(g, dt, input = {}) {
   g.time += dt;
   movePlayer(g, dt, input);
+  updateShopNear(g);
   const R = g.rules, room = roomAt(R, g.px, g.py);
   if (room >= 0 && room !== g.myRoom) {
     const r = g.rooms[room], full = r.n >= R.lobby.maxPerRoom, playing = r.st === "playing";
@@ -89,6 +91,7 @@ export function smoothPlayers(g, dt) {
 export function updateSigns(g) {
   const max = g.rules.lobby.maxPerRoom;
   g.signs.forEach((sg, i) => {
+    if (sg.room === undefined) return;                       // dükkan tabelası sabit
     const r = g.rooms[i] || { n: 0, st: "open" };
     const state = r.st === "playing" ? " · OYUNDA" : r.n >= max ? " · DOLU" : r.t !== null && r.t !== undefined ? ` · ${r.t} sn` : "";
     sg.text = `ODA ${i + 1} · ${r.n}/${max}${state}`;

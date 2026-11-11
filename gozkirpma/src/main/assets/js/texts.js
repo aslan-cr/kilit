@@ -12,7 +12,7 @@ export function ruleLines(R = RULES) {
     `Pompalı tüfekle başlarsın, ${R.ammo.start} mermin var. Mermi kutusu +${R.ammo.perBox} mermi verir (en fazla ${R.ammo.max}).`,
     `Vurulan gölge ${R.enemies.stunSec} sn kıpırdayamaz; ölen gölge ${R.enemies.respawnSec} sn sonra uzakta yeniden doğar.`,
     `Labirentte rastgele yerlerde 🪙 para belirir; her biri ${R.coins.value} para verir. Bekledikçe yenileri başka yerlerde oluşur (en fazla ${R.coins.max} tane).`,
-    `Dükkan: labirentte "DÜKKAN" tabelalı yere yaklaşınca otomatik açılır; topladığın paralarla silah (${R.shop.items.filter((i) => i.kind === "gun").map((i) => R.weapons[i.id].name).join(", ")}) ve el feneri alırsın. El feneri yalnızca dükkandan alınır.`,
+    `Dükkan: lobide, salonun ortasındaki "DÜKKAN" tabelalı sunağa yaklaşınca otomatik açılır; oyunda topladığın paralar (kazansan da kaybetsen de) hesabında birikir, onlarla silah (${R.shop.items.filter((i) => i.kind === "gun").map((i) => R.weapons[i.id].name).join(", ")}) ve el feneri alırsın. El feneri yalnızca dükkandan alınır.`,
     `El feneri (🔦 düğmesi ya da L): huzmesiyle koridoru aydınlatır ama menzildeki gölgeler ışığa %${Math.round((R.flashlight.enemyBoost - 1) * 100)} daha hızlı koşar. Fenerdeyken ve silah/fener değiştirirken ateş edilemez.`,
     "Sol yarı ekran: hareket. Sağ yarı ekran: sadece etrafa bakma (kısa dokunuş = ateş).",
   ];

@@ -173,6 +173,7 @@ function newSeed() { return Q.has("seed") ? Number(Q.get("seed")) : 1 + Math.flo
 function startGame(seed = newSeed()) {
   A.initAudio();
   g = createGame(seed, R);
+  loadWallet(g);                                      // lobiden satın alınan silah/fenerler oyuna gelir; g.money = bu oyunda toplanan
   bot = Q.has("autoplay") ? makeBot(g, { rand: rng(seed * 7919 + 1) }) : null;
   ui.phase = "play"; ui.scareT = 0; ui.lid = 0; ui.hurt = 0; ui.puffs = []; acc = 0;
   eyesT.closedL = eyesT.closedR = false;
@@ -197,17 +198,18 @@ function endGame(win) {
   resetTouch();
   menuEl.classList.remove("off");
   startBtn.textContent = ui.mode === "camera" ? "Tekrar oyna" : "Kamerayı aç ve başla";
+  auth.addMoney(g.money);                              // kazansan da kaybetsen de toplanan para cüzdana birikir
   if (win) {
     const t = Math.round(g.time), before = auth.stats().best;
     const st = auth.recordGame({ win: true, time: g.time, kills: g.kills, coins: g.money });
-    let line = `Kurtuldun! Süre: ${t} sn, ${g.kills} gölge vurdun, ${g.money} para topladın.`;
+    let line = `Kurtuldun! Süre: ${t} sn, ${g.kills} gölge vurdun, ${g.money} para topladın (cüzdana eklendi).`;
     line += !before || t < before ? " Yeni rekor!" : ` Rekor: ${before} sn.`;
     ui.best = st.best;
     resultEl.style.color = "#b6f0c0"; resultEl.textContent = line;
   } else {
     auth.recordGame({ win: false, time: g.time, kills: g.kills, coins: g.money });
     resultEl.style.color = "#ffb4a8";
-    resultEl.textContent = `Seni yakaladılar. ${g.collected}/${R.goal.flies} ışık böceği, ${g.money} para toplamıştın.`;
+    resultEl.textContent = `Seni yakaladılar. ${g.collected}/${R.goal.flies} ışık böceği, ${g.money} para toplamıştın (cüzdana eklendi).`;
   }
   showView();
   setStatus(ui.mode === "camera" ? "Tekrar denemek için butona bas." : "Tekrar denemek için bir mod seç.");
@@ -236,7 +238,7 @@ function onEvents() {
       case "fly": A.playPickup(); showMsg(`Işık böceği ${ev.n}/${R.goal.flies}. Gölgeler hızlandı…`, 2400); break;
       case "shopOpen": renderShop(true); A.playGunPick(); break;
       case "shopClose": renderShop(); break;
-      case "buy": A.playGunPick(); showMsg(ev.kind === "light" ? `${R.shop.names[ev.id]} alındı` : `${R.weapons[ev.id].name} alındı`, 1800); renderShop(true); break;
+      case "buy": if (ui.phase === "lobby") saveWallet(); A.playGunPick(); showMsg(ev.kind === "light" ? `${R.shop.names[ev.id]} alındı` : `${R.weapons[ev.id].name} alındı`, 1800); renderShop(true); break;
       case "noLight": showMsg("Fenerin yok. Dükkandan bir el feneri al.", 2200); break;
       case "coin": A.playCoin(); showMsg(`🪙 +${ev.value} para (toplam ${ev.n})`, 1600); break;
       case "ammo": A.playPickup(); showMsg(`Mermi kutusu: ${ev.n} mermi.`, 1600); break;
@@ -250,12 +252,23 @@ function onEvents() {
   }
   g.events.length = 0;
 }
+// ---------- Cüzdan (hesapta kalıcı) ----------
+function loadWallet(gl) {                              // gl: lobi ya da oyun dünyası; cüzdandaki para ve eşyaları üstüne yükler
+  const w = auth.wallet(), start = R.weapons.start;
+  gl.owned = [start, ...w.guns.filter((x) => x !== start && R.weapons[x])];
+  if (!gl.owned.includes(gl.cur)) gl.cur = start;
+  gl.flashOwned = w.lights.filter((x) => R.flashlight.stats[x]);
+  gl.flashModel = gl.flashOwned.includes(gl.flashModel) ? gl.flashModel : (gl.flashOwned[gl.flashOwned.length - 1] || null);
+  return w;
+}
+function saveWallet() { if (g) auth.saveWallet({ money: g.money, guns: g.owned.filter((x) => x !== R.weapons.start), lights: g.flashOwned }); }
+
 // ---------- Dükkan ----------
 const shopEl = $("shop"), shopList = $("shopList"), shopMoney = $("shopMoney");
 shopEl.addEventListener("pointerdown", (e) => e.stopPropagation());
 let shopKey = "";
 function renderShop(force) {
-  if (!g || !g.shop || ui.phase !== "play" || !g.nearShop) { shopEl.classList.add("hidden"); shopKey = ""; return; }
+  if (!g || !g.shop || ui.phase !== "lobby" || !g.nearShop) { shopEl.classList.add("hidden"); shopKey = ""; return; }
   const key = g.money + "|" + g.owned.join() + "|" + g.flashOwned.join();
   if (!force && key === shopKey && !shopEl.classList.contains("hidden")) return;
   shopKey = key; shopEl.classList.remove("hidden"); shopMoney.textContent = String(g.money);
@@ -290,7 +303,6 @@ function updateHud() {
   const w = (dk * 100).toFixed(0) + "%";
   if (hudCache.d !== w) { hudCache.d = w; el.dry.style.width = w; el.dry.style.background = g.dry >= R.eyes.dryWarn ? "#d04030" : "#6fb283"; }
   updateSwapBtn();
-  renderShop();
 }
 
 // ---------- Ana döngü ----------
@@ -330,7 +342,7 @@ function frame(now) {
       acc += dt; let n = 0, first = true;
       while (acc >= STEP && n++ < 10) { stepLobby(g, STEP, humanInput(first)); first = false; acc -= STEP; }
       if (ui.mode === "camera" && !lobbySet.classList.contains("hidden")) eyesT.read(video);
-      smoothPlayers(g, dt); updateSigns(g); lobbyEvents(); netTick(dt); updateLobbyBar(); updateEyeDbg();
+      smoothPlayers(g, dt); updateSigns(g); lobbyEvents(); onEvents(); renderShop(); netTick(dt); updateLobbyBar(); updateEyeDbg();
       renderer.render(g, fx());
     } else if (ui.phase === "scare") {
       ui.scareT += dt;
@@ -426,7 +438,8 @@ function updateEyeDbg() {
   const on = ui.mode === "camera" && (ui.phase === "play" || (ui.phase === "lobby" && !lobbySet.classList.contains("hidden")));
   eyeDbg.classList.toggle("hidden", !on);
   if (!on) return;
-  const t = `👁 sol ${eyesT.left.toFixed(2)} · sağ ${eyesT.right.toFixed(2)} · ${eyesT.noFace ? "YÜZ GÖRÜNMÜYOR" : eyesT.closed() ? "KAPALI" : "açık"}`;
+  const lim = eyesT.limits ? eyesT.limits() : null;
+  const t = `👁 sol ${eyesT.left.toFixed(2)} · sağ ${eyesT.right.toFixed(2)}${lim ? ` · eşik ${lim.l.close.toFixed(2)}` : ""} · ${eyesT.noFace ? "YÜZ GÖRÜNMÜYOR" : eyesT.closed() ? "KAPALI" : "açık"}`;
   if (eyeDbg.textContent !== t) eyeDbg.textContent = t;
 }
 
@@ -446,6 +459,7 @@ function startNetGame(m) {
 function returnToLobby() {
   mp.inGame = false;
   g = mp.lobby;
+  g.money = loadWallet(g).money;                      // oyunda toplanan paralar da cüzdana eklenmiş olur
   if (mp.room >= 0) { const c = cabin(R, mp.room); Object.assign(g, { px: c.cx, py: c.cy }); }   // oyundan dönünce odanın kabinine
   Object.assign(g, { myRoom: mp.room, state: "lobby" });
   if (mp.snap) applySnapshot(g, mp.snap, mp.id);
@@ -506,7 +520,8 @@ function updateLobbyBar() {
   const r = mp.room >= 0 && m ? m.rooms[mp.room] : null;
   const ln = m && m.lobby ? `Lobi ${m.lobby} · ` : "";
   const text = r ? `${ln}ODA ${mp.room + 1} · ${r.n}/${R.lobby.maxPerRoom} kişi · ${r.t !== null ? `oyun ${r.t} sn sonra başlıyor` : r.st === "playing" ? "oyun sürüyor" : "bekleniyor"}` : `${ln || "Lobi · "}${n}/${R.lobby.maxPlayers} oyuncu · bir odaya yürü (girince ${R.lobby.countdown} sn sayaç başlar)`;
-  if (lobbyInfo.textContent !== text) lobbyInfo.textContent = text;
+  const full = `🪙 ${g.money} · ${text}`;
+  if (lobbyInfo.textContent !== full) lobbyInfo.textContent = full;
 }
 function lobbyEvents() {
   for (const e of g.lobbyEvents) {
@@ -632,9 +647,9 @@ async function boot() {
     window.__ready = true;
     return;
   }
-  if (Q.has("lobby")) { if (!auth.current()) auth.guest(); showView(); requestAnimationFrame(frame); await enterLobby(); window.__ready = true; return; }
+  if (Q.has("lobby")) { if (!auth.current()) auth.guest(); showView(); requestAnimationFrame(frame); await enterLobby(); if (Q.has("shop")) { g.money = Number(Q.get("shop")) || 80; saveWallet(); g.px = g.shop.x; g.py = g.shop.y + 1.3; g.yaw = -Math.PI / 2; } window.__ready = true; return; }
   if (!Q.has("play") && !Q.has("autoplay")) autoLobby();
-  if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); if (Q.has("coin") && g.coins[0]) { const c = g.coins[0]; g.px = c.x - 1.2; g.py = c.y; g.ang = 0; } if (Q.has("mon")) { const e = g.enemies.find((q) => q.type === "monster") || g.enemies[0]; e.x = g.px + Number(Q.get("mon")); e.y = g.py; e.yaw = Math.PI; e.walk = 0.4; } if (Q.has("pitch")) g.pitch = Number(Q.get("pitch")); if (Q.has("shop")) { g.px = g.shop.x - 1.3; g.py = g.shop.y; g.yaw = 0; g.money = Number(Q.get("shop")) || 60; } if (Q.has("hold")) { const h = Q.get("hold"); if (h === "light") { g.slot = "light"; g.lightOn = true; g.flashModel = Q.get("flash") || "fl2"; g.flashOwned.push(g.flashModel); } else if (R.weapons[h]) { g.cur = h; if (!g.owned.includes(h)) g.owned.push(h); } if (Q.has("flash")) g.flashModel = Q.get("flash"); if (Q.has("low")) { g.sw = { t: 0.01, to: { slot: g.slot, weapon: g.cur }, applied: true }; g.raise = Number(Q.get("low")); } } }
+  if (Q.has("play") || Q.has("autoplay")) { ui.mode = "keyboard"; startGame(seed); if (Q.has("coin") && g.coins[0]) { const c = g.coins[0]; g.px = c.x - 1.2; g.py = c.y; g.ang = 0; } if (Q.has("mon")) { const e = g.enemies.find((q) => q.type === "monster") || g.enemies[0]; e.x = g.px + Number(Q.get("mon")); e.y = g.py; e.yaw = Math.PI; e.walk = 0.4; } if (Q.has("pitch")) g.pitch = Number(Q.get("pitch")); if (Q.has("hold")) { const h = Q.get("hold"); if (h === "light") { g.slot = "light"; g.lightOn = true; g.flashModel = Q.get("flash") || "fl2"; g.flashOwned.push(g.flashModel); } else if (R.weapons[h]) { g.cur = h; if (!g.owned.includes(h)) g.owned.push(h); } if (Q.has("flash")) g.flashModel = Q.get("flash"); if (Q.has("low")) { g.sw = { t: 0.01, to: { slot: g.slot, weapon: g.cur }, applied: true }; g.raise = Number(Q.get("low")); } } }
   window.__ready = true;
   requestAnimationFrame(frame);
 }
