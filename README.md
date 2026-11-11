@@ -98,7 +98,7 @@ Panelden gitmek gerekmez. Kenara yapışıkken önce dokunup aç.
 Oda kodu kalktı. "Arkadaşlarla oyna"ya basan herkes ortak bir lobiye düşer; ilk gelen kurucu olur, sonrakiler ona
 otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazlar arasında doğrudan (WebRTC) gider. İnternet gerekir.
 
-## Karanlık Bataklık (gozkirpma, v4.0)
+## Karanlık Bataklık (gozkirpma, v4.1)
 Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık, mezarlık dekorlu bir bataklık labirentinde ilerlersin.
 Kural: gözlerin AÇIKKEN gölgeler (Sıska Canavar, kabak kafa) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
 6 ışık böceğini topla, yakalanma. Ayrıntılı tasarım: `gozkirpma/DESIGN.md`.
@@ -147,3 +147,6 @@ Labirentte "DÜKKAN" tabelalı bir sunak var (başlangıçtan en az 8 karo uzakt
 
 ### v4.0: Dükkan lobide, para hesapta birikir
 Dükkan artık labirentte değil **lobide** (salonun ortasındaki "DÜKKAN" sunağı; yaklaşınca panel otomatik açılır). Oyunda topladığın paralar kazansan da kaybetsen de hesabının cüzdanına eklenir (`auth.wallet()`, `auth.addMoney()`); lobi çubuğunda 🪙 olarak görünür. Satın alınan silah ve fenerler cüzdanda kalır ve sonraki her oyunda elindedir. SINIR: hesap/cüzdan yalnızca bu cihazda (localStorage) tutulur, çevrimiçi hesap yok. Test: `node tools/shop-ui-test.mjs` (açılış, satın alma, yenileyince kalıcılık).
+
+### v4.1: Kişiye göre göz eşiği
+Gözü doğal olarak yarı açık duran (düşük göz kapağı) oyuncuda kamera "açık göz"ü kısmen kapalı okuyabiliyor ve sabit eşik tutmuyordu. Artık her gözün açık hâli sürekli ölçülür (`eyeLimits`/`updateBase`, `js/eyes.js`): kapanış = taban + 0.28 (en az 0.45), açılış = taban + 0.14 (en az 0.3). Taban hemen düşer, yavaş yükselir, kapalı göz tabanı şişirmez. Ekrandaki göz değeri satırında artık "eşik" de görünür. Test: `test/eyes.test.mjs`. SINIR: gerçek tablette doğrulanmadı.

@@ -438,7 +438,8 @@ function updateEyeDbg() {
   const on = ui.mode === "camera" && (ui.phase === "play" || (ui.phase === "lobby" && !lobbySet.classList.contains("hidden")));
   eyeDbg.classList.toggle("hidden", !on);
   if (!on) return;
-  const t = `👁 sol ${eyesT.left.toFixed(2)} · sağ ${eyesT.right.toFixed(2)} · ${eyesT.noFace ? "YÜZ GÖRÜNMÜYOR" : eyesT.closed() ? "KAPALI" : "açık"}`;
+  const lim = eyesT.limits ? eyesT.limits() : null;
+  const t = `👁 sol ${eyesT.left.toFixed(2)} · sağ ${eyesT.right.toFixed(2)}${lim ? ` · eşik ${lim.l.close.toFixed(2)}` : ""} · ${eyesT.noFace ? "YÜZ GÖRÜNMÜYOR" : eyesT.closed() ? "KAPALI" : "açık"}`;
   if (eyeDbg.textContent !== t) eyeDbg.textContent = t;
 }
 

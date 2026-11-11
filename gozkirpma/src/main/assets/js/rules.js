@@ -16,8 +16,12 @@ export const RULES = {
   },
   eyes: {
     detectMs: 66,               // yüz algılama en sık bu aralıkla (ms) çalışır; küçültmek daha duyarlı ama daha yavaş
-    closeAt: 0.5,                            // kameradan göz kapanma değeri bunu aşınca kapalı (düşük hassasiyet; eskiden 0.32)
-    openAt: 0.3,                             // bunun altına inince açık (eskiden 0.18)
+    // Kişiye göre ayarlı eşik (js/eyes.js): taban = o kişinin açık göz değeri (gözü yarı açık olanlarda yüksek çıkar)
+    closeDelta: 0.28, openDelta: 0.14,       // kapanış = taban + closeDelta, açılış = taban + openDelta
+    closeFloor: 0.45, openFloor: 0.3,        // taban ne kadar düşük olsa da eşikler bunların altına inmez (eski sabit eşikler)
+    closeMax: 0.8,                           // kapanış eşiği bunu aşmaz (tam kapalı göz ~0.8-1.0 verir)
+    baseMax: 0.45, baseRise: 0.01,           // taban en çok bu kadar; yukarı kayma hızı
+    closeAt: 0.5, openAt: 0.3,               // (geriye uyum)
     dryWarn: 4,                              // sn: gözler bu kadar açık kalırsa görüş kararıp titremeye başlar
     dryMax: 6.5,                               // sn: bu kadar açık kalırsa göz kendiliğinden kapanır (kırpma zorunlu)
     forcedBlink: 0.5,                        // sn: zorunlu kırpmanın süresi (gölgeler bu sürede hareket eder)

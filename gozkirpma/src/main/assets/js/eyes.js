@@ -46,10 +46,24 @@ export async function openCamera(video) {
   }
 }
 
-// Göz durumu: iki göz de eşiği aşınca "kapalı". Histerezis: kapanış closeAt, açılış openAt.
+// Göz durumu: iki göz de eşiği aşınca "kapalı". Eşikler KİŞİYE göre ayarlanır: gözü doğal olarak yarı açık (düşük göz kapağı) olan
+// birinde "açık göz" değeri yüksek çıkar; bu yüzden her gözün açık hâlini (taban) sürekli ölçeriz. Taban hemen aşağı iner, yavaşça yukarı çıkar;
+// kapalı göz tabanı şişirmez. Kapanış = taban + closeDelta (en az closeFloor), açılış = taban + openDelta (en az openFloor).
+export function eyeLimits(base, E) {
+  const close = Math.min(E.closeMax ?? 0.8, Math.max(E.closeFloor ?? E.closeAt, base + (E.closeDelta ?? 0.28)));
+  const open = Math.min(close - 0.1, Math.max(E.openFloor ?? E.openAt, base + (E.openDelta ?? 0.14)));
+  return { close, open };
+}
+export function updateBase(base, score, E) {           // base: null = henüz ölçülmedi
+  const cap = E.baseMax ?? 0.45;
+  if (base === null) return Math.min(cap, score);
+  if (score < base) return score;                       // gözü daha açık gördük: taban hemen iner
+  if (score < base + (E.closeDelta ?? 0.28) * 0.8) return Math.min(cap, base + (score - base) * (E.baseRise ?? 0.01));   // açık hâlin yavaş kayması
+  return base;                                          // kapalı/kırpma: tabanı etkilemez
+}
 export function makeEyeTracker(rules) {
   const E = rules.eyes;
-  const t = { left: 0, right: 0, closedL: false, closedR: false, lastVideoTime: -1, noFaceAt: 0, noFace: false, nextAt: 0, every: E.detectMs || 66, cost: 0 };
+  const t = { left: 0, right: 0, baseL: null, baseR: null, closedL: false, closedR: false, lastVideoTime: -1, noFaceAt: 0, noFace: false, nextAt: 0, every: E.detectMs || 66, cost: 0 };
   t.read = (video) => {
     if (!landmarker || video.readyState < 2 || video.currentTime === t.lastVideoTime) return;
     const now = performance.now();
@@ -65,11 +79,14 @@ export function makeEyeTracker(rules) {
       if (c.categoryName === "eyeBlinkLeft") t.left = c.score;
       else if (c.categoryName === "eyeBlinkRight") t.right = c.score;
     }
+    t.baseL = updateBase(t.baseL, t.left, E); t.baseR = updateBase(t.baseR, t.right, E);
   };
   t.set = (closed) => { t.left = t.right = closed ? 1 : 0; };
+  t.limits = () => ({ l: eyeLimits(t.baseL ?? 0, E), r: eyeLimits(t.baseR ?? 0, E) });
   t.closed = () => {
-    if (!t.closedL && t.left > E.closeAt) t.closedL = true; else if (t.closedL && t.left < E.openAt) t.closedL = false;
-    if (!t.closedR && t.right > E.closeAt) t.closedR = true; else if (t.closedR && t.right < E.openAt) t.closedR = false;
+    const { l, r } = t.limits();
+    if (!t.closedL && t.left > l.close) t.closedL = true; else if (t.closedL && t.left < l.open) t.closedL = false;
+    if (!t.closedR && t.right > r.close) t.closedR = true; else if (t.closedR && t.right < r.open) t.closedR = false;
     return t.closedL && t.closedR;
   };
   return t;
