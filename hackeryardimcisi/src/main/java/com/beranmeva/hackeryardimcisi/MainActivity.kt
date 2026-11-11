@@ -61,7 +61,11 @@ class MainActivity : Activity() {
                 Thread {
                     var ok = false
                     var out = ""
-                    for (model in MODELS) {
+                    val models = MODELS.toMutableList()
+                    var listed = false
+                    var i = 0
+                    while (i < models.size) {
+                        val model = models[i++]
                         try {
                             val c = URL("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent")
                                 .openConnection() as HttpURLConnection
@@ -87,12 +91,45 @@ class MainActivity : Activity() {
                                 if (ok) break
                                 out = "bos cevap"
                             } else {
-                                out = "HTTP " + code
+                                // Gerçek hata nedenini göster (ekranda "HTTP 404 model: ..." diye görünür).
+                                val msg = try { JSONObject(txt).getJSONObject("error").optString("message") } catch (_: Exception) { "" }
+                                out = "HTTP " + code + " " + model + (if (msg.isNotEmpty()) ": " + msg.take(120) else "")
                                 // model yok / parametre hatası: sıradaki modeli dene; kota ve anahtar hatasında dur
                                 if (code != 404 && code != 400) break
+                                // Sabit modellerin hiçbiri çalışmadıysa hesabın gerçekten kullanabildiği
+                                // flash modellerini listeden bulup onları dene (Google eski modelleri kapatır).
+                                if (!listed && i >= models.size) {
+                                    listed = true
+                                    try {
+                                        val lc = URL("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200")
+                                            .openConnection() as HttpURLConnection
+                                        lc.connectTimeout = 10000
+                                        lc.readTimeout = 15000
+                                        lc.setRequestProperty("x-goog-api-key", key.trim())
+                                        if (lc.responseCode in 200..299) {
+                                            val arr = JSONObject(lc.inputStream.bufferedReader().readText()).getJSONArray("models")
+                                            val found = mutableListOf<String>()
+                                            for (j in 0 until arr.length()) {
+                                                val m = arr.getJSONObject(j)
+                                                val n = m.optString("name").removePrefix("models/")
+                                                val methods = m.optJSONArray("supportedGenerationMethods")
+                                                var can = false
+                                                if (methods != null) for (q in 0 until methods.length()) if (methods.getString(q) == "generateContent") can = true
+                                                if (can && n.startsWith("gemini") && n.contains("flash") &&
+                                                    !n.contains("image") && !n.contains("tts") && !n.contains("live") &&
+                                                    !n.contains("audio") && !n.contains("thinking") && !n.contains("exp") &&
+                                                    n !in models) found.add(n)
+                                            }
+                                            // Yeni sürümler önce; kararlı ("preview" olmayan) olanlar tercih edilir.
+                                            found.sortWith(compareBy<String>({ it.contains("preview") }, { it.contains("lite") }).thenByDescending { it })
+                                            models.addAll(found.take(4))
+                                        }
+                                        lc.disconnect()
+                                    } catch (_: Exception) { }
+                                }
                             }
                         } catch (e: Exception) {
-                            out = e.javaClass.simpleName
+                            out = e.javaClass.simpleName + (e.message?.let { ": " + it.take(80) } ?: "")
                             break
                         }
                     }

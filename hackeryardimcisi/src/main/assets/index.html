@@ -352,7 +352,7 @@ async function fallback(t,raw){
     log("🤖 düşünüyorum...","inf");
     const [ok,x]=await askAI(raw||t);
     if(ok){ai(x.replace(/[*#`_]/g,"").trim());return}
-    log("⚠ "+(/429/.test(x)?"Yapay zeka kotası doldu":/401|403/.test(x)?"Anahtar kabul edilmedi (ayarlar yaz)":"Yapay zekaya ulaşılamadı")+" → çevrimdışı cevap","err");
+    log("⚠ "+(/429/.test(x)?"Yapay zeka kotası doldu":/401|403/.test(x)?"Anahtar kabul edilmedi (ayarlar yaz)":"Yapay zekaya ulaşılamadı ("+String(x).slice(0,160)+")")+" → çevrimdışı cevap","err");
   }
   return brain(t);
 }
