@@ -8,6 +8,8 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -51,7 +53,7 @@ class MainActivity : Activity() {
             fun listen(lang: String) { runOnUiThread { startListen() } }
 
             @JavascriptInterface
-            fun stopListen() { runOnUiThread { try { rec?.stopListening() } catch (e: Exception) {} } }
+            fun stopListen() { runOnUiThread { stopAll() } }
         }, "AndroidApp")
         web.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String?) {
@@ -65,15 +67,36 @@ class MainActivity : Activity() {
     }
 
     private var rec: SpeechRecognizer? = null
+    // Sürekli dinleme: kullanıcı durdurana kadar her cümleden sonra yeniden başlar.
+    private var want = false
+    private val h = Handler(Looper.getMainLooper())
+
+    private fun stopAll() {
+        want = false
+        h.removeCallbacksAndMessages(null)
+        try { rec?.cancel() } catch (e: Exception) {}
+        rec?.destroy(); rec = null
+        js("window.__srEnd()")
+    }
+
+    private fun again(ms: Long) {
+        h.postDelayed({ if (want) begin() }, ms)
+    }
 
     private fun js(code: String) = web.evaluateJavascript(code, null)
 
     private fun startListen() {
+        want = true
+        begin()
+    }
+
+    private fun begin() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 77)
             return
         }
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            want = false
             js("window.__srError('ses tanima servisi yok (Google uygulamasi gerekli)');window.__srEnd()")
             return
         }
@@ -84,9 +107,13 @@ class MainActivity : Activity() {
             override fun onResults(b: Bundle?) {
                 val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
                 if (t != null) js("window.__srResult(" + JSONObject.quote(t) + ")")
-                js("window.__srEnd()")
+                if (want) again(250) else js("window.__srEnd()")
             }
             override fun onError(code: Int) {
+                // 7 = ses yok, 6 = zaman aşımı, 8 = meşgul, 5 = iptal: dinlemeye devam et
+                if (want && (code == 7 || code == 6 || code == 5)) { again(250); return }
+                if (want && code == 8) { again(900); return }
+                want = false
                 js("window.__srError('kod " + code + "');window.__srEnd()")
             }
             override fun onReadyForSpeech(p: Bundle?) {}
@@ -108,7 +135,7 @@ class MainActivity : Activity() {
         super.onRequestPermissionsResult(code, perms, res)
         if (code == 77) {
             if (res.isNotEmpty() && res[0] == PackageManager.PERMISSION_GRANTED) startListen()
-            else js("window.__srError('mikrofon izni verilmedi');window.__srEnd()")
+            else { want = false; js("window.__srError('mikrofon izni verilmedi');window.__srEnd()") }
         }
     }
 
@@ -128,6 +155,8 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        want = false
+        h.removeCallbacksAndMessages(null)
         rec?.destroy()
         web.destroy()
         super.onDestroy()

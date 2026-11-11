@@ -154,4 +154,4 @@ Gözü doğal olarak yarı açık duran (düşük göz kapağı) oyuncuda kamera
 ## Hacker Yardımcısı Şikru (hackeryardimcisi)
 Sayfa uygulaması: `hackeryardimcisi/src/main/assets/index.html`, internetsiz çalışır (terminal, notlar, saat, sızma animasyonları, hikaye modu, sohbet).
 GitHub derlemesi `hackeryardimcisi.apk` olarak Release'e koyar, Güncelleyici listeye kendiliğinden ekler.
-"para bitti" komutu uygulamayı kapatır. Başlığa 5 sn basılı tutunca mikrofon izni istenir ve sesle komut verilir (uygulamanın kendi Android ses tanıyıcısı, Google uygulaması gerekir). Komut kutusu her zaman çalışır.
+"para bitti" komutu uygulamayı kapatır. Başlığa 5 sn basılı tutunca mikrofon izni istenir ve sürekli dinleme açılır (tekrar 5 sn basınca kapanır) (uygulamanın kendi Android ses tanıyıcısı, Google uygulaması gerekir). Komut kutusu her zaman çalışır.

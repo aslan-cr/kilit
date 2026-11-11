@@ -513,14 +513,16 @@ $("cmd").addEventListener("keydown",e=>{if(e.key==="Enter")$("go").onclick()});
 // Sesli dinleme
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 function listen(){
+  if(window.__listening){try{window.__rec.stop()}catch(e){}log("Dinleme KAPALI","inf");return}
   if(busy)return;
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){log("Bu cihazda Web Speech API yok. Komut kutusunu kullan.","err");return}
   const r=new SR();r.lang="tr-TR";r.interimResults=false;r.maxAlternatives=3;
   $("listen").classList.add("on");status("DİNLİYOR...");
+  window.__rec=r;window.__listening=true;log("Dinleme AÇIK (kapatmak için başlığa tekrar 5 sn bas)","inf");
   r.onresult=e=>{handle(e.results[0][0].transcript)};
   r.onerror=e=>{log("Mikrofon hatası: "+e.error,"err")};
-  r.onend=()=>{$("listen").classList.remove("on");if(!busy)status("HAZIR · 5 sn basılı tut")};
+  r.onend=()=>{window.__listening=false;$("listen").classList.remove("on");if(!busy)status("HAZIR · 5 sn basılı tut")};
   try{r.start()}catch(e){$("listen").classList.remove("on")}
 }
 
