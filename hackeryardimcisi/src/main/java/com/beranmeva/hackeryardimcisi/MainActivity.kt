@@ -261,10 +261,8 @@ class MainActivity : Activity() {
         private const val IMMERSIVE = true
         private const val SILENCE_MS = 2000L
         private val MODELS = listOf("gemini-2.5-flash", "gemini-flash-latest")
-        private const val SYSTEM = "Sen Hacker Yardımcısı Şikru adlı, esprili ve dostane bir terminal asistanısın. " +
-            "Türkçe konuş, en fazla 3 kısa cümleyle cevap ver, markdown ve yıldız kullanma. " +
-            "Cevapların bir ortaokul çocuğuna uygun olsun. Hackleme gerçek değil bir oyun/şaka; " +
-            "gerçek sistemlere sızma, zarar verme ya da tehlikeli bilgi verme, bunun yerine eğlenceli bir alternatif öner."
+        private const val SYSTEM = "Sen Hacker Yardımcısı Şikru adlı, esprili bir terminal asistanısın. " +
+            "Türkçe konuş, en fazla 3 kısa cümleyle cevap ver, markdown ve yıldız kullanma."
         // Sayfadaki Web Speech çağrısını uygulamanın kendi ses tanıyıcısına bağlar.
         private const val BRIDGE_JS = "navigator.app={exitApp:function(){AndroidApp.exit()}};" +
             "window.SpeechRecognition=function(){var s=this;s.lang='tr-TR';s.onresult=null;s.onerror=null;s.onend=null;" +
