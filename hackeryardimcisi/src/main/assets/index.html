@@ -514,6 +514,7 @@ $("cmd").addEventListener("keydown",e=>{if(e.key==="Enter")$("go").onclick()});
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 function listen(){
   if(busy)return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){log("Bu cihazda Web Speech API yok. Komut kutusunu kullan.","err");return}
   const r=new SR();r.lang="tr-TR";r.interimResults=false;r.maxAlternatives=3;
   $("listen").classList.add("on");status("DİNLİYOR...");
