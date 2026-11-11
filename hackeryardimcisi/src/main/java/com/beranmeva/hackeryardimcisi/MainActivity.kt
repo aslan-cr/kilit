@@ -64,19 +64,29 @@ class MainActivity : Activity() {
                     val models = MODELS.toMutableList()
                     var listed = false
                     var i = 0
+                    var retryNoThink = false
                     while (i < models.size) {
                         val model = models[i++]
+                        val noThink = retryNoThink
+                        retryNoThink = false
                         try {
                             val c = URL("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent")
                                 .openConnection() as HttpURLConnection
                             c.requestMethod = "POST"
                             c.connectTimeout = 10000
-                            c.readTimeout = 25000
+                            c.readTimeout = 45000
                             c.doOutput = true
                             c.setRequestProperty("Content-Type", "application/json")
                             c.setRequestProperty("x-goog-api-key", key.trim())
                             val gen = JSONObject().put("maxOutputTokens", 400).put("temperature", 0.8)
-                            if (model.startsWith("gemini-2.5")) gen.put("thinkingConfig", JSONObject().put("thinkingBudget", 0))
+                            // Düşünmeyi kıs: yavaş cevap (zaman aşımı) yaşanmasın. Model kabul etmezse (400) bir kez düşünmesiz denenir.
+                            val thinkCfg: JSONObject? = when {
+                                noThink -> null
+                                model.startsWith("gemini-2.5") -> JSONObject().put("thinkingBudget", 0)
+                                model.startsWith("gemini-3") || model.contains("latest") -> JSONObject().put("thinkingLevel", "minimal")
+                                else -> null
+                            }
+                            if (thinkCfg != null) gen.put("thinkingConfig", thinkCfg)
                             val body = JSONObject()
                                 .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", SYSTEM))))
                                 .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", prompt)))))
@@ -95,6 +105,11 @@ class MainActivity : Activity() {
                                 val msg = try { JSONObject(txt).getJSONObject("error").optString("message") } catch (_: Exception) { "" }
                                 out = "HTTP " + code + " " + model + (if (msg.isNotEmpty()) ": " + msg.take(120) else "")
                                 // model yok / parametre hatası: sıradaki modeli dene; kota ve anahtar hatasında dur
+                                if (code == 400 && thinkCfg != null) {
+                                    retryNoThink = true
+                                    i--
+                                    continue
+                                }
                                 if (code != 404 && code != 400) break
                                 // Sabit modellerin hiçbiri çalışmadıysa hesabın gerçekten kullanabildiği
                                 // flash modellerini listeden bulup onları dene (Google eski modelleri kapatır).
@@ -128,6 +143,9 @@ class MainActivity : Activity() {
                                     } catch (_: Exception) { }
                                 }
                             }
+                        } catch (e: java.net.SocketTimeoutException) {
+                            // Bu model yavaş kaldı: sıradaki modeli dene.
+                            out = "zaman asimi " + model
                         } catch (e: Exception) {
                             out = e.javaClass.simpleName + (e.message?.let { ": " + it.take(80) } ?: "")
                             break

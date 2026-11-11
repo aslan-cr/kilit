@@ -345,7 +345,7 @@ function aiKey(){try{return localStorage.getItem("sikru_key")||""}catch(e){retur
 function askAI(q){return new Promise(res=>{
   if(!aiKey()||!window.AndroidApp||!AndroidApp.ask)return res([false,"yok"]);
   const id=++aiN;AIP[id]=res;
-  setTimeout(()=>{if(AIP[id]){delete AIP[id];res([false,"zaman aşımı"])}},40000);
+  setTimeout(()=>{if(AIP[id]){delete AIP[id];res([false,"zaman aşımı"])}},110000);
   AndroidApp.ask(id,aiKey(),(ST.hist.length?"[Son yaptığımız şeyler: "+ST.hist.slice(-5).join(", ")+"] ":"")+q)})}
 async function fallback(t,raw){
   if(aiKey()){
