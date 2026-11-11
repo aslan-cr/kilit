@@ -27,6 +27,9 @@ import kotlin.math.min
  *   (ebeveyn panelinden de ayarlanır).
  * - Ekranın bir kenarına bırakılınca küçülür, yarı saydam olur ve yarısı ekran dışında kalır;
  *   dokununca açılır, 4 sn sonra tekrar kenara çekilir.
+ * - Kenarda değilken dokununca biraz genişleyip yanında "Kedi" anahtarı çıkar; açılınca
+ *   dokunulan yerden kedi partisi başlar ve altta kediler dolaşır (CatOverlay).
+ *   Genişlemişken sayacın kendisine dokunmak rengi değiştirir. 5 sn sonra kapanır.
  * Servis tarafından yönetilir (GuardService).
  */
 class TimerOverlay(private val ctx: Context, private val store: Store) {
@@ -39,6 +42,12 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
     private var size = (96 * density).toInt()
     private val slop = ViewConfiguration.get(ctx).scaledTouchSlop
     private val handler = Handler(Looper.getMainLooper())
+    private val cats = CatOverlay(ctx)
+
+    /** "Kedi" paneli açık mı; açıkken pencere genişler. */
+    private var panelOpen = false
+    private var panelRestoreX = 0
+    private val collapsePanel = Runnable { closePanel() }
 
     /** Şu an görünüşte kenara yapışık mı (0 = değil). */
     private var docked = 0
@@ -47,17 +56,28 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
 
     private val redock = Runnable {
         val p = params
-        if (p != null && store.overlayDock != 0 && docked == 0) applyDock(store.overlayDock)
+        if (p != null && store.overlayDock != 0 && docked == 0) {
+            closePanel()
+            applyDock(store.overlayDock)
+        }
     }
 
     fun update(main: String, sub: String, progress: Float, color: Int) {
-        if (view != null && appliedDp != store.overlaySizeDp) hide()
+        if (view != null && appliedDp != store.overlaySizeDp) hideView()
         val v = view ?: create()
         v.set(main, sub, progress, color)
+        if (store.catOn) cats.start() else cats.stop()
     }
 
     fun hide() {
+        hideView()
+        cats.stop()
+    }
+
+    private fun hideView() {
         handler.removeCallbacks(redock)
+        handler.removeCallbacks(collapsePanel)
+        panelOpen = false
         val v = view
         if (v != null) {
             try {
@@ -84,6 +104,51 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
     }
 
     private var curDp = 96f
+
+    private fun panelW() = (size * 1.3f).toInt()
+
+    /** Sayacı biraz genişletip yanında "Kedi" anahtarını gösterir (sığmazsa sola açılır). */
+    private fun openPanel() {
+        val p = params ?: return
+        val v = view ?: return
+        val dm = ctx.resources.displayMetrics
+        val pw = panelW()
+        panelOpen = true
+        panelRestoreX = p.x
+        val left = p.x + size + pw > dm.widthPixels
+        p.width = size + pw
+        if (left) p.x -= pw
+        v.setPanel(true, left, store.catOn, pw)
+        push(v, p)
+        handler.removeCallbacks(collapsePanel)
+        handler.postDelayed(collapsePanel, 5000L)
+    }
+
+    private fun closePanel() {
+        if (!panelOpen) return
+        panelOpen = false
+        handler.removeCallbacks(collapsePanel)
+        val p = params ?: return
+        val v = view ?: return
+        p.width = size
+        p.x = panelRestoreX
+        v.setPanel(false, false, store.catOn, 0)
+        push(v, p)
+    }
+
+    private fun toggleCat(rx: Float, ry: Float) {
+        val on = !store.catOn
+        store.catOn = on
+        view?.setPanel(panelOpen, view?.chipLeft == true, on, panelW())
+        if (on) {
+            cats.start()
+            cats.party(rx, ry)
+        } else {
+            cats.stop()
+        }
+        handler.removeCallbacks(collapsePanel)
+        handler.postDelayed(collapsePanel, 5000L)
+    }
 
     /** Boyutu değiştirir, merkezi korur. Kenarda yapışıkken çağrılmaz. */
     private fun setSizeDp(dp: Float) {
@@ -213,6 +278,7 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
         private val presets = intArrayOf(64, 96, 140, 190)
         private val longPress = Runnable {
             if (!moved && !scaling && docked == 0) {
+                closePanel()
                 longFired = true
                 // Hazır boyutlar arasında geç: küçük, orta, büyük, çok büyük.
                 val next = presets.firstOrNull { it > appliedDp + 4 } ?: presets[0]
@@ -224,6 +290,7 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
             override fun onScale(d: ScaleGestureDetector): Boolean {
                 if (docked != 0) return true
                 handler.removeCallbacks(longPress)
+                closePanel()
                 setSizeDp(curDp * d.scaleFactor)
                 return true
             }
@@ -234,6 +301,7 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
             detector.onTouchEvent(e)
             when (e.actionMasked) {
                 MotionEvent.ACTION_POINTER_DOWN -> {
+                    closePanel()
                     scaling = true
                     moved = true
                     handler.removeCallbacks(longPress)
@@ -257,6 +325,11 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
                     if (!moved && (abs(dx) > slop || abs(dy) > slop)) {
                         moved = true
                         handler.removeCallbacks(longPress)
+                        if (panelOpen) {
+                            closePanel()
+                            startX = p.x
+                            startY = p.y
+                        }
                         if (docked != 0) {
                             // Kenardan sürüklenince tam boyuta dönüp parmağı takip eder.
                             docked = 0
@@ -293,13 +366,22 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
                     } else if (docked != 0) {
                         expand(docked)
                     } else {
-                        if (store.current.isNotEmpty()) {
-                            // Dokununca renk değişir (sadece kullanıcı girişliyken).
-                            store.nextColor(store.current)
-                            view?.set(
-                                null, null, null,
-                                Store.COLORS[store.colorIndex(store.current)]
-                            )
+                        val cv = view
+                        if (!panelOpen) {
+                            openPanel()
+                        } else if (cv != null && cv.hitChip(e.x)) {
+                            toggleCat(e.rawX, e.rawY)
+                        } else {
+                            if (store.current.isNotEmpty()) {
+                                // Genişlemişken sayaca dokununca renk değişir (kullanıcı girişliyken).
+                                store.nextColor(store.current)
+                                cv?.set(
+                                    null, null, null,
+                                    Store.COLORS[store.colorIndex(store.current)]
+                                )
+                            }
+                            handler.removeCallbacks(collapsePanel)
+                            handler.postDelayed(collapsePanel, 5000L)
                         }
                         if (store.overlayDock != 0) {
                             handler.postDelayed(redock, 4000L)
@@ -321,6 +403,32 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
         private var sub = ""
         private var progress = 0f
         private var color = Store.IDLE_COLOR
+
+        // "Kedi" paneli
+        private var panel = false
+        var chipLeft = false
+            private set
+        private var catOn = false
+        private var chipW = 0
+
+        private val chipFill = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val chipText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = Typeface.DEFAULT_BOLD
+            color = 0xFF333333.toInt()
+        }
+        private val chipRect = RectF()
+
+        fun setPanel(open: Boolean, left: Boolean, on: Boolean, w: Int) {
+            panel = open
+            chipLeft = left
+            catOn = on
+            chipW = w
+            invalidate()
+        }
+
+        /** Dokunma (görünüm içi x) "Kedi" kutusunun üstünde mi. */
+        fun hitChip(x: Float): Boolean =
+            if (chipLeft) x < chipW else x > width - chipW
 
         private val d = c.resources.displayMetrics.density
         private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -371,9 +479,12 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
         }
 
         override fun onDraw(canvas: Canvas) {
-            val w = width.toFloat()
+            val w = height.toFloat()
             val h = height.toFloat()
             val f = w / (96 * d)
+            if (panel) drawChip(canvas, h, f)
+            canvas.save()
+            if (panel && chipLeft) canvas.translate(chipW.toFloat(), 0f)
             track.strokeWidth = 7 * d * f
             arc.strokeWidth = 7 * d * f
             t1.textSize = 21 * d * f
@@ -386,6 +497,31 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
             canvas.drawArc(r, -90f, 360f * progress, false, arc)
             canvas.drawText(main, w / 2, h * 0.52f, t1)
             canvas.drawText(sub, w / 2, h * 0.52f + t2.textSize + 2 * d, t2)
+            canvas.restore()
+        }
+
+        /** Sayacın yanındaki "Kedi" anahtarı. */
+        private fun drawChip(canvas: Canvas, h: Float, f: Float) {
+            val left = if (chipLeft) 2f else h + 4 * d * f
+            val right = if (chipLeft) chipW - 4 * d * f else width - 2f
+            chipRect.set(left, h * 0.18f, right, h * 0.82f)
+            chipFill.color = 0xF2FFFFFF.toInt()
+            canvas.drawRoundRect(chipRect, h * 0.32f, h * 0.32f, chipFill)
+
+            chipText.textSize = 15 * d * f
+            canvas.drawText("Kedi", left + 12 * d * f, chipRect.centerY() + chipText.textSize * 0.35f, chipText)
+
+            // Anahtar
+            val tw = 34 * d * f
+            val th = 18 * d * f
+            val tx = right - 10 * d * f - tw
+            val ty = chipRect.centerY() - th / 2
+            chipFill.color = if (catOn) 0xFF27AE60.toInt() else 0xFFB0B0B0.toInt()
+            chipRect.set(tx, ty, tx + tw, ty + th)
+            canvas.drawRoundRect(chipRect, th / 2, th / 2, chipFill)
+            chipFill.color = Color.WHITE
+            val kx = if (catOn) tx + tw - th / 2 else tx + th / 2
+            canvas.drawCircle(kx, ty + th / 2, th / 2 - 2 * d * f, chipFill)
         }
     }
 }

@@ -228,6 +228,11 @@ class Store(context: Context) {
         get() = p.getInt("odock", 0)
         set(v) = p.edit().putInt("odock", v).apply()
 
+    /** Sayaçtaki "Kedi" ayarı: açıkken kedi partisi ve altta gezen kediler. */
+    var catOn: Boolean
+        get() = p.getBoolean("cat", false)
+        set(v) = p.edit().putBoolean("cat", v).apply()
+
     /** Koruma servisinin son çalıştığı an (ebeveyn panelinde durumunu göstermek için). */
     var beat: Long
         get() = p.getLong("beat", 0L)
