@@ -4,11 +4,19 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.pm.PackageInfo
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorFilter
+import android.graphics.Paint
+import android.graphics.PixelFormat
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -36,11 +44,16 @@ class MainActivity : Activity() {
     companion object {
         private const val REQ_PICK = 11
         private const val REPO = "aslan-cr/kilit"
-        private const val BG = 0xFF101820.toInt()
-        private const val MUTED = 0xFFAABBCC.toInt()
-        private const val CARD = 0xFF1B2733.toInt()
-        private const val GOOD = 0xFF7BE495.toInt()
-        private const val WARN = 0xFFFFC857.toInt()
+        // Çizim kâğıdı teması: mürekkep mavisi, kâğıt, kırmızı kalem, sarı fosforlu
+        private const val INK = 0xFF1D4A73.toInt()
+        private const val BG = 0xFFE6EEF3.toInt()
+        private const val GRID = 0xFFC6D6E1.toInt()
+        private const val TEXT = 0xFF14283A.toInt()
+        private const val MUTED = 0xFF4A6275.toInt()
+        private const val CARD = 0xFFFFFFFF.toInt()
+        private const val GOOD = 0xFF17653F.toInt()
+        private const val WARN = 0xFF8A5A00.toInt()
+        private const val RED = 0xFFD93A45.toInt()
     }
 
     data class Entry(
@@ -64,35 +77,40 @@ class MainActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(BG)
+            background = GridPaper(BG, GRID, dp(48).toFloat())
             val pad = dp(20)
             setPadding(pad, pad, pad, pad)
         }
-        root.addView(text("Güncelleyici", 26f, Color.WHITE, true))
+        root.addView(
+            text("Güncelleyici", 30f, INK, true).also {
+                it.typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+            }
+        )
         root.addView(
             text(
-                "APK dosyalarını buraya ekle. Yeni sürümü tekrar eklersen eskisinin yerine geçer " +
-                    "ve kurulum başlar. Android her kurulumda onay ister, sessiz kurulum mümkün değil.",
-                14f, MUTED, false
-            ).also { (it.layoutParams as LinearLayout.LayoutParams).topMargin = dp(6) }
+                "Önce internetten kontrol et. İstersen APK dosyasını elle de ekleyebilirsin. " +
+                    "Android her kurulumda onay ister.",
+                15f, MUTED, false
+            ).also { (it.layoutParams as LinearLayout.LayoutParams).topMargin = dp(4) }
         )
 
-        statusView = text("Hazır.", 14f, GOOD, true)
-        root.addView(statusView, lp(top = 10))
-
-        val add = Button(this).apply {
-            text = "+ APK ekle / güncelle"
-            isAllCaps = false
-            setOnClickListener { pick() }
-        }
-        root.addView(add, lp(top = 16))
+        statusView = text("Hazır.", 15f, GOOD, true)
+        paintChip(statusView, GOOD)
+        root.addView(statusView, lp(top = 14))
 
         val check = Button(this).apply {
-            text = "Güncellemeleri kontrol et (internet)"
-            isAllCaps = false
+            text = "Güncellemeleri kontrol et"
             setOnClickListener { checkUpdates() }
         }
-        root.addView(check, lp(top = 4))
+        styleButton(check, 0)
+        root.addView(check, lp(top = 14))
+
+        val add = Button(this).apply {
+            text = "APK dosyası ekle"
+            setOnClickListener { pick() }
+        }
+        styleButton(add, 1)
+        root.addView(add, lp(top = 8))
 
         listBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(
@@ -117,7 +135,7 @@ class MainActivity : Activity() {
         val items = entries()
         if (items.isEmpty()) {
             listBox.addView(
-                text("Henüz APK eklenmedi. Yukarıdan ekle.", 16f, MUTED, false)
+                text("Henüz APK yok. \"Güncellemeleri kontrol et\" ile başla.", 16f, MUTED, false)
                     .also { it.gravity = Gravity.CENTER }, lp(top = 32)
             )
             return
@@ -155,39 +173,51 @@ class MainActivity : Activity() {
 
         val c = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(CARD)
-            val p = dp(14)
+            background = box(CARD, INK, 12)
+            val p = dp(16)
             setPadding(p, p, p, p)
         }
-        c.addView(text(e.label, 18f, Color.WHITE, true).also { it.gravity = Gravity.START })
+        c.addView(
+            text(e.label, 20f, INK, true).also {
+                it.gravity = Gravity.START
+                it.typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
+            }
+        )
         c.addView(
             text("${e.pkg}\nDosyadaki sürüm: ${e.vName} (kod ${e.vCode})", 13f, MUTED, false)
                 .also { it.gravity = Gravity.START }
         )
-        c.addView(text(status, 15f, color, true).also { it.gravity = Gravity.START })
+        val chip = text(status, 14f, color, true)
+        paintChip(chip, color)
+        c.addView(
+            chip,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(10) }
+        )
 
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        if (action != null) {
-            row.addView(Button(this).apply {
-                text = action
-                isAllCaps = false
-                setOnClickListener { install(e) }
-            })
+        fun addBtn(label: String, kind: Int, onClick: () -> Unit) {
+            val b = Button(this).apply {
+                text = label
+                setOnClickListener { onClick() }
+            }
+            styleButton(b, kind)
+            row.addView(
+                b,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(12); marginEnd = dp(8) }
+            )
         }
+        val act = action
+        if (act != null) addBtn(act, 0) { install(e) }
         if (inst != null && packageManager.getLaunchIntentForPackage(e.pkg) != null) {
-            row.addView(Button(this).apply {
-                text = "Aç"
-                isAllCaps = false
-                setOnClickListener {
-                    packageManager.getLaunchIntentForPackage(e.pkg)?.let { startActivity(it) }
-                }
-            })
+            addBtn("Aç", 1) {
+                packageManager.getLaunchIntentForPackage(e.pkg)?.let { startActivity(it) }
+            }
         }
-        row.addView(Button(this).apply {
-            text = "Dosyayı sil"
-            isAllCaps = false
-            setOnClickListener { confirmDelete(e) }
-        })
+        addBtn("Dosyayı sil", 2) { confirmDelete(e) }
         c.addView(row)
         return c
     }
@@ -523,7 +553,78 @@ class MainActivity : Activity() {
 
     private fun setStatus(msg: String, color: Int = GOOD) = runOnUiThread {
         statusView.text = msg
-        statusView.setTextColor(color)
+        paintChip(statusView, color)
+    }
+
+    // ---------- Tema yardımcıları ----------
+
+    private fun box(fill: Int, stroke: Int, radiusDp: Int, strokeDp: Int = 2): GradientDrawable =
+        GradientDrawable().apply {
+            setColor(fill)
+            cornerRadius = dp(radiusDp).toFloat()
+            setStroke(dp(strokeDp), stroke)
+        }
+
+    /** kind: 0 = ana düğme (dolu mavi), 1 = ikincil (beyaz, mavi çerçeve), 2 = silme (kırmızı). */
+    private fun styleButton(b: Button, kind: Int) {
+        b.isAllCaps = false
+        b.textSize = 16f
+        b.setTypeface(b.typeface, Typeface.BOLD)
+        b.minHeight = dp(52)
+        b.minimumHeight = dp(52)
+        b.stateListAnimator = null
+        val fill = if (kind == 0) INK else CARD
+        val fg = when (kind) {
+            0 -> Color.WHITE
+            2 -> RED
+            else -> INK
+        }
+        val line = if (kind == 2) RED else INK
+        b.setTextColor(fg)
+        b.background = RippleDrawable(ColorStateList.valueOf(0x331D4A73), box(fill, line, 10), null)
+        b.setPadding(dp(18), 0, dp(18), 0)
+    }
+
+    /** Durum etiketi: metin rengine göre açık zemin ve ince çerçeve. */
+    private fun paintChip(tv: TextView, color: Int) {
+        val fill = when (color) {
+            WARN -> 0xFFFDF0C2.toInt()
+            GOOD -> 0xFFD9F0E2.toInt()
+            else -> BG
+        }
+        tv.setTextColor(color)
+        tv.background = box(fill, color, 8, 1)
+        tv.setPadding(dp(12), dp(8), dp(12), dp(8))
+    }
+
+    /** Çizim kâğıdı: düz kâğıt rengi üzerine ince mavi ızgara. */
+    private class GridPaper(paper: Int, line: Int, private val step: Float) : Drawable() {
+        private val bg = Paint().apply { color = paper }
+        private val ln = Paint().apply {
+            color = line
+            strokeWidth = 1f
+        }
+
+        override fun draw(canvas: Canvas) {
+            val r = bounds
+            canvas.drawRect(r, bg)
+            var x = r.left.toFloat()
+            while (x <= r.right) {
+                canvas.drawLine(x, r.top.toFloat(), x, r.bottom.toFloat(), ln)
+                x += step
+            }
+            var y = r.top.toFloat()
+            while (y <= r.bottom) {
+                canvas.drawLine(r.left.toFloat(), y, r.right.toFloat(), y, ln)
+                y += step
+            }
+        }
+
+        override fun setAlpha(alpha: Int) {}
+        override fun setColorFilter(colorFilter: ColorFilter?) {}
+
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = PixelFormat.OPAQUE
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()

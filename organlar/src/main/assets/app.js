@@ -185,10 +185,10 @@ function renderDetail(){
  var sel=S.selected.map(function(id){return partsById.get(id)}).filter(Boolean),first=sel[0],sys=SYS[first.system];
  var tr=trName(chosen.name),known=EXPL[chosen.name.toLowerCase().replace(/^(left|right) /,"")];
  var h='<button class="close" id="dClose" aria-label="Kapat">'+icon(IC.x,18)+'</button>';
- h+='<div class="detail-header"><div class="detail-accent" style="background:'+(sys?sys.color:"#999")+'"></div><div class="eyebrow">'+esc(sys?sys.name.toLocaleUpperCase("tr"):"ANATOMİ")+'</div>';
+ h+='<div class="detail-header"><div class="detail-accent" style="background:'+(sys?sys.color:"#999")+'"></div><div class="eyebrow">'+esc(sys?sys.name:"Anatomi")+'</div>';
  h+='<h2 class="structure-title" id="dTitle" tabindex="-1"'+(tr?'':' style="text-transform:capitalize"')+'>'+esc(tr||chosen.name)+'</h2>'+(tr?'<div class="structure-sub">'+esc(chosen.name)+'</div>':'')+'</div>';
  h+='<div class="detail-scroll"><p class="structure-description">'+esc(explanation(chosen.name,first.system))+'</p>';
- if(!known)h+='<span class="context-note">Sistem özeti · yapı kaynak anatomiden belirlendi</span>';
+ if(!known)h+='<span class="context-note">Bu bir sistem özeti; yapı kaynak anatomiden belirlendi.</span>';
  h+='<div class="structure-meta"><span>Atlas referansı<strong>'+esc(chosen.id)+'</strong></span><span>Seçili parça<strong>'+fmt(S.selected.length)+'</strong></span></div>';
  if(sel.length>1){
   h+='<div class="member-list"><h3>İçerdiği yapılar</h3>'+sel.slice(0,50).map(function(p){var t=trName(p.name);return '<button data-id="'+p.id+'"><span>'+esc(t||p.name)+'</span>'+icon(IC.chev,14)+'</button>'}).join("");
@@ -229,8 +229,8 @@ function ui(){
  $("bRot").setAttribute("aria-label",S.rotate?"Dönmeyi duraklat":"Vücudu döndür");
  // alt dock
  var pct=Math.round(S.explode*100);$("exOut").innerHTML=pct+"<span>%</span>";$("exr").style.setProperty("--p",pct+"%");
- $("caption").textContent=S.isolate?(chosen?(trName(chosen.name)||chosen.name).toLocaleUpperCase("tr"):"SEÇİLİ YAPI"):S.explode>.95?"ANATOMİK ENVANTER":S.explode>.05?"AYRILMIŞ YAPILAR":"YETİŞKİN İNSAN · ERKEK";
- $("footHint").innerHTML=(S.explode>.8?"Sürükleyerek kaydır":"Sürükleyerek döndür")+" <b>·</b> İki parmakla yakınlaştır <b>·</b> Dokunarak incele";
+ $("caption").textContent=S.isolate?(chosen?(trName(chosen.name)||chosen.name).toLocaleLowerCase("tr"):"Seçili yapı"):S.explode>.95?"Her parça ayrı":S.explode>.05?"Parçalar ayrılıyor":"Yetişkin insan vücudu";
+ $("footHint").innerHTML=(S.explode>.8?"Sürükle: kaydır.":"Sürükle: döndür.")+" İki parmak: yakınlaştır. Dokun: incele.";
 }
 
 function wireUi(){
@@ -361,17 +361,17 @@ function roomScene(){
 function initScene(){
  var el=$("scene"),canvas=$("c"),hover=$("hover");
  var renderer;
- try{renderer=new T.WebGLRenderer({canvas:canvas,antialias:true,alpha:false,powerPreference:"high-performance"})}
+ try{renderer=new T.WebGLRenderer({canvas:canvas,antialias:true,alpha:true,powerPreference:"high-performance"})}
  catch(e){showError("Bu cihaz 3D görüntüleyiciyi başlatamadı. WebGL etkin bir tarayıcı deneyin.");return}
  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,innerWidth<768?1.5:2));
- renderer.setClearColor(0xf2f3f3);renderer.outputEncoding=T.sRGBEncoding;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
+ renderer.setClearColor(0x000000,0);renderer.outputEncoding=T.sRGBEncoding;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
  var scene=new T.Scene(),camera=new T.PerspectiveCamera(34,1,.005,100),controls=new Orbit(camera,canvas);
  camera.position.set(1.4,1.05,3.6);controls.target.set(0,.85,0);
  var pm=new T.PMREMGenerator(renderer);scene.environment=pm.fromScene(roomScene(),.04).texture;pm.dispose();
  scene.add(new T.HemisphereLight(0xffffff,col("#a7acb2"),.5));
  var key=new T.DirectionalLight(0xfffaf4,.72);key.position.set(-2,4,3);scene.add(key);
  var rim=new T.DirectionalLight(0xe9f0ff,.56);rim.position.set(2,2,-3);scene.add(rim);
- var ground=new T.Mesh(new T.CircleGeometry(30,96),new T.MeshStandardMaterial({color:col("#d5d9dc"),roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-.019;scene.add(ground);
+ var ground=new T.Mesh(new T.CircleGeometry(.9,96),new T.MeshStandardMaterial({color:col("#d5d9dc"),roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-.019;scene.add(ground);
  var platform=new T.Mesh(new T.CylinderGeometry(.68,.7,.028,100),new T.MeshStandardMaterial({color:col("#eeeeec"),metalness:.12,roughness:.67}));platform.position.y=-.016;scene.add(platform);
  var ring=new T.Mesh(new T.RingGeometry(.63,.632,128),new T.MeshBasicMaterial({color:col("#8c969f"),transparent:true,opacity:.4,side:T.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=.001;scene.add(ring);
  var inner=new T.Mesh(new T.RingGeometry(.55,.551,128),new T.MeshBasicMaterial({color:col("#a4aeb8"),transparent:true,opacity:.16,side:T.DoubleSide}));inner.rotation.x=-Math.PI/2;inner.position.y=.001;scene.add(inner);
