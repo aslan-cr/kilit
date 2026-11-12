@@ -31,11 +31,14 @@ Ebeveyn panelinde **Ödev saatleri** bölümünden gün ve saat aralığı eklen
 - Aralık gece yarısını geçemez (örn. 23:00-01:00 yerine iki ayrı aralık ekle).
 - APK artık sabit imzayla derlenir, yeni sürüm eskisinin üstüne kurulur.
 
-## Kedi ayarı (v2.2)
+## Kedi ayarı (v2.2, v2.3)
 Sayaca (kenarda değilken) dokununca sayaç biraz genişleyip yanında **Kedi** anahtarı gösterir (5 sn sonra kapanır; genişlemişken sayaca dokunmak rengi değiştirir).
 Anahtar açılınca dokunulan yerden kedi partisi başlar (konfeti, kedi emojileri, miyav sesi) ve ekranın altında 3 minik kedi dolaşır.
 - Kediyi parmakla tutup havaya kaldırıp bırakabilirsin; düşünce 4 ayağı üstüne iner.
 - Ekran döndürülünce kediler yukarıdan düşer ve yere değmeden hemen önce 4 ayak üstüne döner.
+- Kedi açıkken ekranda (başka bir uygulamanın üstünde de) herhangi bir yere dokununca kedi patisi çıkar ve miyav duyulur (v2.3).
+  SINIR: Android, başka uygulamanın üstündeki dokunuşların yerini uygulamalardan gizler; bu yüzden orada pati rastgele bir yere basılır.
+  Kilidin kendi sayacına ve kedilere dokununca pati tam dokunulan yerde çıkar.
 - Anahtar kapatılınca kediler kaybolur. Ayar hatırlanır.
 
 ## Güncelleyici (ikinci uygulama)

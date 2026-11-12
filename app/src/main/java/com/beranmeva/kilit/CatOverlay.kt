@@ -56,6 +56,13 @@ class CatOverlay(private val ctx: Context) {
     private var party: PartyView? = null
     private var lastMeow = 0L
 
+    // Ekranın herhangi bir yerine dokununca kedi patisi + miyav
+    private var watcher: View? = null
+    private var paws: PawView? = null
+    private var pawTicking = false
+    private var lastTap = 0L
+    private var lastCatGrab = 0L
+
     private val palette = intArrayOf(0xFFF2994A.toInt(), 0xFF9E9E9E.toInt(), 0xFF4E4E55.toInt())
     private val bellies = intArrayOf(0xFFFFE0B8.toInt(), 0xFFEDEDED.toInt(), 0xFFB9B9C2.toInt())
 
@@ -92,12 +99,30 @@ class CatOverlay(private val ctx: Context) {
             }
             cats.add(c)
         }
+        addPaws()
+        addWatcher()
         handler.post(tick)
     }
 
     fun stop() {
         running = false
         handler.removeCallbacks(tick)
+        handler.removeCallbacks(pawTick)
+        pawTicking = false
+        watcher?.let {
+            try {
+                wm.removeView(it)
+            } catch (_: Exception) {
+            }
+        }
+        watcher = null
+        paws?.let {
+            try {
+                wm.removeView(it)
+            } catch (_: Exception) {
+            }
+        }
+        paws = null
         for (c in cats) {
             try {
                 wm.removeView(c.view)
@@ -129,6 +154,92 @@ class CatOverlay(private val ctx: Context) {
             true
         } catch (_: Exception) {
             false
+        }
+    }
+
+    // ---------------------------------------------------------------- dokunuş: pati + miyav
+
+    /**
+     * Ekrana (başka uygulamanın üstüne de) dokunulduğunu anlamak için 1x1 piksellik, dokunmayı
+     * tutmayan bir pencere eklenir. Android, "dışarıya dokunuldu" olayını (ACTION_OUTSIDE) bu
+     * pencereye bildirir; dokunma altındaki uygulamaya aynen geçer. Başka uygulamanın üstündeki
+     * dokunuşlarda Android konumu gizler (0,0 gelir); bu durumda pati rastgele bir yere basılır.
+     */
+    private fun addWatcher() {
+        val lp = WindowManager.LayoutParams(
+            1,
+            1,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        )
+        lp.gravity = Gravity.TOP or Gravity.START
+        lp.x = 0
+        lp.y = 0
+        val v = View(ctx)
+        v.setOnTouchListener { _, e ->
+            if (e.actionMasked == MotionEvent.ACTION_OUTSIDE) onScreenTap(e.rawX, e.rawY)
+            false
+        }
+        try {
+            wm.addView(v, lp)
+            watcher = v
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun addPaws() {
+        val sc = screen()
+        val lp = WindowManager.LayoutParams(
+            sc.x,
+            sc.y,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        )
+        lp.gravity = Gravity.TOP or Gravity.START
+        lp.x = 0
+        lp.y = 0
+        val pv = PawView(ctx)
+        try {
+            wm.addView(pv, lp)
+            paws = pv
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun onScreenTap(rx: Float, ry: Float) {
+        if (!running) return
+        val now = System.currentTimeMillis()
+        // Kediyi tutmak zaten miyavlatıyor; o dokunuşta ayrıca pati basma.
+        if (now - lastCatGrab < 400L || now - lastTap < 120L) return
+        lastTap = now
+        val sc = screen()
+        val known = rx > 1f || ry > 1f
+        val px = if (known) rx else sc.x * (0.08f + 0.84f * Math.random().toFloat())
+        val py = if (known) ry else sc.y * (0.08f + 0.76f * Math.random().toFloat())
+        paws?.add(px, py)
+        if (!pawTicking) {
+            pawTicking = true
+            handler.post(pawTick)
+        }
+        meow(0.8f + 0.5f * Math.random().toFloat())
+    }
+
+    private val pawTick = object : Runnable {
+        override fun run() {
+            val pv = paws
+            if (pv != null && pv.step(0.033f)) {
+                handler.postDelayed(this, 33)
+            } else {
+                pawTicking = false
+            }
         }
     }
 
@@ -200,7 +311,7 @@ class CatOverlay(private val ctx: Context) {
     /** Miyav sesi üretir (dosya gerekmez): yükselip alçalan perde, armonikli. */
     private fun meow(pitch: Float) {
         val now = System.currentTimeMillis()
-        if (now - lastMeow < 500L) return
+        if (now - lastMeow < 350L) return
         lastMeow = now
         try {
             val sr = 22050
@@ -464,6 +575,7 @@ class CatOverlay(private val ctx: Context) {
             setOnTouchListener { _, e ->
                 when (e.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
+                        lastCatGrab = System.currentTimeMillis()
                         cat.mode = CARRY
                         cat.grabDx = e.rawX - cat.x
                         cat.grabDy = e.rawY - cat.y
@@ -571,6 +683,64 @@ class CatOverlay(private val ctx: Context) {
                     box.color = (p.color and 0x00FFFFFF) or ((a * 255).toInt() shl 24)
                     canvas.drawRect(p.x - p.size / 2, p.y - p.size / 4, p.x + p.size / 2, p.y + p.size / 4, box)
                 }
+                canvas.restore()
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- pati görünümü
+
+    private inner class PawView(c: Context) : View(c) {
+        private inner class Paw(val x: Float, val y: Float, val rot: Float) {
+            var age = 0f
+        }
+
+        private val items = ArrayList<Paw>()
+        private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val oval = RectF()
+        private val life = 1.4f
+
+        fun add(x: Float, y: Float) {
+            if (items.size > 12) items.removeAt(0)
+            items.add(Paw(x, y, (Math.random() * 50 - 25).toFloat()))
+            invalidate()
+        }
+
+        /** false dönerse çizilecek pati kalmadı. */
+        fun step(dt: Float): Boolean {
+            val it = items.iterator()
+            while (it.hasNext()) {
+                val p = it.next()
+                p.age += dt
+                if (p.age >= life) it.remove()
+            }
+            invalidate()
+            return items.isNotEmpty()
+        }
+
+        private fun blob(c: Canvas, cx: Float, cy: Float, rx: Float, ry: Float) {
+            oval.set(cx - rx, cy - ry, cx + rx, cy + ry)
+            c.drawOval(oval, fill)
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            val u = 3f * density
+            for (p in items) {
+                val t = p.age
+                val pop = if (t < 0.15f) 0.5f + 0.5f * (t / 0.15f) else 1f
+                val a = if (t > life - 0.5f) ((life - t) / 0.5f).coerceIn(0f, 1f) else 1f
+                fill.color = Color.argb((a * 230).toInt(), 109, 76, 65)
+                canvas.save()
+                canvas.translate(p.x, p.y)
+                canvas.rotate(p.rot)
+                canvas.scale(pop, pop)
+                // Ana yastık
+                blob(canvas, 0f, 5f * u, 6.5f * u, 5f * u)
+                // Dört parmak
+                blob(canvas, -8.5f * u, -3f * u, 2.6f * u, 3.4f * u)
+                blob(canvas, -3f * u, -8f * u, 2.6f * u, 3.4f * u)
+                blob(canvas, 3f * u, -8f * u, 2.6f * u, 3.4f * u)
+                blob(canvas, 8.5f * u, -3f * u, 2.6f * u, 3.4f * u)
                 canvas.restore()
             }
         }
