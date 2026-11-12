@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace = "com.beranmeva.kilit"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.beranmeva.kilit"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 15
-        versionName = "3.0"
+        targetSdk = 36
+        versionCode = 16
+        versionName = "3.1"
     }
 
     // Sabit imza: her derlemede aynı anahtar kullanılır, böylece yeni APK eskinin üstüne kurulur.

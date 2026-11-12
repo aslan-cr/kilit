@@ -132,6 +132,7 @@ class LockActivity : Activity() {
         setBackgroundColor(bgColor())
         val pad = Ui.dp(this@LockActivity, 32)
         setPadding(pad, pad, pad, pad)
+        Ui.fitSystemBars(this)
     }
 
     private fun build() {

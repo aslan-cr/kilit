@@ -99,6 +99,7 @@ class MainActivity : Activity() {
             val pad = Ui.dp(this@MainActivity, 22)
             setPadding(pad, pad, pad, pad)
             content()
+            Ui.fitSystemBars(this)
         }
         setContentView(ScrollView(this).apply {
             setBackgroundColor(Ui.BG)
@@ -120,6 +121,7 @@ class MainActivity : Activity() {
             val pad = Ui.dp(this@MainActivity, 32)
             setPadding(pad, pad, pad, pad)
         }
+        Ui.fitSystemBars(root)
         root.addView(
             Ui.tv(
                 this,
@@ -436,6 +438,7 @@ class MainActivity : Activity() {
             val pad = Ui.dp(this@MainActivity, 20)
             setPadding(pad, pad, pad, pad)
         }
+        Ui.fitSystemBars(col)
         col.text("Ebeveyn paneli", 24f, bold = true, top = 0)
 
         status = col.text("", 16f, Ui.MUTED, top = 12)

@@ -20,7 +20,8 @@ Kaynaklar:
 
 ## Yayından önce yapılacaklar
 
-### 1. Hedef API'yi 36'ya çıkar (zorunlu, henüz yapılmadı)
+### 1. Hedef API 36 (3.1'de yapıldı, cihazda denenmedi)
+AGP 8.11.1, Gradle 8.14.3, compileSdk/targetSdk 36 ve ekran kenarı boşlukları eklendi. Aşağıdaki liste denenecekleri gösterir.
 Şu an `compileSdk` ve `targetSdk` 34, Android Gradle Plugin 8.5.2. API 36 için şunlar gerekir ve gerçek cihazda denenmeden yapılmamalıdır:
 - Android Gradle Plugin'i API 36'yı destekleyen sürüme yükselt (8.9 ve üstü; sürümü kontrol et) ve GitHub derlemesindeki Gradle sürümünü (şu an 8.7) uyumlu hale getir.
 - Android 15 ve sonrasında kenardan kenara (edge-to-edge) çizim zorunlu: `MainActivity` ve `LockActivity` içeriği durum ve gezinme çubuklarının altında kalabilir; pencere kenar boşlukları (insets) eklenmeli.
@@ -40,3 +41,11 @@ Kaynaklar:
 ### 3. Ürün kararları
 - Dil yalnızca Türkçe. Başka dil için metinler `strings.xml`'e taşınmalı (şu an kodda yazılı).
 - Ad "Aile Kilidi" olarak ayarlandı; paket adı `com.beranmeva.kilit` kaldı (eski kurulumlar bozulmadan güncellensin diye). Play'e yeni uygulama olarak yüklenecekse paket adı yayından önce seçilmeli, sonradan değişmez.
+
+## .aab ve imzalama (3.1)
+GitHub derlemesi `kilit-aab` adlı bir artifact üretir: imzasız `app-release.aab`. Play'e yüklemeden önce kendi yükleme anahtarınla imzala (anahtarı kimseyle paylaşma, depoya koyma):
+```
+keytool -genkeypair -v -keystore yukleme.jks -alias yukleme -keyalg RSA -keysize 2048 -validity 10000
+jarsigner -keystore yukleme.jks app-release.aab yukleme
+```
+Play Console'da "Play App Signing"i etkinleştir; Google asıl imza anahtarını kendisi saklar.

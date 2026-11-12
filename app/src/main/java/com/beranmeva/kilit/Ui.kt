@@ -5,6 +5,9 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.text.InputType
 import android.view.Gravity
+import android.view.View
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
@@ -16,6 +19,22 @@ object Ui {
     const val BG = 0xFF101820.toInt()
     const val MUTED = 0xFFAABBCC.toInt()
     const val ERROR = 0xFFFF6B6B.toInt()
+
+    /** Android 15+ ekranı kenardan kenara çizer: içeriği durum/gezinme çubuklarının dışında tutar. */
+    fun fitSystemBars(v: View) {
+        val l = v.paddingLeft
+        val t = v.paddingTop
+        val r = v.paddingRight
+        val b = v.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(v) { view, insets ->
+            val s = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(l + s.left, t + s.top, r + s.right, b + s.bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(v)
+    }
 
     fun dp(c: Context, v: Int): Int = (v * c.resources.displayMetrics.density).toInt()
 
