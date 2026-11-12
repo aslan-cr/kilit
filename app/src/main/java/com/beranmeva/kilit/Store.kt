@@ -6,48 +6,90 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.Locale
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
-/** Şifreler (PBKDF2 ile hash'li) ve oturum durumu burada tutulur. */
+/**
+ * Şifreler (PBKDF2 ile hash'li), çocuk listesi ve oturum durumu burada tutulur.
+ * 1-4 çocuk tanımlanabilir; sıra çocuklar arasında sırayla döner.
+ */
 class Store(context: Context) {
 
     private val p = context.applicationContext
         .getSharedPreferences("kilit", Context.MODE_PRIVATE)
 
+    /** Yaş grupları: ekran dili ve hazır süreler buna göre seçilir. */
+    enum class Group { SMALL, MID, TEEN }
+
+    /** id: kalıcı kimlik ("c1".."c4"; eski kurulumlarda "beran"/"meva"). */
+    data class Child(val id: String, val name: String, val age: Int, val durationMin: Int) {
+        val group: Group get() = groupOf(age)
+    }
+
     companion object {
-        const val BERAN = "beran"
-        const val MEVA = "meva"
         const val PARENT = "parent"
         const val MIN_LEN = 4
+
+        const val MAX_KIDS = 4
+        const val MIN_AGE = 5
+        const val MAX_AGE = 15
+        const val MAX_NAME = 10
+
+        /** Eski (sadece iki çocuklu) kurulumlardaki kimlikler; veriyi taşımak için. */
+        private const val LEGACY_A = "beran"
+        private const val LEGACY_B = "meva"
 
         /** Sayaç renkleri: mavi, yeşil, turuncu, kırmızı, mor, pembe, sarı, turkuaz. */
         val COLORS = intArrayOf(
             0xFF2D9CDB.toInt(), 0xFF27AE60.toInt(), 0xFFF2994A.toInt(), 0xFFEB5757.toInt(),
             0xFFBB6BD9.toInt(), 0xFFE91E8C.toInt(), 0xFFF2C94C.toInt(), 0xFF2EC4B6.toInt()
         )
+
+        /** Çocukların sırasına göre başlangıç renkleri: mavi, pembe, yeşil, mor. */
+        private val DEFAULT_COLOR_ORDER = intArrayOf(0, 5, 1, 4)
+
         val IDLE_COLOR = 0xFF607D8B.toInt()
         val HW_COLOR = 0xFFD35400.toInt()
 
-        fun other(u: String) = if (u == BERAN) MEVA else BERAN
+        /** Küçüklerin şifresi: 4 hayvan seçmek (her hayvan 0-7 arası bir rakam). */
+        val ANIMALS = arrayOf("🐱", "🐶", "🐸", "🦊", "🐼", "🐰", "🦁", "🐵")
+        const val ANIMAL_PIN_LEN = 4
 
-        fun label(u: String) = when (u) {
-            BERAN -> "BERA"
-            MEVA -> "MEVA"
-            else -> "EBEVEYN"
+        private val TR = Locale.forLanguageTag("tr-TR")
+
+        fun groupOf(age: Int): Group = when {
+            age <= 8 -> Group.SMALL
+            age <= 12 -> Group.MID
+            else -> Group.TEEN
         }
 
-        fun enterPrompt(u: String) = when (u) {
-            BERAN -> "BERA'NIN ŞİFRESİNİ GİR"
-            MEVA -> "MEVANIN ŞİFRESİNİ GİR"
-            else -> "EBEVEYN ŞİFRESİNİ GİR"
+        fun groupName(g: Group) = when (g) {
+            Group.SMALL -> "5-8 yaş"
+            Group.MID -> "9-12 yaş"
+            Group.TEEN -> "13-15 yaş"
         }
 
-        fun createPrompt(u: String) = when (u) {
-            BERAN -> "BERA İÇİN ŞİFRE OLUŞTUR"
-            MEVA -> "MEVA İÇİN ŞİFRE OLUŞTUR"
-            else -> "EBEVEYN ŞİFRESİ OLUŞTUR"
+        /**
+         * Yaş grubuna göre önerilen günlük süre (dakika). Bu bir başlangıç önerisidir;
+         * ebeveyn her çocuk için değiştirebilir. Her çocuk kendi sırasında bu kadar kullanır.
+         */
+        fun defaultMinutes(age: Int): Int = when (groupOf(age)) {
+            Group.SMALL -> 60
+            Group.MID -> 90
+            Group.TEEN -> 120
         }
+
+        /** Yaş grubuna göre önerilen ödev saati (hafta içi). */
+        fun suggestedHomework(age: Int): Hw = when (groupOf(age)) {
+            Group.SMALL -> Hw("12345", 17 * 60, 17 * 60 + 30)
+            Group.MID -> Hw("12345", 16 * 60 + 30, 18 * 60)
+            Group.TEEN -> Hw("12345", 17 * 60, 19 * 60)
+        }
+
+        /** Ad alanında kayıt biçimini bozacak karakterleri temizler. */
+        fun cleanName(s: String): String =
+            s.replace(Regex("[|;\\r\\n]"), " ").trim().take(MAX_NAME).trim()
 
         val DAY_NAMES = arrayOf(
             "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"
@@ -66,6 +108,118 @@ class Store(context: Context) {
             val m = totalMin % 60
             return if (h > 0) "$h sa $m dk" else "$m dk"
         }
+    }
+
+    // ---------- Çocuklar ----------
+
+    /**
+     * Kayıt biçimi: "id|ad|yaş|süre;id|ad|yaş|süre".
+     * "kids" anahtarı hiç yoksa ve cihazda eski (Bera-Meva) kurulumun izi varsa, iki çocuk
+     * olarak otomatik taşınır; böylece güncelleyen aileler şifrelerini kaybetmez.
+     */
+    private fun migrateIfNeeded() {
+        if (p.contains("kids")) return
+        // Yeni sihirbaz ebeveyn şifresiyle birlikte "kids" anahtarını da yazar; bu yüzden
+        // "kids" olmadan ebeveyn/çocuk şifresi varsa kurulum eski sürümden kalmadır.
+        val legacy = p.contains("h_$LEGACY_A") || p.contains("h_$LEGACY_B") || p.contains("h_$PARENT")
+        if (!legacy) return
+        val dur = p.getInt("durationMin", 120)
+        val raw = "$LEGACY_A|Bera|10|$dur;$LEGACY_B|Meva|10|$dur"
+        p.edit().putString("kids", raw).apply()
+    }
+
+    private fun parseKids(raw: String): List<Child> =
+        raw.split(";").mapNotNull { s ->
+            val a = s.split("|")
+            if (a.size != 4) return@mapNotNull null
+            val age = a[2].toIntOrNull() ?: return@mapNotNull null
+            val dur = a[3].toIntOrNull() ?: return@mapNotNull null
+            Child(a[0], a[1], age, dur)
+        }
+
+    private fun saveKids(list: List<Child>) {
+        p.edit().putString("kids", list.joinToString(";") { "${it.id}|${it.name}|${it.age}|${it.durationMin}" })
+            .apply()
+    }
+
+    /** Kurulum sihirbazı ebeveyn şifresini yazarken çağrılır: boş bir çocuk listesi başlatır. */
+    fun initKids() {
+        if (!p.contains("kids")) p.edit().putString("kids", "").apply()
+    }
+
+    fun children(): List<Child> {
+        migrateIfNeeded()
+        return parseKids(p.getString("kids", "") ?: "")
+    }
+
+    fun child(id: String): Child? = children().firstOrNull { it.id == id }
+
+    fun addChild(name: String, age: Int): Child? {
+        val list = children()
+        if (list.size >= MAX_KIDS) return null
+        val n = cleanName(name)
+        if (n.isEmpty()) return null
+        val a = age.coerceIn(MIN_AGE, MAX_AGE)
+        var i = 1
+        while (list.any { it.id == "c$i" }) i++
+        val c = Child("c$i", n, a, defaultMinutes(a))
+        saveKids(list + c)
+        return c
+    }
+
+    /** Ad, yaş, süre değişir. Yaş grubu değişirse şifre biçimi de değiştiği için şifre sıfırlanır. */
+    fun updateChild(c: Child) {
+        val list = children()
+        val old = list.firstOrNull { it.id == c.id } ?: return
+        val clean = c.copy(
+            name = cleanName(c.name).ifEmpty { old.name },
+            age = c.age.coerceIn(MIN_AGE, MAX_AGE),
+            durationMin = c.durationMin.coerceIn(5, 600)
+        )
+        if (old.group != clean.group) clearPassword(c.id)
+        saveKids(list.map { if (it.id == c.id) clean else it })
+    }
+
+    fun removeChild(id: String) {
+        val list = children()
+        if (list.none { it.id == id }) return
+        val wasCurrent = current == id
+        clearPassword(id)
+        p.edit().remove("ci_$id").apply()
+        saveKids(list.filter { it.id != id })
+        if (wasCurrent) {
+            current = ""
+            sessionEnd = 0L
+        }
+        if (next == id || children().none { it.id == next }) next = firstId()
+    }
+
+    private fun firstId(): String = children().firstOrNull()?.id ?: ""
+
+    /** Listede bir sonraki çocuk (sondan sonra başa döner). */
+    fun after(id: String): String {
+        val list = children()
+        if (list.isEmpty()) return ""
+        val i = list.indexOfFirst { it.id == id }
+        return list[(i + 1).mod(list.size)].id
+    }
+
+    fun nameOf(id: String): String = child(id)?.name ?: ""
+
+    /** Ekranda büyük harfle gösterilen ad ("EBEVEYN" ebeveyn için). */
+    fun label(id: String): String =
+        if (id == PARENT) "EBEVEYN" else nameOf(id).uppercase(TR)
+
+    fun enterPrompt(id: String): String = when {
+        id == PARENT -> "EBEVEYN ŞİFRESİNİ GİR"
+        child(id)?.group == Group.SMALL -> "${label(id)}, 4 HAYVANINI SEÇ"
+        else -> "${label(id)}, ŞİFRENİ GİR"
+    }
+
+    fun createPrompt(id: String): String = when {
+        id == PARENT -> "EBEVEYN ŞİFRESİ OLUŞTUR"
+        child(id)?.group == Group.SMALL -> "${label(id)}, GİZLİ 4 HAYVANINI SEÇ"
+        else -> "${label(id)}, ŞİFRENİ OLUŞTUR"
     }
 
     // ---------- Şifreler ----------
@@ -125,7 +279,7 @@ class Store(context: Context) {
 
     // ---------- Oturum ----------
 
-    /** Şu an kullanan kişi ("" = kimse). */
+    /** Şu an kullanan çocuk ("" = kimse). */
     var current: String
         get() = p.getString("current", "") ?: ""
         set(v) = p.edit().putString("current", v).apply()
@@ -134,15 +288,19 @@ class Store(context: Context) {
         get() = p.getLong("sessionEnd", 0L)
         set(v) = p.edit().putLong("sessionEnd", v).apply()
 
-    /** Sıradaki kişi. */
+    /** Sıradaki çocuk. Kayıtlı kişi artık listede yoksa ilk çocuğa döner. */
     var next: String
-        get() = p.getString("next", BERAN) ?: BERAN
+        get() {
+            val v = p.getString("next", "") ?: ""
+            return if (v.isNotEmpty() && child(v) != null) v else firstId()
+        }
         set(v) = p.edit().putString("next", v).apply()
 
     var lastDay: String
         get() = p.getString("lastDay", "") ?: ""
         set(v) = p.edit().putString("lastDay", v).apply()
 
+    /** Eski tek süre ayarı; yalnızca eski kurulumlardan taşımak için okunur. */
     var durationMin: Int
         get() = p.getInt("durationMin", 120)
         set(v) = p.edit().putInt("durationMin", v).apply()
@@ -168,29 +326,30 @@ class Store(context: Context) {
         if (current.isEmpty()) 0L
         else (sessionEnd - System.currentTimeMillis()).coerceAtLeast(0L)
 
-    /** Süresi dolan oturumu kapatır, sırayı ayarlar. Her yeni gün sıra BERAN'dan başlar. */
+    /** Süresi dolan oturumu kapatır, sırayı ayarlar. Her yeni gün sıra listedeki ilk çocuktan başlar. */
     fun refresh() {
         if (current.isNotEmpty() && System.currentTimeMillis() >= sessionEnd) {
-            next = other(current)
+            next = after(current)
             current = ""
             sessionEnd = 0L
         }
         if (current.isEmpty() && lastDay != LocalDate.now().toString()) {
-            next = BERAN
+            next = firstId()
         }
     }
 
     fun startSession(u: String) {
+        val min = child(u)?.durationMin ?: durationMin
         current = u
-        sessionEnd = System.currentTimeMillis() + durationMin * 60_000L
-        sessionTotal = durationMin * 60_000L
+        sessionEnd = System.currentTimeMillis() + min * 60_000L
+        sessionTotal = min * 60_000L
         lastDay = LocalDate.now().toString()
-        next = other(u)
+        next = after(u)
     }
 
     fun endSessionNow() {
         if (current.isNotEmpty()) {
-            next = other(current)
+            next = after(current)
         }
         current = ""
         sessionEnd = 0L
@@ -202,9 +361,12 @@ class Store(context: Context) {
         get() = p.getLong("sessionTotal", 0L)
         set(v) = p.edit().putLong("sessionTotal", v).apply()
 
-    /** Kullanıcının seçtiği renk sırası. Beran mavi, Meva pembe ile başlar. */
-    fun colorIndex(u: String): Int =
-        p.getInt("ci_$u", if (u == MEVA) 5 else 0).mod(COLORS.size)
+    /** Çocuğun seçtiği renk. Seçmediyse sırasına göre mavi, pembe, yeşil, mor. */
+    fun colorIndex(u: String): Int {
+        val pos = children().indexOfFirst { it.id == u }.coerceAtLeast(0)
+        val def = DEFAULT_COLOR_ORDER[pos % DEFAULT_COLOR_ORDER.size]
+        return p.getInt("ci_$u", def).mod(COLORS.size)
+    }
 
     fun nextColor(u: String) {
         p.edit().putInt("ci_$u", (colorIndex(u) + 1) % COLORS.size).apply()
@@ -232,6 +394,14 @@ class Store(context: Context) {
     var catOn: Boolean
         get() = p.getBoolean("cat", false)
         set(v) = p.edit().putBoolean("cat", v).apply()
+
+    /**
+     * Sayaçta "Kedi" kutusu görünsün mü (ebeveyn paneli / kurulum). Daha önce kurulu olanlarda
+     * açık kalır; yeni kurulumda sadece 13 yaş altı çocuk varsa açık başlar.
+     */
+    var catVisible: Boolean
+        get() = p.getBoolean("catVisible", true)
+        set(v) = p.edit().putBoolean("catVisible", v).apply()
 
     /** Koruma servisinin son çalıştığı an (ebeveyn panelinde durumunu göstermek için). */
     var beat: Long

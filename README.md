@@ -1,13 +1,19 @@
-# Beran-Meva Kilit (Android tablet)
+# Aile Kilidi (Android, 5-15 yaş)
 
-Paylaşılan tablette sırayla Beran ve Meva için şifreli, süreli giriş.
+Telefon ya da tableti paylaşan çocuklar için sıra ve süre düzeni. Eskiden yalnızca Bera ve Meva için yazılmıştı (Beran-Meva Kilit); artık her aile kendi çocuklarını tanımlar.
 
 ## Nasıl çalışır
-1. Her gün tablet açılınca **BERANIN ŞİFRESİNİ GİR** çıkar. İlk seferde Beran şifresini oluşturur.
-2. Doğru şifreyle 2 saat (ayarlanabilir) uygulamalar kullanılır.
-3. Süre dolunca **MEVANIN ŞİFRESİNİ GİR** çıkar. İlk seferde Meva şifresini oluşturur.
-4. Meva'nın süresi bitince sıra tekrar Beran'a döner. Yeni günde her zaman Beran'dan başlar.
+1. İlk açılışta **kurulum sihirbazı** çıkar: ebeveyn şifresi, çocuklar (1-4 çocuk, ad ve yaş), izinler, önerilen süre ve ödev saati.
+2. Cihaz kilitliyken sıradaki çocuk şifresini girer (ilk seferde kendi şifresini oluşturur). **5-8 yaş** çocuklar klavye yerine 4 hayvan seçer.
+3. Doğru şifreyle çocuk kendi süresi kadar uygulamaları kullanır. Süre çocuğa ve yaşına göre ayarlıdır (öneri: 5-8 yaş 60 dk, 9-12 yaş 90 dk, 13-15 yaş 120 dk; ebeveyn değiştirir).
+4. Süre dolunca sıra listedeki bir sonraki çocuğa geçer, son çocuktan sonra başa döner. Yeni günde sıra ilk çocuktan başlar.
 5. Şifre unutulursa ebeveyn, kilit ekranındaki **Ebeveyn** düğmesinden kendi şifresiyle sıfırlar.
+
+Yaş gruplarına göre görünüm: 5-8 yaş büyük düğmeli renkli ekran, 9-12 yaş standart, 13-15 yaş sade ve daha az çocuksu. Sayaçtaki Kedi eğlencesi ebeveyn panelinden açılıp kapatılır (13 yaş altı çocuk varsa açık başlar).
+
+**Eski kurulumlar:** Bera-Meva sürümünden güncellenen cihazlarda Bera ve Meva otomatik çocuk olarak taşınır, şifreleri ve süre ayarları korunur.
+
+**Gizlilik:** uygulama internete bağlanmaz, reklam içermez, hiçbir bilgiyi cihazdan çıkarmaz. Ayrıntı: [PRIVACY.md](PRIVACY.md). Google Play için hazırlık listesi: [docs/PLAY_HAZIRLIK.md](docs/PLAY_HAZIRLIK.md).
 
 Servis her zaman görünür bir bildirim gösterir (kimin ne kadar süresi kaldığı yazar). Gizli çalışmaz.
 

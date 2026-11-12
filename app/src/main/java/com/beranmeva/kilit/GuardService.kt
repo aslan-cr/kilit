@@ -136,9 +136,9 @@ class GuardService : Service() {
         val text = when {
             hw != null -> "ÖDEV ZAMANI — ${Store.hm(hw.end)} saatine kadar kilitli"
             store.isActive() ->
-                "${Store.label(store.current)} kullanıyor — kalan ${Store.fmt(store.remainingMs())}" +
+                "${store.label(store.current)} kullanıyor — kalan ${Store.fmt(store.remainingMs())}" +
                     (if (paused) " (uygulama dışında, süre durdu)" else "")
-            else -> "Kilit ekranı bekliyor — sıradaki: ${Store.label(store.next)}"
+            else -> "Kilit ekranı bekliyor — sıradaki: ${store.label(store.next)}"
         }
         if (text != lastText) {
             lastText = text
@@ -147,6 +147,8 @@ class GuardService : Service() {
 
         // Ebeveyn şifresi henüz oluşturulmadıysa hiçbir şeyi kilitleme.
         if (!store.hasPassword(Store.PARENT)) return
+        // Çocuk tanımlanmadan (kurulum yarımsa) kilit devreye girmez.
+        if (store.children().isEmpty()) return
         if (hw == null && store.isActive()) return
         if (store.parentGraceActive()) return
         if (LockActivity.visible || MainActivity.visible) return
@@ -185,13 +187,13 @@ class GuardService : Service() {
         } else if (store.isActive()) {
             val rem = store.remainingMs()
             main = if (rem >= 60_000L) "${(rem + 59_999L) / 60_000L} dk" else "${rem / 1000L} sn"
-            sub = Store.label(store.current)
+            sub = store.label(store.current).take(7)
             val total = maxOf(store.sessionTotal, rem)
             prog = if (total > 0L) rem.toFloat() / total.toFloat() else 0f
             color = Store.COLORS[store.colorIndex(store.current)]
         } else {
             main = "SIRA"
-            sub = Store.label(store.next)
+            sub = store.label(store.next).take(7)
             prog = 0f
             color = Store.IDLE_COLOR
         }

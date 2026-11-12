@@ -66,7 +66,7 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
         if (view != null && appliedDp != store.overlaySizeDp) hideView()
         val v = view ?: create()
         v.set(main, sub, progress, color)
-        if (store.catOn) cats.start() else cats.stop()
+        if (store.catOn && store.catVisible) cats.start() else cats.stop()
     }
 
     fun hide() {
@@ -367,8 +367,17 @@ class TimerOverlay(private val ctx: Context, private val store: Store) {
                         expand(docked)
                     } else {
                         val cv = view
-                        if (!panelOpen) {
+                        if (!panelOpen && store.catVisible) {
                             openPanel()
+                        } else if (!panelOpen) {
+                            // Kedi ayarı kapalıysa sayaç genişlemez; dokunmak sadece rengi değiştirir.
+                            if (store.current.isNotEmpty()) {
+                                store.nextColor(store.current)
+                                cv?.set(
+                                    null, null, null,
+                                    Store.COLORS[store.colorIndex(store.current)]
+                                )
+                            }
                         } else if (cv != null && cv.hitChip(e.x)) {
                             toggleCat(e.rawX, e.rawY)
                         } else {
