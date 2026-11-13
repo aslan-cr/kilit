@@ -22,3 +22,6 @@ ES modülleri kullandığı için dosya olarak değil, bir web adresinden açıl
 3. Kontrolcü bağlıyken sayfada herhangi bir tuşa bas, menüde **A**'ya bas.
 
 Değişen dosyalar: `js/sim.js` (fener ışığı durumu), `js/main.js` (gamepad girdisi), `index.html` (ipucu satırı).
+
+## Düşmanlar
+Android sürümüyle aynı üç düşman: **Koşucu Canavar** (en hızlısı), **İblis** ve **Sıska Canavar**. Üçü de iskeletle canlandırılır; modeller `models/models.json` içindedir ve `gozkirpma/tools/bake-*.mjs` araçlarıyla üretilip buraya kopyalanır.
