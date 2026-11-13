@@ -84,36 +84,216 @@ function emissive(mat, modelName) {
 }
 
 // ---------- Dokular (procedural) ----------
+// Duvarlar düz boyalı tuğla değil: önce bir YÜKSEKLİK haritası kurulur (düzensiz kesme taşlar, yuvarlatılmış kenarlar,
+// çatlaklar, kemerli demir parmaklıklı niş), sonra sol-üstten gelen ışıkla gölgelendirilir. Böylece taşlar kabartmalı görünür.
 function hash(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
-function vnoise(x, y) {
+// Sabit tohumlu rastgele kafes (her açılışta aynı doku; sin tabanlı hash'ten çok daha hızlı). per en çok 256.
+const LAT = new Float32Array(65536);
+{ let q = 1234567; for (let i = 0; i < 65536; i++) { q = (Math.imul(q, 1664525) + 1013904223) | 0; LAT[i] = (q >>> 8) / 16777216; } }
+// Periyodik değer gürültüsü: per hücrede bir kendini tekrarlar (doku kenarlarında dikiş olmaz)
+function pnoise(x, y, per) {
   const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
   const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
-  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  const x0 = ((xi % per) + per) % per, x1 = (x0 + 1) % per, y0 = ((yi % per) + per) % per, y1 = (y0 + 1) % per;
+  const a = LAT[(y0 << 8) | x0], b = LAT[(y0 << 8) | x1], c = LAT[(y1 << 8) | x0], d = LAT[(y1 << 8) | x1];
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
-const TS = 128;                                   // doku boyu (eskiden 64: daha az blok blok)
-function makeTex(kind) {
+function fbm(u, v, f) { return pnoise(u * f, v * f, f) * 0.5 + pnoise(u * f * 2 + 3.3, v * f * 2 + 1.7, f * 2) * 0.3 + pnoise(u * f * 4 + 7.1, v * f * 4 + 5.9, f * 4) * 0.2; }
+function sstep(a, b, x) { x = (x - a) / (b - a); x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); }
+
+const TS = 256, TSH = 8;                          // duvar dokusu (1 birim = 256 piksel)
+const FS = 512;                                   // zemin dokusu 2x2 kareyi kaplar: tekrar daha az belli olur
+
+// Taş örgüsü: satır yükseklikleri + her satırda rastgele genişlikte taşlar (yatayda sarar). seed: görünüm çeşidi.
+function masonry(rows, seed) {
+  const L = []; let v0 = 0;
+  rows.forEach((h, ri) => {
+    const st = []; let u = hash(ri + seed * 13.7, seed + 2.1) * 0.3, k = 0;
+    const start = u;
+    while (u < start + 1 - 0.14) {
+      let w = (h > 0.21 ? 0.3 : 0.2) + hash(ri * 7.3 + k * 3.1 + seed, k * 1.7 + seed * 5.3) * 0.2;
+      if (start + 1 - (u + w) < 0.14) w = start + 1 - u;
+      st.push({ u0: u, u1: u + w, id: ri * 16 + k, hp: hash(ri * 16 + k, seed), ht: hash((ri * 16 + k) * 1.9, seed * 3.1), hh: hash((ri * 16 + k) * 4.7 + 1, seed) }); u += w; k++;
+    }
+    L.push({ v0, v1: v0 + h, st }); v0 += h;
+  });
+  return L;
+}
+
+// kind: "low" (yerden 1 birim: kalın temel sırası, yerden tırmanan yosun) | "up" (üst kısım: su sızıntısı izleri)
+// feat: 0 düz, 1 yoğun yosun + sarmaşık, 2 çatlak ve düşmüş taş, 3 kemerli demir parmaklıklı niş
+function makeWall(kind, feat, seed) {
+  const low = kind === "low";
+  const rows = low ? [0.2, 0.19, 0.2, 0.18, 0.23] : [0.21, 0.19, 0.2, 0.19, 0.21];
+  const lay = masonry(rows, seed);
+  const H = new Float32Array(TS * TS), ID = new Int16Array(TS * TS), BY = {};
+  for (const r of lay) for (const q of r.st) BY[q.id] = q;
+  const ivyLen = [0, 1, 2, 3, 4].map((k) => 0.45 + hash(k, seed * 2.2) * 0.55);
+  const GAP = 0.011, RND = 0.028;
+  const hole = feat === 2 ? lay[2].st[1].id : -1;        // düşmüş taş
+  for (let y = 0; y < TS; y++) {
+    const v = (y + 0.5) / TS;
+    const row = lay.find((r) => v < r.v1) || lay[lay.length - 1], plinth = low && row === lay[lay.length - 1];
+    for (let x = 0; x < TS; x++) {
+      let u = (x + 0.5) / TS;
+      let s = null;
+      for (const q of row.st) { if (u >= q.u0 && u < q.u1) { s = q; break; } if (u + 1 >= q.u0 && u + 1 < q.u1) { s = q; u += 1; break; } }
+      if (!s) s = row.st[0];
+      const dx = Math.min(u - s.u0, s.u1 - u) - GAP, dy = Math.min(v - row.v0, row.v1 - v) - GAP;
+      let e = Math.min(dx, dy);
+      if (dx < RND && dy < RND && e > -GAP) e = RND - Math.hypot(RND - dx, RND - dy);     // yuvarlak köşe
+      const i = y * TS + x;
+      const rough = fbm(u, v, 16) - 0.5, chip = pnoise(u * 40 + s.id, v * 40, 40);
+      if (e <= 0 || s.id === hole) { H[i] = (s.id === hole ? -0.9 : -0.25) + rough * 0.2; ID[i] = -1; continue; }
+      let h = sstep(0, 0.03, e);
+      h *= 0.82 + s.hp * 0.3 + (plinth ? 0.3 : 0);                              // her taş biraz farklı çıkıntıda
+      h += rough * 0.5 + (chip > 0.8 ? -(chip - 0.8) * 1.6 : 0);                             // pürüz + küçük kopuklar
+      H[i] = h; ID[i] = s.id;
+    }
+  }
+  // Çatlaklar: rastgele yürüyen ince yarıklar
+  const cracks = feat === 2 ? 5 : 2;
+  for (let c = 0; c < cracks; c++) {
+    let x = hash(c + seed * 3.3, 9.1) * TS, y = hash(c * 2.7, seed + 4.4) * TS * 0.7, a = 1.2 + hash(c, seed * 7.7) * 0.8;
+    const n = (feat === 2 ? 90 : 40) + hash(c * 5.1, seed) * 60;
+    for (let k = 0; k < n; k++) {
+      a += (hash(k * 1.3 + c, seed + k * 0.7) - 0.5) * 0.9; a = Math.max(0.5, Math.min(2.6, a));
+      x += Math.cos(a); y += Math.sin(a);
+      const xi = ((x | 0) + TS) % TS, yi = y | 0;
+      if (yi < 0 || yi >= TS) break;
+      H[yi * TS + xi] -= 0.75; H[yi * TS + ((xi + 1) % TS)] -= 0.3;
+    }
+  }
+  // Niş: kemerli oyuk, çevresinde kemer taşları, içinde paslı demir parmaklık
+  const NC = 0.5, NW = 0.17, NT = 0.36, NB = 0.77, FR = 0.04;
+  const niche = (u, v) => {                                 // <0 içeride; 0..FR çerçeve
+    const ax = Math.abs(u - NC);
+    if (v > NB) return 9;
+    return v >= NT ? ax - NW : Math.hypot(ax, v - NT) - NW;
+  };
   const T = new Uint8Array(TS * TS * 3);
-  for (let y0 = 0; y0 < TS; y0++) for (let x0 = 0; x0 < TS; x0++) {
-    const x = x0 * 64 / TS, y = y0 * 64 / TS;
-    const n = vnoise(x * 0.35, y * 0.35) * 0.6 + vnoise(x * 0.9, y * 0.9) * 0.4;
-    const moss = vnoise(x * 0.12 + 7, y * 0.12 + 3);
+  const at = (x, y) => H[(y < 0 ? 0 : y >= TS ? TS - 1 : y) * TS + ((x + TS) % TS)];
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) {
+    const u = (x + 0.5) / TS, v = (y + 0.5) / TS, i = y * TS + x;
+    let h = H[i], id = ID[i];
+    let shade = 1 + ((at(x + 1, y) - at(x - 1, y)) + (at(x, y + 1) - at(x, y - 1))) * 0.85;
+    shade = shade < 0.35 ? 0.35 : shade > 1.55 ? 1.55 : shade;
+    const n = fbm(u, v, 8), fine = pnoise(u * 64, v * 64, 64);
     let r, g, b;
-    if (kind === 0) { // taş duvar + yosun
-      const row = (y / 16) | 0, bx = (x + (row % 2 ? 16 : 0)) % 32, by = y % 16;
-      const mortar = by < 2 || bx < 2;
-      const base = mortar ? 38 : 88 + n * 60;
-      r = base * 0.88; g = base * 0.96; b = base * 0.82;
-      if (moss > 0.52) { const k = Math.min(1, (moss - 0.52) * 4); r = r * (1 - k) + 40 * k * (0.6 + n * 0.6); g = g * (1 - k) + 100 * k * (0.6 + n * 0.6); b = b * (1 - k) + 36 * k * (0.6 + n * 0.6); }
-    } else if (kind === 1) { // ıslak çamur
-      const base = 55 + n * 55; r = base * 0.8; g = base * 0.78; b = base * 0.55;
-      if (moss > 0.5) { r *= 0.6; g *= 1.1; b *= 0.6; }
-    } else { const base = 35 + n * 40; r = base * 0.8; g = base * 0.9; b = base; }
-    const i = (y0 * TS + x0) * 3; T[i] = r; T[i + 1] = g; T[i + 2] = b;
+    if (id < 0) { const m = (h < -0.6 ? 14 : 30) + n * 16; r = m; g = m * 0.98; b = m * 0.9; }      // derz / oyuk
+    else {
+      const t = BY[id].ht, hue = BY[id].hh;
+      const base = (96 + t * 44 + (n - 0.5) * 46 + (fine - 0.5) * 22) * (0.62 + 0.38 * Math.min(1, h + 0.25));
+      const cr = hue < 0.55 ? 0.9 : hue < 0.85 ? 0.85 : 0.98, cg = hue < 0.55 ? 0.94 : hue < 0.85 ? 0.9 : 0.92, cb = hue < 0.55 ? 0.86 : hue < 0.85 ? 0.95 : 0.83;
+      r = base * cr; g = base * cg; b = base * cb;
+    }
+    r *= shade; g *= shade; b *= shade;
+    if (h < -0.5 && id >= 0) { r *= 0.35; g *= 0.35; b *= 0.35; }                                   // çatlak içi
+    // Su sızıntısı: yukarıdan aşağı koyu, hafif yeşil izler
+    const streak = sstep(0.58, 0.82, pnoise(u * 22, v * 1.6 + seed, 22) * 0.75 + pnoise(u * 9 + 4, v * 3, 9) * 0.25) * (low ? 0.3 : 0.5);
+    r *= 1 - streak * 0.8; g *= 1 - streak * 0.62; b *= 1 - streak * 0.75;
+    // Niş
+    if (feat === 3) {
+      const d = niche(u, v);
+      if (d < 0) {
+        const depth = sstep(0, -0.05, d);
+        const m = 20 * (1 - depth) + 5; r = m; g = m; b = m * 0.95;
+        if (v > NB - 0.035) { const k = (v - (NB - 0.035)) / 0.035; r = 34 + 34 * k; g = 34 + 32 * k; b = 30 + 28 * k; }   // eşik taşı
+        const bu = ((u - (NC - NW)) / (2 * NW)) * 5, bf = bu - Math.floor(bu), bar = Math.abs(bf - 0.5);
+        const cross = Math.abs(v - 0.52) < 0.011 || Math.abs(v - 0.68) < 0.011;
+        if ((bar < 0.085 && bu > 0.3 && bu < 4.7) || cross) {
+          const lit = cross ? 1 - Math.abs(v - (v < 0.6 ? 0.52 : 0.68)) / 0.011 * 0.5 : 1.15 - bar / 0.085 * 0.7 - (bf > 0.5 ? 0.25 : 0);
+          const rust = 0.75 + fine * 0.5;
+          r = 74 * lit * rust; g = 50 * lit * rust; b = 36 * lit;
+        }
+      } else if (d < FR) {
+        const k = d / FR, seg = Math.floor((v < NT ? Math.atan2(v - NT, u - NC) * 4.5 : v * 16) + 40) % 2;
+        const m = (118 + seg * 16 + (n - 0.5) * 40) * (k < 0.18 ? 0.55 : k > 0.85 ? 0.7 : 1.08) * (u < NC ? 1.1 : 0.9);
+        r = m * 0.95; g = m * 0.96; b = m * 0.88;
+      } else if (d < FR + 0.015) { r *= 0.6; g *= 0.6; b *= 0.6; }
+    }
+    // Yosun: yamalı ve tüylü; derzlerde, taşların üst kenarında ve (alt duvarda) yere yakın daha çok
+    const mossN = fbm(u + seed * 0.37, v, 6) * 0.65 + pnoise(u * 28, v * 28, 28) * 0.35;
+    let mk = mossN + (id < 0 ? 0.1 : 0) + (low ? v * v * 0.3 : -0.06) + (feat === 1 ? 0.16 : 0) - (feat === 3 && niche(u, v) < 0 ? 1 : 0);
+    mk = sstep(0.67, 0.84, mk);
+    if (mk > 0) {
+      const tuft = 0.55 + fine * 0.6 + pnoise(u * 90, v * 90, 90) * 0.35, sh2 = 0.75 + (shade - 1) * 0.5;
+      const mr = 36 * tuft * sh2, mg = (58 + 22 * n) * tuft * sh2, mb = 28 * tuft * sh2;
+      r += (mr - r) * mk; g += (mg - g) * mk; b += (mb - b) * mk;
+    }
+    // Sarmaşık: yukarıdan sarkan dalgalı saplar, ara ara yaprak
+    if (feat === 1) {
+      for (let k = 0; k < 5; k++) {
+        const len = ivyLen[k];
+        if (v > len) continue;
+        const cx = (k + 0.5) / 5 + Math.sin(v * 9 + k * 2.1) * 0.022 + Math.sin(v * 23 + k) * 0.008;
+        let du = Math.abs(u - cx); du = Math.min(du, 1 - du);
+        const leaf = Math.max(0, Math.sin(v * 70 + k * 1.9)) ** 6 * 0.022 * (0.6 + hash(Math.floor(v * 11.1), k) * 0.8);
+        if (du < 0.006 + leaf) {
+          const lf = du > 0.006 ? 1 : 0, l2 = 0.75 + fine * 0.5 - du * 10;
+          r = (lf ? 36 : 34) * l2; g = (lf ? 72 : 50) * l2; b = (lf ? 32 : 26) * l2;
+        } else if (du < 0.014 + leaf) { r *= 0.6; g *= 0.62; b *= 0.6; }
+      }
+    }
+    // Zemine yakın karartı (alt) / üst sıraların hafif kararması
+    if (low) { const k = 0.5 + 0.5 * sstep(1.0, 0.88, v); r *= k; g *= k; b *= k; }
+    const j = i * 3; T[j] = r > 255 ? 255 : r; T[j + 1] = g > 255 ? 255 : g; T[j + 2] = b > 255 ? 255 : b;
   }
   return T;
 }
-const TEX_WALL = makeTex(0), TEX_FLOOR = makeTex(1), TEX_CEIL = makeTex(2);
+
+// Zemin: çamura gömülmüş düzensiz kaldırım taşları + su birikintileri (2x2 karelik doku)
+function makeFloor() {
+  const T = new Uint8Array(FS * FS * 3), H = new Float32Array(FS * FS), K = new Uint8Array(FS * FS), CV = new Float32Array(FS * FS), PD = new Float32Array(FS * FS);
+  const G = 6;                                    // 2 birimde 6 taş: taş ~0.33 birim
+  const PT = [];                                  // taş merkezleri (kafes başına bir kez hesaplanır)
+  for (let a = 0; a < G; a++) for (let b = 0; b < G; b++) PT.push([0.22 + hash(a * 3.1 + 1, b * 5.3) * 0.56, 0.22 + hash(a * 7.7, b * 2.9 + 4) * 0.56]);
+  for (let y = 0; y < FS; y++) for (let x = 0; x < FS; x++) {
+    const u = (x + 0.5) / FS, v = (y + 0.5) / FS, gx = u * G, gy = v * G, cx = Math.floor(gx), cy = Math.floor(gy);
+    let d1 = 9, d2 = 9, id = 0;                    // Voronoi: en yakın iki taş merkezi
+    for (let j = -1; j <= 1; j++) for (let i2 = -1; i2 <= 1; i2++) {
+      const a = (cx + i2 + G) % G, b = (cy + j + G) % G, p = PT[a * G + b], ex = gx - cx - i2 - p[0], ey = gy - cy - j - p[1], d = Math.sqrt(ex * ex + ey * ey);
+      if (d < d1) { d2 = d1; d1 = d; id = a * G + b; } else if (d < d2) d2 = d;
+    }
+    const edge = d2 - d1, i = y * FS + x;
+    const mud = fbm(u, v, 5);                      // çamur bazı taşları örter
+    const puddle = sstep(0.62, 0.7, fbm(u + 0.31, v + 0.17, 3));
+    let h = sstep(0.05, 0.2, edge) * (0.8 + hash(id, 3.3) * 0.4) + (fbm(u, v, 24) - 0.5) * 0.35;
+    const covered = sstep(0.5, 0.62, mud + (edge < 0.08 ? 0.12 : 0));
+    h = h * (1 - covered) + (0.35 + (fbm(u, v, 32) - 0.5) * 0.25) * covered;
+    if (puddle > 0) h = h * (1 - puddle) + 0.1 * puddle;
+    H[i] = h; K[i] = id; CV[i] = covered; PD[i] = puddle;
+  }
+  const at = (x, y) => H[((y + FS) % FS) * FS + ((x + FS) % FS)];
+  for (let y = 0; y < FS; y++) for (let x = 0; x < FS; x++) {
+    const u = (x + 0.5) / FS, v = (y + 0.5) / FS, i = y * FS + x, id = K[i];
+    let shade = 1 + ((at(x + 1, y) - at(x - 1, y)) + (at(x, y + 1) - at(x, y - 1))) * 0.8;
+    shade = shade < 0.4 ? 0.4 : shade > 1.5 ? 1.5 : shade;
+    const n = fbm(u, v, 12), fine = pnoise(u * 128, v * 128, 128);
+    const covered = CV[i], puddle = PD[i];
+    const sb = (70 + hash(id, 8.8) * 34 + (n - 0.5) * 34 + (fine - 0.5) * 16) * (0.5 + 0.5 * Math.min(1, H[i] + 0.3));
+    let r = sb * 0.88, g = sb * 0.92, b = sb * 0.8;
+    const mb = 44 + n * 30 + (fine - 0.5) * 14;
+    r += (mb * 0.82 - r) * covered; g += (mb * 0.74 - g) * covered; b += (mb * 0.5 - b) * covered;
+    const moss = sstep(0.68, 0.84, fbm(u + 0.6, v + 0.4, 7) * 0.7 + pnoise(u * 40, v * 40, 40) * 0.3 + (1 - covered) * 0.04);
+    r += (32 * (0.6 + fine) - r) * moss * 0.8; g += (54 * (0.6 + fine) - g) * moss * 0.8; b += (27 * (0.6 + fine) - b) * moss * 0.8;
+    r *= shade; g *= shade; b *= shade;
+    if (puddle > 0) { const pr = 20 + n * 14, k = puddle * 0.9; r += (pr * 0.7 - r) * k; g += (pr * 0.95 - g) * k; b += (pr * 1.05 - b) * k; }   // durgun su: koyu, soğuk
+    const j = i * 3; T[j] = r > 255 ? 255 : r; T[j + 1] = g > 255 ? 255 : g; T[j + 2] = b > 255 ? 255 : b;
+  }
+  return T;
+}
+// Çeşitler: [alt, üst] çiftleri. Her duvar yüzü konumuna göre birini seçer (WALL_PICK: çoğu düz, ara ara niş/sarmaşık/çatlak).
+const UP_A = makeWall("up", 0, 2), UP_B = makeWall("up", 0, 6);
+const WALLS = [
+  [makeWall("low", 0, 1), UP_A],
+  [makeWall("low", 0, 5), UP_B],
+  [makeWall("low", 1, 3), makeWall("up", 1, 4)],
+  [makeWall("low", 2, 7), UP_A],
+  [makeWall("low", 3, 9), UP_B],
+];
+function wallPick(mx, my, side) { const h = hash(mx * 3.7 + side * 17.3, my * 5.1 + side * 29.9); return h < 0.38 ? 0 : h < 0.72 ? 1 : h < 0.85 ? 2 : h < 0.92 ? 3 : 4; }
+const TEX_FLOOR = makeFloor();
 const noise = new Float32Array(4096).map(() => Math.random());
 
 function px32(r, g, b) {
@@ -259,6 +439,19 @@ export class Renderer {
     cam.horizon = this.RH / 2 + Math.sin(cam.bob || 0) * 1.6 * (this.RH / 220) + Math.tan(cam.pitch || 0) * this.SC;   // pitch: yukarı bakınca ufuk aşağı iner
   }
 
+  solid(g, x, y) { return x < 0 || y < 0 || x >= g.S || y >= g.S || g.map[y * g.S + x] ? 1 : 0; }
+  // Her boş kare için komşu duvar bitleri (1 batı, 2 doğu, 4 kuzey, 8 güney): zemindeki duvar dibi gölgesi için
+  aoMask(g) {
+    if (this._aoMap === g.map && this._ao) return this._ao;
+    const S = g.S, a = new Uint8Array(S * S);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      if (g.map[y * S + x]) continue;
+      a[y * S + x] = this.solid(g, x - 1, y) | (this.solid(g, x + 1, y) << 1) | (this.solid(g, x, y - 1) << 2) | (this.solid(g, x, y + 1) << 3);
+    }
+    this._aoMap = g.map; this._ao = a;
+    return a;
+  }
+
   // En yakın birkaç ışık kaynağı (jack-o'-lantern, mum, lamba)
   nearLights(g, cam) {
     const arr = [];
@@ -285,6 +478,7 @@ export class Renderer {
     const noiseOff = (this.frameNo * 977) & 4095;
     this.dbuf.fill(Infinity);
     const lights = noEnv ? [] : this.nearLights(g, cam);
+    const ao = noEnv ? null : this.aoMask(g);
     const NL = lights.length;
     this.lightsNow = lights;
 
@@ -312,14 +506,28 @@ export class Renderer {
         const sx = (rowDist * 2 * plX) / RW, sy = (rowDist * 2 * plY) / RW;
         const base = y * RW;
         for (let x = 0; x < RW; x++) {
-          const tx = ((fx2 - Math.floor(fx2)) * TS) | 0, ty = ((fy2 - Math.floor(fy2)) * TS) | 0;
-          const ti = (ty * TS + tx) * 3;
+          const hx2 = fx2 * 0.5, hy2 = fy2 * 0.5;
+          const tx = ((hx2 - Math.floor(hx2)) * FS) | 0, ty = ((hy2 - Math.floor(hy2)) * FS) | 0;
+          const ti = (ty * FS + tx) * 3;
           let lr = sh * TINT[0], lg = sh * TINT[1], lb = sh * TINT[2];
           for (let k = 0; k < NL; k++) {
             const L = lights[k], ddx = fx2 - L.x, ddy = fy2 - L.y, d2 = ddx * ddx + ddy * ddy, q = 1 - d2 / (L.r * L.r);
             if (q > 0) { let a = q * q * L.k * this.flick; if (L.cone) a *= coneF(L, ddx, ddy, d2); lr += a * L.c[0]; lg += a * L.c[1]; lb += a * L.c[2]; }
           }
-          const m = mul * vig[base + x] * (0.92 + noise[(base + x + noiseOff) & 4095] * 0.16);
+          let m = mul * vig[base + x] * (0.92 + noise[(base + x + noiseOff) & 4095] * 0.16);
+          const cxi = fx2 | 0, cyi = fy2 | 0;                      // duvar dibi gölgesi (temas karartısı)
+          if (fx2 >= 0 && fy2 >= 0 && cxi < S && cyi < S) {
+            const am = ao[cyi * S + cxi];
+            if (am) {
+              const ax = fx2 - cxi, ay = fy2 - cyi;
+              let dn = 1;
+              if (am & 1 && ax < dn) dn = ax;
+              if (am & 2 && 1 - ax < dn) dn = 1 - ax;
+              if (am & 4 && ay < dn) dn = ay;
+              if (am & 8 && 1 - ay < dn) dn = 1 - ay;
+              if (dn < 0.26) { const q = 1 - dn / 0.26; m *= 1 - 0.6 * q * q; }
+            }
+          }
           buf32[base + x] = px32(tex[ti] * lr * m, tex[ti + 1] * lg * m, tex[ti + 2] * lb * m);
           fx2 += sx; fy2 += sy;
         }
@@ -350,7 +558,14 @@ export class Renderer {
         const hTop = 1 + V.wallFade;                               // duvar yukarı doğru uzar ve karanlığa karışır (tavan yok)
         const topF = horizon - (hTop - cam.eye) * lineH;
         const y0 = Math.max(0, topF | 0), y1 = Math.min(RH - 1, (horizon + cam.eye * lineH) | 0);
-        const sh = this.light(perp) * (side ? 0.78 : 1);
+        let sh = this.light(perp) * (side ? 0.78 : 1);
+        {                                                          // iç köşe gölgesi: bitişik duvarla birleşen kenar kararır
+          const ox = side === 0 ? mx - stepX : mx, oy = side === 0 ? my : my - stepY;
+          const w0 = side === 0 ? this.solid(g, ox, oy - 1) : this.solid(g, ox - 1, oy), w1 = side === 0 ? this.solid(g, ox, oy + 1) : this.solid(g, ox + 1, oy);
+          if (w0 && wallX < 0.22) { const q = 1 - wallX / 0.22; sh *= 1 - 0.5 * q * q; }
+          if (w1 && wallX > 0.78) { const q = (wallX - 0.78) / 0.22; sh *= 1 - 0.5 * q * q; }
+        }
+        const WT = WALLS[wallPick(mx, my, side)], texLow = WT[0], texUp = WT[1];
         let lr = sh * TINT[0], lg = sh * TINT[1], lb = sh * TINT[2];
         if (NL) {
           const hx = cam.x + perp * rdx, hy = cam.y + perp * rdy;
@@ -363,7 +578,8 @@ export class Renderer {
         let tyF = (1 - (cam.eye + (horizon - y0) / lineH)) * TS + TS * 64;  // doku satırı (negatif olmasın diye kaydırılmış)
         const inv = 1 / (lineH * V.wallFade);
         for (let y = y0; y <= y1; y++) {
-          const ti = (((tyF | 0) & (TS - 1)) * TS + texX) * 3;
+          const row = tyF | 0, TEX_WALL = (row >> TSH) === 64 ? texLow : texUp;   // yerden 1 birim: temel sıralı alt doku, üstü: üst doku
+          const ti = ((row & (TS - 1)) * TS + texX) * 3;
           tyF += stepT;
           const idx = y * RW + x;
           let m = vig[idx] * (0.92 + noise[(idx + noiseOff) & 4095] * 0.16);
