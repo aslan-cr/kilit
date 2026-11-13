@@ -28,6 +28,7 @@ export async function loadModels(base = "models/") {
       p.hat = /Hat/i.test(p.name);
       p.UV = p.uv ? Float32Array.from(p.uv) : null;       // dokulu karakter (Hazmat)
       p.side = /L$/.test(p.name) ? 1 : -1;
+      p.C = p.col ? Uint8Array.from(p.col) : null;         // üçgen başına düz renk (dokusu renge pişirilmiş model)
       if (m.skin && p.j) { p.B = p.P; p.P = Float32Array.from(p.pos); p.J = Uint8Array.from(p.j); p.Wt = Float32Array.from(p.w); }
     }
     if (m.skin) { m.skin.F = m.skin.frames.map((f) => Float32Array.from(f)); m.skin.M = new Float32Array(m.skin.nj * 12); m.skin.at = -1; }
@@ -582,6 +583,13 @@ export class Renderer {
           const r = lit * TINT[0] + objL[0], gg = lit * TINT[1] + objL[1], b = lit * TINT[2] + objL[2];
           return tintRed ? [r * (1 - tintRed) + tintRed * 1.2, gg * (1 - tintRed), b * (1 - tintRed)] : [r, gg, b];
         }, cam, { tex: model.texData, uv: p.UV });
+      } else if (p.C) {
+        const amb = this.amb, C = p.C, tr = tintRed || 0;
+        this.drawWorldMesh(p._W, p.I, (ti, d, facing) => {
+          const lit = (this.light(d) - amb) * (0.3 + 0.7 * facing) + amb, o = ti * 3;
+          const r = C[o] * (lit * TINT[0] + objL[0]), gg = C[o + 1] * (lit * TINT[1] + objL[1]), b = C[o + 2] * (lit * TINT[2] + objL[2]);
+          return tr ? [r * (1 - tr) + 255 * tr, gg * (1 - tr), b * (1 - tr)] : [r, gg, b];
+        }, cam);
       } else this.drawWorldMesh(p._W, p.I, colorOf(p.mat), cam);
     }
   }
@@ -696,6 +704,12 @@ export class Renderer {
       // gözler karanlıkta parlar: oyuncuya doğru bakan iki sarı nokta
       const ex = -ry / (d || 1), ey = rx / (d || 1);
       const a = Math.max(0.15, Math.min(1, 1.5 - d / 10)) * (e.stun > 0 ? 0.5 : 1);
+      const em = this.M.chars[e.type];
+      if (em && em.eyes) {      // gözleri modelde belli olan düşman: parıltı gerçek göz yerinde, yalnızca yüzü bize dönükken
+        const cy = Math.cos(e.yaw), sy = Math.sin(e.yaw), sc = g.rules.enemies.types[e.type].scale;
+        if (-(rx * cy + ry * sy) / (d || 1) > 0.15) for (const q of em.eyes) this.glow(e.x + (q[2] * cy - q[0] * sy) * sc, e.y + (q[2] * sy + q[0] * cy) * sc, q[1] * sc, 0.075, [255, 70, 20], a);
+        continue;
+      }
       this.glow(e.x - rx / (d || 1) * 0.1 + ex * 0.045, e.y - ry / (d || 1) * 0.1 + ey * 0.045, 0.40, 0.045, [255, 240, 80], a);
       this.glow(e.x - rx / (d || 1) * 0.1 - ex * 0.045, e.y - ry / (d || 1) * 0.1 - ey * 0.045, 0.40, 0.045, [255, 240, 80], a);
     }

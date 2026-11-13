@@ -118,7 +118,7 @@ otomatik bağlanır. Eşleşme mesajları ntfy.sh üzerinden, oyun verisi cihazl
 
 ## Karanlık Bataklık (gozkirpma, v4.1)
 Eski "Göz Kırpma Kurbağası" birinci şahıs korku oyununa çevrildi. Kurbağanın gözünden karanlık, mezarlık dekorlu bir bataklık labirentinde ilerlersin.
-Kural: gözlerin AÇIKKEN gölgeler (Sıska Canavar, en hızlısı Koşucu Canavar) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
+Kural: gözlerin AÇIKKEN gölgeler (Sıska Canavar, İblis, en hızlısı Koşucu Canavar) donar; gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
 6 ışık böceğini topla, yakalanma. Ayrıntılı tasarım: `gozkirpma/DESIGN.md`.
 - **Silahlar (PSX Shotgun Pack):** Pompalı tüfekle başlarsın; kırmızı mermi kutuları mermi verir. Labirentte artık silah yok: yerine dönen **altın paralar** var, her biri 15 para verir; bekledikçe rastgele ulaşılabilir yerlerde yenisi çıkar (`rules.coins`). Vurulan gölge birkaç saniye kıpırdayamaz, ölen gölge uzakta yeniden doğar.
 - **Dekor (KayKit Spooktober, CC0):** mezar taşı, ölü ağaç, kabak, mum, fener direği, tabut, kazan, mihrap. Mum, kabak fener ve lamba etraflarına ışık verir.

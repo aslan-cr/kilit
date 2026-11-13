@@ -576,6 +576,7 @@ function galleryGame(page) {
   if (page === 2) { for (const k of Object.keys(R.enemies.types)) items.push(["enemy", k]); items.push(["box"]); items.push(["fly"]); }
   if (page === 3) for (const k of Object.keys(R.weapons).filter((k) => R.weapons[k].model)) items.push(["gun", k]);
   if (page === 4) { items.push(["enemy", "monster"]); items.push(["player", "Hazmat"]); items.push(["enemy", "runner"]); }
+  if (page === 5) { items.push(["enemy", "demon"]); items.push(["enemy", "demon"]); items.push(["enemy", "demon"]); }
   const n = items.length;
   items.forEach((it, i) => {
     const a = (n === 1 ? 0 : (i / (n - 1) - 0.5)) * 1.0, d = 2.6;
