@@ -707,7 +707,7 @@ export class Renderer {
       const em = this.M.chars[e.type];
       if (em && em.eyes) {      // gözleri modelde belli olan düşman: parıltı gerçek göz yerinde, yalnızca yüzü bize dönükken
         const cy = Math.cos(e.yaw), sy = Math.sin(e.yaw), sc = g.rules.enemies.types[e.type].scale;
-        if (-(rx * cy + ry * sy) / (d || 1) > 0.15) for (const q of em.eyes) this.glow(e.x + (q[2] * cy - q[0] * sy) * sc, e.y + (q[2] * sy + q[0] * cy) * sc, q[1] * sc, 0.075, [255, 70, 20], a);
+        if (-(rx * cy + ry * sy) / (d || 1) > 0.15) for (const q of em.eyes) this.glow(e.x + (q[2] * cy - q[0] * sy) * sc, e.y + (q[2] * sy + q[0] * cy) * sc, q[1] * sc, em.eyeS || 0.075, em.eyeC || [255, 70, 20], a);
         continue;
       }
       this.glow(e.x - rx / (d || 1) * 0.1 + ex * 0.045, e.y - ry / (d || 1) * 0.1 + ey * 0.045, 0.40, 0.045, [255, 240, 80], a);
