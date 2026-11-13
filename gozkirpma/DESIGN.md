@@ -4,7 +4,7 @@
 
 ## Çekirdek döngü
 1. Labirentte yürü, 6 ışık böceği topla (hepsi toplanınca kazanırsın).
-2. Gözlerin AÇIKKEN gölgeler (cadı, kabak kafa) donar. Gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
+2. Gözlerin AÇIKKEN gölgeler (Sıska Canavar, Koşucu Canavar — en hızlısı) donar. Gözünü kapattığın an yalnızca onlar hareket eder ve sana gelir.
 3. Göz kuruluğu: 6.5 sn açık kalırsan göz zorla kapanır. Yani hiç kırpmadan oynayamazsın, ama kırpmak risktir.
 4. Pompalıyla gölgeyi vurup birkaç saniye dondurabilir ya da dağıtabilirsin (12 sn sonra uzakta geri döner). Mermi azdır.
 5. Her böcek gölgeleri hızlandırır. Yakalanırsan korku sahnesi, oyun biter.

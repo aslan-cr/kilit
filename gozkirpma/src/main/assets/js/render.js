@@ -28,7 +28,9 @@ export async function loadModels(base = "models/") {
       p.hat = /Hat/i.test(p.name);
       p.UV = p.uv ? Float32Array.from(p.uv) : null;       // dokulu karakter (Hazmat)
       p.side = /L$/.test(p.name) ? 1 : -1;
+      if (m.skin && p.j) { p.B = p.P; p.P = Float32Array.from(p.pos); p.J = Uint8Array.from(p.j); p.Wt = Float32Array.from(p.w); }
     }
+    if (m.skin) { m.skin.F = m.skin.frames.map((f) => Float32Array.from(f)); m.skin.M = new Float32Array(m.skin.nj * 12); m.skin.at = -1; }
     return m;
   };
   const M = { props: {}, chars: {}, guns: {}, flash: {} };
@@ -74,6 +76,32 @@ function loadTex(url) {
     im.onerror = () => res({ w: 1, h: 1, d: new Uint8ClampedArray([120, 90, 70, 255]) });
     im.src = url;
   });
+}
+
+// İskeletli model: animasyonun ph (0..1, döngü) anındaki pozunu parçaların P dizisine yazar (iki kare arasında doğrusal karışım)
+export function skinPose(model, ph) {
+  const S = model.skin, F = S.F, n = F.length;
+  ph = ((ph % 1) + 1) % 1;
+  if (Math.abs(ph - S.at) < 1e-4) return;
+  S.at = ph;
+  const f = ph * n, i0 = Math.floor(f) % n, i1 = (i0 + 1) % n, a = f - Math.floor(f), A = F[i0], B = F[i1], M = S.M;
+  for (let k = 0; k < M.length; k++) M[k] = A[k] + (B[k] - A[k]) * a;
+  for (const p of model.parts) {
+    if (!p.B) continue;
+    const Bp = p.B, P = p.P, J = p.J, W = p.Wt;
+    for (let v = 0, q = 0; q < Bp.length; v += 4, q += 3) {
+      const x = Bp[q], y = Bp[q + 1], z = Bp[q + 2];
+      let ox = 0, oy = 0, oz = 0;
+      for (let c = 0; c < 4; c++) {
+        const w = W[v + c]; if (!w) continue;
+        const m = J[v + c] * 12;
+        ox += w * (M[m] * x + M[m + 1] * y + M[m + 2] * z + M[m + 3]);
+        oy += w * (M[m + 4] * x + M[m + 5] * y + M[m + 6] * z + M[m + 7]);
+        oz += w * (M[m + 8] * x + M[m + 9] * y + M[m + 10] * z + M[m + 11]);
+      }
+      P[q] = ox; P[q + 1] = oy; P[q + 2] = oz;
+    }
+  }
 }
 
 // Işık yayan malzemeler: 0..1 (1 = tam parlak)
@@ -551,7 +579,8 @@ export class Renderer {
         const amb = this.amb, k = this.flick;
         this.drawWorldMesh(p._W, p.I, (ti, d, facing) => {
           const lit = (this.light(d) - amb) * (0.35 + 0.65 * facing) + amb;
-          return [lit * TINT[0] + objL[0], lit * TINT[1] + objL[1], lit * TINT[2] + objL[2]];
+          const r = lit * TINT[0] + objL[0], gg = lit * TINT[1] + objL[1], b = lit * TINT[2] + objL[2];
+          return tintRed ? [r * (1 - tintRed) + tintRed * 1.2, gg * (1 - tintRed), b * (1 - tintRed)] : [r, gg, b];
         }, cam, { tex: model.texData, uv: p.UV });
       } else this.drawWorldMesh(p._W, p.I, colorOf(p.mat), cam);
     }
@@ -615,6 +644,11 @@ export class Renderer {
       if (!model) continue;
       const d = Math.hypot(e.x - g.px, e.y - g.py);
       const reach = 1.15 + 0.35 * Math.max(0, 1 - d / 3);
+      if (model.skin) {      // iskeletli koşu animasyonu: adım uzunluğu kadar yürüyünce bir döngü
+        skinPose(model, e.walk / (5 * (types[e.type].stride || 1.4)));
+        this.drawModel(model, types[e.type].scale, e.yaw, e.x, e.y, 0, g, null, e.hit * 0.6);
+        continue;
+      }
       const sway = Math.sin(e.walk * 1.4) * 0.5;
       const bob = Math.abs(Math.sin(e.walk * 1.4)) * 0.025;
       this.drawModel(model, types[e.type].scale, e.yaw, e.x, e.y, bob, g,
