@@ -33,8 +33,9 @@ export const RULES = {
     respawnMinDist: 12,                      // yeniden doğarken oyuncuya en az bu kadar adım uzakta
     startMinDist: 10,                        // başlangıçta oyuncuya en az bu kadar adım uzakta
     types: {
-      jack:  { name: "Kabak Kafa", speed: 1.0,  hp: 2, radius: 0.30, scale: 0.46 },
-      witch: { name: "Cadı",       speed: 0.85, hp: 3, radius: 0.30, scale: 0.42 },
+      runner: { name: "Koşucu Canavar", speed: 1.3, hp: 2, radius: 0.30, scale: 0.58, stride: 1.4 },   // en hızlısı; iskeletli koşu animasyonu (model boyu 1 birim x 0.58)
+      monster: { name: "Sıska Canavar", speed: 0.85, hp: 3, radius: 0.30, scale: 0.42 },   // eski cadıyla aynı boy (model 2.177 birim x 0.42)
+      demon: { name: "İblis", speed: 1.05, hp: 3, radius: 0.30, scale: 0.95, stride: 1.1 },   // kodla kurulmuş iskelet + yürüme döngüsü, parlayan kor gözler (model boyu 1 birim x 0.95)
     },
   },
   ammo: {

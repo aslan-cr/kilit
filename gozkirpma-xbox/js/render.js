@@ -27,7 +27,10 @@ export async function loadModels(base = "models/") {
       p.hat = /Hat/i.test(p.name);
       p.UV = p.uv ? Float32Array.from(p.uv) : null;       // dokulu karakter (Hazmat)
       p.side = /L$/.test(p.name) ? 1 : -1;
+      p.C = p.col ? Uint8Array.from(p.col) : null;         // üçgen başına düz renk (dokusu renge pişirilmiş model)
+      if (m.skin && p.j) { p.B = p.P; p.P = Float32Array.from(p.pos); p.J = Uint8Array.from(p.j); p.Wt = Float32Array.from(p.w); }
     }
+    if (m.skin) { m.skin.F = m.skin.frames.map((f) => Float32Array.from(f)); m.skin.M = new Float32Array(m.skin.nj * 12); m.skin.at = -1; }
     return m;
   };
   const M = { props: {}, chars: {}, guns: {}, flash: {} };
@@ -73,6 +76,32 @@ function loadTex(url) {
     im.onerror = () => res({ w: 1, h: 1, d: new Uint8ClampedArray([120, 90, 70, 255]) });
     im.src = url;
   });
+}
+
+// İskeletli model: animasyonun ph (0..1, döngü) anındaki pozunu parçaların P dizisine yazar (iki kare arasında doğrusal karışım)
+export function skinPose(model, ph) {
+  const S = model.skin, F = S.F, n = F.length;
+  ph = ((ph % 1) + 1) % 1;
+  if (Math.abs(ph - S.at) < 1e-4) return;
+  S.at = ph;
+  const f = ph * n, i0 = Math.floor(f) % n, i1 = (i0 + 1) % n, a = f - Math.floor(f), A = F[i0], B = F[i1], M = S.M;
+  for (let k = 0; k < M.length; k++) M[k] = A[k] + (B[k] - A[k]) * a;
+  for (const p of model.parts) {
+    if (!p.B) continue;
+    const Bp = p.B, P = p.P, J = p.J, W = p.Wt;
+    for (let v = 0, q = 0; q < Bp.length; v += 4, q += 3) {
+      const x = Bp[q], y = Bp[q + 1], z = Bp[q + 2];
+      let ox = 0, oy = 0, oz = 0;
+      for (let c = 0; c < 4; c++) {
+        const w = W[v + c]; if (!w) continue;
+        const m = J[v + c] * 12;
+        ox += w * (M[m] * x + M[m + 1] * y + M[m + 2] * z + M[m + 3]);
+        oy += w * (M[m + 4] * x + M[m + 5] * y + M[m + 6] * z + M[m + 7]);
+        oz += w * (M[m + 8] * x + M[m + 9] * y + M[m + 10] * z + M[m + 11]);
+      }
+      P[q] = ox; P[q + 1] = oy; P[q + 2] = oz;
+    }
+  }
 }
 
 // Işık yayan malzemeler: 0..1 (1 = tam parlak)
@@ -539,8 +568,16 @@ export class Renderer {
         const amb = this.amb, k = this.flick;
         this.drawWorldMesh(p._W, p.I, (ti, d, facing) => {
           const lit = (this.light(d) - amb) * (0.35 + 0.65 * facing) + amb;
-          return [lit * TINT[0] + objL[0], lit * TINT[1] + objL[1], lit * TINT[2] + objL[2]];
+          const r = lit * TINT[0] + objL[0], gg = lit * TINT[1] + objL[1], b = lit * TINT[2] + objL[2];
+          return tintRed ? [r * (1 - tintRed) + tintRed * 1.2, gg * (1 - tintRed), b * (1 - tintRed)] : [r, gg, b];
         }, cam, { tex: model.texData, uv: p.UV });
+      } else if (p.C) {
+        const amb = this.amb, C = p.C, tr = tintRed || 0;
+        this.drawWorldMesh(p._W, p.I, (ti, d, facing) => {
+          const lit = (this.light(d) - amb) * (0.3 + 0.7 * facing) + amb, o = ti * 3;
+          const r = C[o] * (lit * TINT[0] + objL[0]), gg = C[o + 1] * (lit * TINT[1] + objL[1]), b = C[o + 2] * (lit * TINT[2] + objL[2]);
+          return tr ? [r * (1 - tr) + 255 * tr, gg * (1 - tr), b * (1 - tr)] : [r, gg, b];
+        }, cam);
       } else this.drawWorldMesh(p._W, p.I, colorOf(p.mat), cam);
     }
   }
@@ -603,6 +640,11 @@ export class Renderer {
       if (!model) continue;
       const d = Math.hypot(e.x - g.px, e.y - g.py);
       const reach = 1.15 + 0.35 * Math.max(0, 1 - d / 3);
+      if (model.skin) {      // iskeletli koşu animasyonu: adım uzunluğu kadar yürüyünce bir döngü
+        skinPose(model, e.walk / (5 * (types[e.type].stride || 1.4)));
+        this.drawModel(model, types[e.type].scale, e.yaw, e.x, e.y, 0, g, null, e.hit * 0.6);
+        continue;
+      }
       const sway = Math.sin(e.walk * 1.4) * 0.5;
       const bob = Math.abs(Math.sin(e.walk * 1.4)) * 0.025;
       this.drawModel(model, types[e.type].scale, e.yaw, e.x, e.y, bob, g,
@@ -650,6 +692,12 @@ export class Renderer {
       // gözler karanlıkta parlar: oyuncuya doğru bakan iki sarı nokta
       const ex = -ry / (d || 1), ey = rx / (d || 1);
       const a = Math.max(0.15, Math.min(1, 1.5 - d / 10)) * (e.stun > 0 ? 0.5 : 1);
+      const em = this.M.chars[e.type];
+      if (em && em.eyes) {      // gözleri modelde belli olan düşman: parıltı gerçek göz yerinde, yalnızca yüzü bize dönükken
+        const cy = Math.cos(e.yaw), sy = Math.sin(e.yaw), sc = g.rules.enemies.types[e.type].scale;
+        if (-(rx * cy + ry * sy) / (d || 1) > 0.15) for (const q of em.eyes) this.glow(e.x + (q[2] * cy - q[0] * sy) * sc, e.y + (q[2] * sy + q[0] * cy) * sc, q[1] * sc, em.eyeS || 0.075, em.eyeC || [255, 70, 20], a);
+        continue;
+      }
       this.glow(e.x - rx / (d || 1) * 0.1 + ex * 0.045, e.y - ry / (d || 1) * 0.1 + ey * 0.045, 0.40, 0.045, [255, 240, 80], a);
       this.glow(e.x - rx / (d || 1) * 0.1 - ex * 0.045, e.y - ry / (d || 1) * 0.1 - ey * 0.045, 0.40, 0.045, [255, 240, 80], a);
     }
