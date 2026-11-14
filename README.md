@@ -178,6 +178,10 @@ Anahtar varsa tanınmayan cümleleri Gemini cevaplar; kota bitince, internet yok
 Vikipedi (v1.9): `wiki ay`, `türkiye nedir`, `atatürk kimdir`, `güneş sistemi hakkında bilgi ver` gibi sorular Vikipedi'den cevaplanır. İnternet varsa madde canlı okunur (tr.wikipedia.org); yoksa uygulamaya gömülü çevrimdışı bilgi tabanına bakılır.
 Çevrimdışı bilgi tabanı: Türkçe Vikipedi'nin 689 bin maddesinin giriş bölümü (`hackeryardimcisi/src/main/assets/kb/`, 256 gzip parça, 74 MB; CC BY-SA 4.0, ayrıntı `kb/KAYNAK.txt`). Arama `WikiKb.java` içinde: Türkçe ekleri soyar (türkiyenin → Türkiye, köpeğin → Köpek), yönlendirmeleri izler (atatürk → Mustafa Kemal Atatürk).
 Gemini anahtarı varsa bulunan Vikipedi bilgisi yapay zekaya kaynak olarak verilir. Bilgi tabanını yenilemek için: `hackeryardimcisi/tools/build-kb.py` (kullanımı dosyanın başında).
+Tam metin Vikipedi (v2.0): `vikipedi indir` Türkçe Vikipedi'nin tüm maddelerini tam metniyle (~0,55 GB), `vikipedi ingilizce indir` İngilizce Vikipedi'nin tüm maddelerini (~13 GB), `vikipedi hepsini indir` ikisini birden telefona indirir.
+İndirmeyi Android'in indirme yöneticisi yapar: yalnızca Wi-Fi'da, uygulama kapansa da sürer, bildirimde görünür. `vikipedi durum` ilerlemeyi, `vikipedi sil` paketleri siler, `vikipedi iptal` indirmeyi durdurur.
+Paket varken Şikru maddenin içinden soruya uyan cümleyi seçer ("türkiyenin başkenti neresi" → Ankara cümlesi, "güneşin sıcaklığı kaç derece" → sayılı cümle); `devamı` maddeyi parça parça okur. Sıra: internet → Türkçe paket → İngilizce paket → gömülü taban.
+Paketleri `.github/workflows/vikipedi.yml` üretir (ayda bir ve elle): Wikimedia dökümünü indirir, `build-kb.py pack` ile `.skb` paketlerine çevirir, `vikipedi` adlı ön sürüme (prerelease, Güncelleyici'ye karışmaz) `paket.json` ile birlikte yükler.
 
 ### v4.3: Kabartmalı taş duvarlar
 Duvarlar artık düz boyalı tuğla değil: doku bir yükseklik haritasından üretilir (düzensiz kesme taşlar, yuvarlak kenarlar, çatlaklar) ve ışıkla gölgelenir. Beş çeşit duvar yüzü var (düz, yoğun yosun + sarmaşık, çatlak + düşmüş taş, kemerli demir parmaklıklı niş); yerden 1 birim yukarısı kalın temel sıralı ayrı dokudur. Zemin çamura gömülü kaldırım taşı ve su birikintisi oldu. Duvar dibi ve iç köşeler gölgelenir (`aoMask`, `solid`). Doku 128→256 piksel. Aynı duvarlar `gozkirpma-xbox` sürümüne de taşındı.
@@ -188,6 +192,7 @@ Uygulamaların eski görünen yerleri türüne göre yenilendi; oyun kuralları 
 - **Dancing Cockroaches 1.1:** disko sahnesi: dönen ayna top, spot ışıkları, ekolayzır duvarı, perspektifli parlayan zemin; böceklerde gölge, renk geçişi ve parlaklık; hap şeklinde skor göstergeleri.
 - **Güneş Sistemi 1.1:** gezegenler düz nokta yerine dokulu küre (Dünya'da kıta ve bulut, Jüpiter'de kuşaklar ve Büyük Kırmızı Leke), Güneş'e göre gece/gündüz tarafı, Satürn halkaları, Halley'in kuyruğu, parlayan Güneş, bulutsulu yıldız arka planı, yörünge izleri. Dokular açılışta üretilir, dosya gerekmez.
 - **Yıkım Ustası 1.2:** bulutlu gökyüzü kubbesi, dokulu çim/toprak/beton zemin, şantiye bandı ve ağaçlar, pencereli şehir binaları, bina ve enkazda tuğla sırası ayrıntısı (gölgelendiriciyle, doku dosyası yok), yeni menü ve göstergeler.
+- **Hacker Yardımcısı 2.0:** Vikipedi: gömülü 689 bin maddelik Türkçe taban, indirilebilir tam metin Türkçe + İngilizce paketler, maddeden cevap cümlesi seçme, internet varsa canlı okuma.
 - **Hacker Yardımcısı 1.8:** CRT ekran görünümü, köşe braketleri, arkada soluk kod yağmuru, dokunmalık hızlı komut düğmeleri.
 - **Deneme Atölyesi 1.1:** başlık bandı, derse göre renkli ve simgeli kartlar, harf rozetli şıklar.
 - **Kullanım Kaydı 1.1 / Kullanım İzle 2.2:** kartlı tasarım, yuvarlak düğmeler, renkli durum noktaları, cihaz rozetleri, yuvarlak süre çubukları.

@@ -2,6 +2,9 @@ package com.beranmeva.hackeryardimcisi
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.DownloadManager
+import android.net.Uri
+import java.io.File
 import android.graphics.Color
 import android.os.Build
 import android.Manifest
@@ -158,25 +161,32 @@ class MainActivity : Activity() {
                 }.start()
             }
 
-            // Vikipedi'den bilgi getirir: internet varsa canlı (tr.wikipedia.org), yoksa uygulamaya gömülü
-            // çevrimdışı bilgi tabanından (assets/kb). Sonuç: __wikiDone(id, "on"|"off"|"", başlık, metin)
+            // Vikipedi'den bilgi getirir: internet varsa canlı (tr.wikipedia.org), yoksa indirilen tam metin
+            // paketlerinden, o da yoksa uygulamaya gömülü küçük tabandan (assets/kb).
+            // Sonuç: __wikiDone(id, kaynak, başlık, kısa cevap, tam metin); kaynak "" ise bulunamadı.
             @JavascriptInterface
             fun wiki(id: Int, query: String) {
                 Thread {
-                    var src = ""
-                    var title = ""
-                    var text = ""
-                    val topic = WikiKb.topicWords(query).joinToString(" ")
-                    if (topic.isNotEmpty()) {
-                        val on = try { wikiOnline(topic) } catch (_: Exception) { null }
-                        if (on != null) { src = "on"; title = on.first; text = on.second }
-                        else {
-                            val hit = try { kb.search(query) } catch (_: Exception) { null }
-                            if (hit != null) { src = "off"; title = hit.title; text = hit.text }
-                        }
+                    var hit: WikiKb.Hit? = null
+                    if (WikiKb.topicWords(query).isNotEmpty()) {
+                        hit = try { wikiOnline(query) } catch (_: Exception) { null }
+                        if (hit == null) hit = try { kb().search(query) } catch (_: Exception) { null }
                     }
-                    val code = "window.__wikiDone(" + id + "," + JSONObject.quote(src) + "," + JSONObject.quote(title) + "," + JSONObject.quote(text) + ")"
+                    val h = hit
+                    val full = h?.full?.let { if (it.length > 200000) it.substring(0, 200000) else it } ?: ""
+                    val code = "window.__wikiDone(" + id + "," + JSONObject.quote(h?.source ?: "") + "," +
+                        JSONObject.quote(h?.title ?: "") + "," + JSONObject.quote(h?.text() ?: "") + "," + JSONObject.quote(full) + ")"
                     runOnUiThread { js(code) }
+                }.start()
+            }
+
+            // Tam metin Vikipedi paketleri: "indir:tr", "indir:en", "indir:hepsi", "durum", "iptal", "sil".
+            // Sonuç metni __wikiPack(metin) ile döner.
+            @JavascriptInterface
+            fun wikiPack(cmd: String) {
+                Thread {
+                    val msg = try { packCommand(cmd) } catch (e: Exception) { "Hata: " + (e.message ?: e.javaClass.simpleName) }
+                    runOnUiThread { js("window.__wikiPack(" + JSONObject.quote(msg) + ")") }
                 }.start()
             }
 
@@ -194,30 +204,171 @@ class MainActivity : Activity() {
         else web.loadUrl("file:///android_asset/index.html")
     }
 
-    private val kb by lazy { WikiKb { name -> assets.open(name) } }
+    // ---------------------------------------------------------------- Vikipedi
+    private val packDir: File by lazy { (getExternalFilesDir("vikipedi") ?: File(filesDir, "vikipedi")).also { it.mkdirs() } }
+    private var kbObj: WikiKb? = null
+    private var kbSig = ""
 
-    /** Canlı Vikipedi: konuyu arar, en iyi maddenin giriş bölümünü döndürür. İnternet yoksa hata fırlatır. */
-    private fun wikiOnline(topic: String): Pair<String, String>? {
+    /** Yerel paket listesi (paket.json kopyası): ad -> (dil, boyut). */
+    private fun localManifest(): List<Triple<String, String, Long>> {
+        val f = File(packDir, "paket.json")
+        if (!f.exists()) return emptyList()
+        return try {
+            val arr = JSONObject(f.readText()).getJSONArray("files")
+            (0 until arr.length()).map { val o = arr.getJSONObject(it); Triple(o.getString("name"), o.getString("lang"), o.getLong("size")) }
+        } catch (_: Exception) { emptyList() }
+    }
+
+    /** İnmesi bitmiş paketler (boyutu paket.json ile tutan), önce Türkçe. */
+    private fun readyPacks(): List<Pair<File, String>> =
+        localManifest().sortedBy { if (it.second == "tr") 0 else 1 }
+            .map { Pair(File(packDir, it.first), it) }
+            .filter { it.first.exists() && it.first.length() == it.second.third }
+            .map { Pair(it.first, it.second.second) }
+
+    /** Bilgi tabanı; yeni paket inince kendini yeniler. */
+    @Synchronized
+    private fun kb(): WikiKb {
+        val packs = readyPacks()
+        val sig = packs.joinToString("|") { it.first.name }
+        val cur = kbObj
+        if (cur != null && sig == kbSig) return cur
+        cur?.close()
+        val src = ArrayList<WikiKb.Source>()
+        for ((f, lang) in packs) try { src.add(WikiKb.PackSource(f, lang)) } catch (_: Exception) { }
+        src.add(WikiKb.AssetSource { name -> assets.open(name) })
+        val k = WikiKb(src)
+        kbObj = k
+        kbSig = sig
+        return k
+    }
+
+    private fun mb(b: Long) = if (b >= 1L shl 30) String.format("%.1f GB", b / 1073741824.0) else String.format("%d MB", b / 1048576)
+
+    private fun langName(l: String) = if (l == "tr") "Türkçe" else if (l == "en") "İngilizce" else l
+
+    private fun packCommand(cmd: String): String {
+        val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+        val prefs = getSharedPreferences("vikipedi", MODE_PRIVATE)
+        val ids = prefs.getStringSet("ids", emptySet())!!.mapNotNull { it.toLongOrNull() }
+        when {
+            cmd.startsWith("indir:") -> {
+                val want = cmd.removePrefix("indir:")
+                val c = URL(MANIFEST_URL).openConnection() as HttpURLConnection
+                c.connectTimeout = 10000
+                c.readTimeout = 20000
+                c.instanceFollowRedirects = true
+                if (c.responseCode !in 200..299) return "Paket listesi alınamadı (HTTP " + c.responseCode + "). Paketler henüz yayınlanmamış olabilir."
+                val txt = c.inputStream.bufferedReader().readText()
+                c.disconnect()
+                val arr = JSONObject(txt).getJSONArray("files")
+                File(packDir, "paket.json").writeText(txt)
+                val names = HashSet<String>()
+                val todo = ArrayList<Triple<String, String, Long>>()
+                for (i in 0 until arr.length()) {
+                    val o = arr.getJSONObject(i)
+                    val t = Triple(o.getString("name"), o.getString("lang"), o.getLong("size"))
+                    names.add(t.first)
+                    if (want != "hepsi" && t.second != want) continue
+                    val f = File(packDir, t.first)
+                    if (f.exists() && f.length() == t.third) continue
+                    todo.add(t)
+                }
+                // eski tarihli paketleri sil (yer açılsın)
+                packDir.listFiles()?.forEach { if (it.name.endsWith(".skb") && it.name !in names) it.delete() }
+                if (todo.isEmpty()) return "İstenen Vikipedi paketleri zaten telefonda. (vikipedi durum)"
+                val need = todo.sumOf { it.third }
+                val free = packDir.usableSpace
+                if (need > free) return "Yer yetmiyor: " + mb(need) + " gerekli, telefonda " + mb(free) + " boş."
+                // önceki yarım indirmeleri temizle
+                if (ids.isNotEmpty()) dm.remove(*ids.toLongArray())
+                val newIds = HashSet<String>()
+                for (t in todo) {
+                    File(packDir, t.first).delete()
+                    val r = DownloadManager.Request(Uri.parse(RELEASE_URL + t.first))
+                        .setTitle("Şikru Vikipedi (" + langName(t.second) + ")")
+                        .setDescription(t.first)
+                        .setDestinationInExternalFilesDir(this, "vikipedi", t.first)
+                        .setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI)
+                        .setAllowedOverMetered(false)
+                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+                    newIds.add(dm.enqueue(r).toString())
+                }
+                prefs.edit().putStringSet("ids", newIds).apply()
+                return "İndirme başladı: " + todo.size + " dosya, " + mb(need) + ". Yalnızca Wi-Fi'da iner, uygulama kapansa da sürer. " +
+                    "İlerleme için: vikipedi durum"
+            }
+            cmd == "iptal" -> {
+                if (ids.isNotEmpty()) dm.remove(*ids.toLongArray())
+                prefs.edit().remove("ids").apply()
+                return "Vikipedi indirmesi iptal edildi."
+            }
+            cmd == "sil" -> {
+                if (ids.isNotEmpty()) dm.remove(*ids.toLongArray())
+                prefs.edit().remove("ids").apply()
+                synchronized(this) { kbObj?.close(); kbObj = null; kbSig = "" }
+                var freed = 0L
+                packDir.listFiles()?.forEach { if (it.name.endsWith(".skb")) { freed += it.length(); it.delete() } }
+                return "Vikipedi paketleri silindi, " + mb(freed) + " yer açıldı. Gömülü küçük taban duruyor."
+            }
+            else -> {
+                val sb = StringBuilder()
+                val ready = readyPacks()
+                val byLang = ready.groupBy { it.second }
+                sb.append("📚 Gömülü taban: Türkçe madde girişleri (her zaman var).")
+                for ((l, fs) in byLang) sb.append("\n📦 ").append(langName(l)).append(" tam metin: ").append(fs.size).append(" dosya, ")
+                    .append(mb(fs.sumOf { it.first.length() }))
+                if (ids.isNotEmpty()) {
+                    var done = 0L
+                    var total = 0L
+                    var running = 0
+                    var waiting = 0
+                    var failed = 0
+                    dm.query(DownloadManager.Query().setFilterById(*ids.toLongArray()))?.use { cur ->
+                        while (cur.moveToNext()) {
+                            val st = cur.getInt(cur.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                            val so = cur.getLong(cur.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                            val tt = cur.getLong(cur.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                            done += so
+                            if (tt > 0) total += tt
+                            when (st) {
+                                DownloadManager.STATUS_RUNNING -> running++
+                                DownloadManager.STATUS_PENDING, DownloadManager.STATUS_PAUSED -> waiting++
+                                DownloadManager.STATUS_FAILED -> failed++
+                            }
+                        }
+                    }
+                    if (running + waiting + failed > 0) {
+                        sb.append("\n⬇ İndiriliyor: ").append(mb(done))
+                        if (total > 0) sb.append(" / ").append(mb(total)).append(" (%").append(done * 100 / total).append(")")
+                        if (waiting > 0) sb.append(" · ").append(waiting).append(" dosya sırada/Wi-Fi bekliyor")
+                        if (failed > 0) sb.append(" · ").append(failed).append(" dosya hata verdi (tekrar: vikipedi indir)")
+                    }
+                }
+                if (ready.isEmpty()) sb.append("\nTam metin için: vikipedi indir (Türkçe) · vikipedi ingilizce indir · vikipedi hepsini indir")
+                return sb.toString()
+            }
+        }
+    }
+
+    /** Canlı Vikipedi: konuyu arar, en iyi maddenin tam metninden soruya uyan cümleyi seçer. İnternet yoksa hata fırlatır. */
+    private fun wikiOnline(query: String): WikiKb.Hit? {
+        val topic = WikiKb.topicWords(query).joinToString(" ")
         val u = "https://tr.wikipedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=0&gsrlimit=1" +
-            "&prop=extracts&exintro=1&explaintext=1&redirects=1&gsrsearch=" + URLEncoder.encode(topic, "UTF-8")
+            "&prop=extracts&explaintext=1&exsectionformat=plain&redirects=1&gsrsearch=" + URLEncoder.encode(topic, "UTF-8")
         val c = URL(u).openConnection() as HttpURLConnection
         try {
             c.connectTimeout = 4000
-            c.readTimeout = 6000
-            c.setRequestProperty("User-Agent", "HackerYardimcisiSikru/1.9 (Android uygulamasi)")
+            c.readTimeout = 8000
+            c.setRequestProperty("User-Agent", "HackerYardimcisiSikru/2.0 (Android uygulamasi)")
             if (c.responseCode !in 200..299) return null
             val pages = JSONObject(c.inputStream.bufferedReader().readText()).optJSONObject("query")?.optJSONObject("pages") ?: return null
             val k = pages.keys()
             if (!k.hasNext()) return null
             val pg = pages.getJSONObject(k.next())
-            var t = pg.optString("extract").replace(Regex("\\s+"), " ").trim()
+            val t = pg.optString("extract").replace(Regex("\\s+"), " ").trim()
             if (t.length < 20) return null
-            if (t.length > 600) {
-                val cut = t.substring(0, 600)
-                val m = cut.lastIndexOf(". ")
-                t = if (m >= 160) cut.substring(0, m + 1) else cut.substring(0, cut.lastIndexOf(' ').coerceAtLeast(1)) + "…"
-            }
-            return Pair(pg.optString("title"), t)
+            return WikiKb.online(pg.optString("title"), t, query)
         } finally {
             c.disconnect()
         }
@@ -367,6 +518,8 @@ class MainActivity : Activity() {
     companion object {
         private const val IMMERSIVE = true
         private const val SILENCE_MS = 2000L
+        private const val RELEASE_URL = "https://github.com/aslan-cr/kilit/releases/download/vikipedi/"
+        private const val MANIFEST_URL = RELEASE_URL + "paket.json"
         private val MODELS = listOf("gemini-2.5-flash", "gemini-flash-latest")
         private const val SYSTEM = "Sen Hacker Yardımcısı Şikru adlı, esprili bir terminal asistanısın. " +
             "Türkçe konuş, en fazla 3 kısa cümleyle cevap ver, markdown ve yıldız kullanma."
