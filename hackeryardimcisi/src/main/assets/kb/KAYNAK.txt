@@ -1,0 +1,4 @@
+Bu klasördeki metinler Türkçe Vikipedi'den (tr.wikipedia.org) alınmıştır: 8 Kasım 2026 dökümü,
+689.198 maddenin giriş bölümü (kısaltılmış) ve 231.564 yönlendirme.
+Lisans: Creative Commons Atıf-AynıLisanslaPaylaş 4.0 (CC BY-SA 4.0), https://creativecommons.org/licenses/by-sa/4.0/deed.tr
+Yazarlar: Vikipedi katkıcıları. Dosyalar tools/build-kb.py ile üretilir.
