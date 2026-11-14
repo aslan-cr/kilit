@@ -17,13 +17,13 @@ BodyParts3D represents an adult male reference anatomy based on TARO MRI and ana
 
 ## Female reference anatomy (Erkek / Kadın geçişi)
 
-Kristen Browne and Heidi Schlehlein, Human Reference Atlas / HuBMAP, *3D Reference Organ Set for Female* v1.9 merged with v1.5. CC BY 4.0. Geometry adapted for this viewer.
+Kristen Browne and Heidi Schlehlein, Human Reference Atlas / HuBMAP, *3D Reference Organ Set for Female* v1.10 merged with v1.5. CC BY 4.0. Geometry adapted for this viewer.
 
-- Original GLBs: https://cdn.humanatlas.io/digital-objects/ref-organ/united-female/v1.9/assets/3d-vh-f-united.glb and .../v1.5/assets/3d-vh-f-united.glb
+- Original GLBs: https://cdn.humanatlas.io/digital-objects/ref-organ/united-female/v1.10/assets/3d-vh-f-united.glb and .../v1.5/assets/3d-vh-f-united.glb
 - Source DOI (v1.5): https://doi.org/10.48539/HBM352.BTSQ.586
 - License: https://creativecommons.org/licenses/by/4.0/
 
-Adaptations (see `organlar/tools/bake-female.mjs`): v1.9 is the base (880 meshes); 69 meshes that exist only in v1.5 (colon, small intestine, pancreas and bile ducts, liver surfaces) are added, since both versions share coordinates. Node transforms applied, model translated onto the stage, coincident vertices welded, geometry simplified with meshoptimizer (target 20% of triangles, 0.4% relative error bound), normals recomputed and quantized to signed 16-bit. Display systems and colors are curated for this interface. 949 meshes are shown.
+Adaptations (see `organlar/tools/bake-female.mjs`): v1.10 is the base (941 meshes); 10 meshes that exist only in v1.5 are added, since both versions share coordinates. Omentum and adipose layers are placed in the translucent body-surface layer so they do not hide the organs beneath. Node transforms applied, model translated onto the stage, coincident vertices welded, geometry simplified with meshoptimizer (target 20% of triangles, 0.4% relative error bound), normals recomputed and quantized to signed 16-bit. Display systems and colors are curated for this interface. 951 meshes are shown.
 
 Not included: placenta/umbilical reference structures and the out-of-scale lymph node sample (`Yao_lymph_node`). This is a reference organ set with a whole-body surface, not a complete model: skeleton and muscle coverage is partial (pelvis, vertebral column, sternum, lower limb and knee), so it is less detailed than the male BodyParts3D model.
 

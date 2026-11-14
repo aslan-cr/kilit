@@ -52,6 +52,7 @@ const xf = (m, x, y, z) => [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m
 const SKIP = /placenta|umbilical|chorion|amnio|Yao_lymph_node|Yao_/i;       // gebelik başvuru parçaları ve ölçek dışı lenf düğümü örneği alınmaz
 function systemOf(p) {
   const top = p[0], all = p.join(" ").toLowerCase(), leaf = p[p.length - 1].toLowerCase();
+  if (/omentum|adipose|epiploic/.test(all)) return "integumentary";       // yağ örtüleri saydam katmanda: altındaki organları kapatmasın
   if (/integumentary/.test(top)) return /mammary/.test(all) ? "reproductive" : "integumentary";
   if (/nervous/.test(top)) return /_eyes?\b|eye_[rl]|nerves_of_eye/.test(all) && !/nerve|dura/.test(leaf) ? "sensory" : "nervous";
   if (/muscular/.test(top)) return "muscular";
@@ -171,7 +172,7 @@ const chunkMeta = chunks.map((c, ci) => {
   return { url: `/models/fbody-${ci}.bin`, bytes: total, gzip: `/models/fbody-${ci}.bin.gz`, gzipBytes: gz.length };
 });
 const concepts = groups.filter((x) => x.elements.length > 1);
-const atlas = { version: "HRA 3D Reference Organ Set for Female v1.9 + v1.5", parts, chunks: chunkMeta, triangles: outTri, concepts, sourceTriangles: srcTri,
+const atlas = { version: "HRA 3D Reference Organ Set for Female v1.10 + v1.5", parts, chunks: chunkMeta, triangles: outTri, concepts, sourceTriangles: srcTri,
   optimized: { method: "meshoptimizer quadric simplification", maximumRelativeError: ERR, preservedMeshes: parts.length }, sex: "female", source: "Human Reference Atlas (HuBMAP)",
   scope: `Adult female reference organ set · ${parts.length} source meshes` };
 fs.writeFileSync(path.join(OUT, "atlas-female.json"), JSON.stringify(atlas));
