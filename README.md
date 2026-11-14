@@ -178,3 +178,15 @@ Anahtar varsa tanınmayan cümleleri Gemini cevaplar; kota bitince, internet yok
 
 ### v4.3: Kabartmalı taş duvarlar
 Duvarlar artık düz boyalı tuğla değil: doku bir yükseklik haritasından üretilir (düzensiz kesme taşlar, yuvarlak kenarlar, çatlaklar) ve ışıkla gölgelenir. Beş çeşit duvar yüzü var (düz, yoğun yosun + sarmaşık, çatlak + düşmüş taş, kemerli demir parmaklıklı niş); yerden 1 birim yukarısı kalın temel sıralı ayrı dokudur. Zemin çamura gömülü kaldırım taşı ve su birikintisi oldu. Duvar dibi ve iç köşeler gölgelenir (`aoMask`, `solid`). Doku 128→256 piksel. Aynı duvarlar `gozkirpma-xbox` sürümüne de taşındı.
+
+## Görsel yenileme (Kasım 2026)
+Uygulamaların eski görünen yerleri türüne göre yenilendi; oyun kuralları ve veriler değişmedi.
+- **Göz Kırpma 4.3:** kabartmalı taş duvarlar (yukarıda anlatıldı).
+- **Dancing Cockroaches 1.1:** disko sahnesi: dönen ayna top, spot ışıkları, ekolayzır duvarı, perspektifli parlayan zemin; böceklerde gölge, renk geçişi ve parlaklık; hap şeklinde skor göstergeleri.
+- **Güneş Sistemi 1.1:** gezegenler düz nokta yerine dokulu küre (Dünya'da kıta ve bulut, Jüpiter'de kuşaklar ve Büyük Kırmızı Leke), Güneş'e göre gece/gündüz tarafı, Satürn halkaları, Halley'in kuyruğu, parlayan Güneş, bulutsulu yıldız arka planı, yörünge izleri. Dokular açılışta üretilir, dosya gerekmez.
+- **Yıkım Ustası 1.2:** bulutlu gökyüzü kubbesi, dokulu çim/toprak/beton zemin, şantiye bandı ve ağaçlar, pencereli şehir binaları, bina ve enkazda tuğla sırası ayrıntısı (gölgelendiriciyle, doku dosyası yok), yeni menü ve göstergeler.
+- **Hacker Yardımcısı 1.8:** CRT ekran görünümü, köşe braketleri, arkada soluk kod yağmuru, dokunmalık hızlı komut düğmeleri.
+- **Deneme Atölyesi 1.1:** başlık bandı, derse göre renkli ve simgeli kartlar, harf rozetli şıklar.
+- **Kullanım Kaydı 1.1 / Kullanım İzle 2.2:** kartlı tasarım, yuvarlak düğmeler, renkli durum noktaları, cihaz rozetleri, yuvarlak süre çubukları.
+- **Aile Kilidi 3.2:** bütün ekranlarda yuvarlak, renk geçişli düğmeler ve yuvarlak şifre kutusu (`Ui.button`, `Ui.pwField`).
+- İnsan Vücudu ve Güncelleyici yakın zamanda yenilendiği için dokunulmadı.
