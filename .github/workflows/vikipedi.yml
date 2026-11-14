@@ -1,0 +1,171 @@
+name: Vikipedi paketleri
+
+# Hacker Yardımcısı Şikru'nun telefona indirdiği tam metin Vikipedi paketlerini üretir.
+# Kaynak: Wikimedia arama dizini dökümleri (CC BY-SA 4.0), Türkçe + İngilizce, tüm maddeler.
+# Çıktı: "vikipedi" adlı ön sürüm (prerelease; Güncelleyici'nin "latest" listesine karışmaz)
+#   trwiki-<tarih>-00-a.skb, enwiki-<tarih>-NN-a.skb ... ve paket.json (uygulama bunu okur)
+# Paket biçimi: hackeryardimcisi/tools/build-kb.py
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 12 * *"   # ayda bir, yeni döküm çıktıktan sonra
+# Elle başlatma: GitHub > Actions > "Vikipedi paketleri" > Run workflow (main dalında)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vikipedi
+  cancel-in-progress: false
+
+env:
+  UA: "SikruKbBuilder/1.0 (GitHub Actions; offline Wikipedia reader app)"
+  BASE: https://dumps.wikimedia.org/other/cirrus_search_index
+  TAG: vikipedi
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      date: ${{ steps.p.outputs.date }}
+      matrix: ${{ steps.p.outputs.matrix }}
+    steps:
+      - name: Son dökümü bul ve işleri böl
+        id: p
+        run: |
+          set -e
+          dates=$(curl -fsSL -A "$UA" "$BASE/" | grep -o 'href="[0-9]\{8\}/"' | grep -o '[0-9]\{8\}' | sort -r)
+          date=""
+          for d in $dates; do
+            if curl -fsI -A "$UA" "$BASE/$d/index_name%3Dtrwiki_content/_SUCCESS" >/dev/null &&
+               curl -fsI -A "$UA" "$BASE/$d/index_name%3Denwiki_content/_SUCCESS" >/dev/null; then date=$d; break; fi
+          done
+          test -n "$date"
+          echo "Döküm tarihi: $date"
+          for w in trwiki enwiki; do
+            curl -fsSL -A "$UA" "$BASE/$date/index_name%3D${w}_content/" | grep -o "${w}_content-$date-[0-9]*\.json\.bz2" | sort -u > $w.txt
+            echo "$w: $(wc -l < $w.txt) parça"
+          done
+          matrix=$(python3 - "$date" <<'EOF'
+          import json, sys
+          date = sys.argv[1]
+          groups = []
+          for wiki, size in (("trwiki", 3), ("enwiki", 6)):
+              parts = [l.strip() for l in open(wiki + ".txt") if l.strip()]
+              for i in range(0, len(parts), size):
+                  groups.append({"wiki": wiki, "idx": "%02d" % (i // size), "parts": " ".join(parts[i:i + size])})
+          print(json.dumps({"include": groups}))
+          EOF
+          )
+          echo "date=$date" >> "$GITHUB_OUTPUT"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+      - name: Sürümü hazırla
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --prerelease --latest=false \
+            --target "${{ github.sha }}" --title "Şikru Vikipedi paketleri" \
+            --notes "Hacker Yardımcısı Şikru için tam metin Vikipedi paketleri (Türkçe + İngilizce). Uygulama içinden 'vikipedi indir' ile iner. Metinler Vikipedi katkıcılarına aittir, lisans CC BY-SA 4.0."
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      DATE: ${{ needs.plan.outputs.date }}
+    steps:
+      - name: Zaten yüklendiyse atla
+        id: skip
+        run: |
+          prefix="${{ matrix.wiki }}-$DATE-${{ matrix.idx }}-"
+          if gh release view "$TAG" --json assets -q '.assets[].name' | grep -q "^$prefix"; then
+            echo "Bu parça zaten yüklü, atlanıyor."; echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.skip.outputs.skip != '1'
+        with:
+          sparse-checkout: hackeryardimcisi/tools
+      - name: Disk aç, araç kur
+        if: steps.skip.outputs.skip != '1'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          sudo apt-get update -qq && sudo apt-get install -y -qq lbzip2
+          df -h /
+      - name: Dökümü indir ve maddeleri çıkar
+        if: steps.skip.outputs.skip != '1'
+        run: |
+          set -e
+          mkdir -p work
+          url="$BASE/$DATE/index_name%3D${{ matrix.wiki }}_content"
+          echo ${{ matrix.parts }} | tr ' ' '\n' | xargs -P 2 -I{} bash -c '
+            set -o pipefail
+            for try in 1 2 3; do
+              if curl -fsSL --retry 5 --retry-delay 20 -A "$UA" "'"$url"'/{}" | lbzip2 -dc -n 2 |
+                 python3 hackeryardimcisi/tools/build-kb.py extract-full | gzip -1 > "work/{}.jsonl.gz.part"; then
+                mv "work/{}.jsonl.gz.part" "work/{}.jsonl.gz"; echo "tamam: {}"; exit 0
+              fi
+              echo "yeniden deneniyor: {}"; sleep 60
+            done
+            exit 1'
+          ls -l work
+      - name: Paketi üret
+        if: steps.skip.outputs.skip != '1'
+        run: |
+          set -e
+          python3 hackeryardimcisi/tools/build-kb.py pack "${{ matrix.wiki }}-$DATE-${{ matrix.idx }}" work/*.jsonl.gz
+          rm -rf work
+          ls -l *.skb
+      - name: Sürüme yükle
+        if: steps.skip.outputs.skip != '1'
+        run: |
+          for f in *.skb; do
+            for try in 1 2 3; do gh release upload "$TAG" "$f" --clobber && break; sleep 30; done
+          done
+
+  publish:
+    needs: [plan, build]
+    if: ${{ always() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      DATE: ${{ needs.plan.outputs.date }}
+    steps:
+      - name: paket.json yaz, eski paketleri temizle
+        run: |
+          set -e
+          gh release view "$TAG" --json assets > assets.json
+          python3 - <<'EOF'
+          import json, os, re, subprocess
+          date = os.environ["DATE"]
+          assets = json.load(open("assets.json"))["assets"]
+          skb = [a for a in assets if a["name"].endswith(".skb")]
+          files, drop = [], []
+          for wiki, lang in (("trwiki", "tr"), ("enwiki", "en")):
+              mine = [a for a in skb if a["name"].startswith(wiki + "-")]
+              cur = [a for a in mine if a["name"].startswith("%s-%s-" % (wiki, date))]
+              if cur:
+                  keep = cur
+                  drop += [a for a in mine if a not in cur]
+              else:
+                  # bu dil için yeni döküm hiç yüklenemediyse eskisi kalsın
+                  dates = sorted({a["name"].split("-")[1] for a in mine})
+                  keep = [a for a in mine if dates and a["name"].split("-")[1] == dates[-1]]
+              for a in sorted(keep, key=lambda a: a["name"]):
+                  files.append({"name": a["name"], "lang": lang, "size": a["size"]})
+          json.dump({"date": date, "license": "CC BY-SA 4.0, Vikipedi katkıcıları", "files": files},
+                    open("paket.json", "w"), ensure_ascii=False, indent=1)
+          open("drop.txt", "w").write("\n".join(a["name"] for a in drop))
+          for f in files: print(f["lang"], f["name"], f["size"])
+          print("toplam: %.2f GB" % (sum(f["size"] for f in files) / 2**30))
+          EOF
+          gh release upload "$TAG" paket.json --clobber
+          while read -r n; do [ -n "$n" ] && gh release delete-asset "$TAG" "$n" -y || true; done < drop.txt

@@ -392,7 +392,9 @@ function askAI(q){return new Promise(res=>{
   AndroidApp.ask(id,aiKey(),(ST.hist.length?"[Son yaptığımız şeyler: "+ST.hist.slice(-5).join(", ")+"] ":"")+q)})}
 /* ===== VİKİPEDİ: internet varsa canlı okur, yoksa uygulamaya gömülü çevrimdışı bilgi tabanına bakar ===== */
 const WKP={};let wkN=0;
-window.__wikiDone=(id,src,title,text)=>{const p=WKP[id];if(p){delete WKP[id];p(src?{src,title,text}:null)}};
+window.__wikiDone=(id,src,title,text,full)=>{const p=WKP[id];if(p){delete WKP[id];p(src?{src,title,text,full:full||""}:null)}};
+window.__wikiPack=(m)=>{String(m).split("\n").forEach(l=>log(l,"inf"))};
+let WLAST=null;
 function askWiki(q){return new Promise(res=>{
   if(!window.AndroidApp||!AndroidApp.wiki)return res(null);
   const id=++wkN;WKP[id]=res;
@@ -404,7 +406,31 @@ const WQ=/(^| )(ne|neden|niye|nas[ıi]l|kim|kimin|nerede|nereye|nereden|ni[çc]i
 // Şikru'nun kendisiyle ya da o anla ilgili sorular ansiklopediye gitmesin.
 const WPERS=/(^| )(sen|senin|sana|seni|sende|ben|benim|bana|beni|bende|biz|bizim|ad[ıi]n|ismin|ya[şs][ıi]n|bug[üu]n|[şs]imdi|saat|hava|pil|[şs]arj|naber|nas[ıi]ls[ıi]n|yap[ıi]yorsun|yapal[ıi]m|bu|[şs]u)( |$)/;
 function wikiOk(t){const u=t.replace(new RegExp(HIT.source,"g")," ").replace(/ +/g," ").trim();return !WPERS.test(u)&&!INT.some(x=>x[0].test(u))}
-function wikiShow(w){log("📚 "+w.title+" · Vikipedi ("+(w.src==="on"?"çevrimiçi":"çevrimdışı")+")","inf");ai(w.text)}
+const WSRC={on:"çevrimiçi",off:"çevrimdışı",tr:"çevrimdışı tam metin",en:"İngilizce Vikipedi, çevrimdışı"};
+function wikiShow(w){
+  log("📚 "+w.title+" · Vikipedi ("+(WSRC[w.src]||"çevrimdışı")+")","inf");ai(w.text);
+  WLAST=w.full&&w.full.length>w.text.length+40?{title:w.title,full:w.full,pos:w.full.indexOf(w.text)===0?w.text.length:0}:null;
+  if(WLAST)log("↳ maddenin devamı için: devamı","inf")}
+// "devamı": son maddeden bir sonraki parçayı oku
+function wikiMore(){
+  if(!WLAST){ai("Okuyacak bir madde yok. Önce bir şey sor, ör. wiki ay.");return}
+  const f=WLAST.full;let a=WLAST.pos;while(a<f.length&&f[a]===" ")a++;
+  if(a>=f.length){ai(WLAST.title+" maddesinin sonuna geldik.");WLAST=null;return}
+  let b=Math.min(f.length,a+700);if(b<f.length){const k=f.lastIndexOf(". ",b);if(k>a+200)b=k+1}
+  WLAST.pos=b;log("📖 "+WLAST.title+" (%"+Math.round(b*100/f.length)+")","inf");ai(f.slice(a,b));
+  if(b<f.length)log("↳ devamı için: devamı","inf");else WLAST=null}
+// Tam metin paket komutları
+const WPACK=/^(?:vikipedi|wikipedi|wikipedia|viki|wiki|bilgi) ?(?:paketi?|paketleri)? ?(.*)$/;
+function wikiPackCmd(t0){
+  const m=t0.match(WPACK);if(!m)return false;const r=m[1];let c=null;
+  if(/indir|y[üu]kle/.test(r))c="indir:"+(/hepsi|t[üu]m|her ?[şs]ey/.test(r)?"hepsi":/ingilizce|english|en /.test(r+" ")?"en":"tr");
+  else if(/^(durum|durumu|ne durumda|ilerleme|y[üu]zde)$/.test(r))c="durum";
+  else if(/^(iptal|durdur|vazge[çc])/.test(r))c="iptal";
+  else if(/^(sil|kald[ıi]r|temizle)$/.test(r))c="sil";
+  if(!c)return false;
+  if(!window.AndroidApp||!AndroidApp.wikiPack){log("📚 Vikipedi paketleri yalnızca uygulamada çalışır.","err");return true}
+  if(c.startsWith("indir"))log("📦 Vikipedi paket listesine bakıyorum...","inf");
+  AndroidApp.wikiPack(c);return true}
 // Açık ansiklopedi isteği: "wiki ay", "türkiye nedir", "atatürk kimdir"... Cevapladıysa true döner.
 async function wikiCmd(t0){
   const c=t0.match(WCMD),m=c||(wikiOk(t0)&&t0.match(WASK));
@@ -422,7 +448,7 @@ async function fallback(t,raw){
   if(wk&&!aiKey()){wikiShow(wk);return}
   if(aiKey()){
     log("🤖 düşünüyorum...","inf");
-    const [ok,x]=await askAI((wk?"[Vikipedi bilgisi ("+wk.title+"): "+wk.text+"] ":"")+(raw||t));
+    const [ok,x]=await askAI((wk?"[Vikipedi bilgisi ("+wk.title+"): "+wk.text+(wk.full?" … "+wk.full.slice(0,2500):"")+"] ":"")+(raw||t));
     if(ok){ai(x.replace(/[*#`_]/g,"").trim());return}
     if(wk){wikiShow(wk);return}
     log("⚠ "+(/429/.test(x)?"Yapay zeka kotası doldu":/401|403/.test(x)?"Anahtar kabul edilmedi (ayarlar yaz)":"Yapay zekaya ulaşılamadı ("+String(x).slice(0,160)+")")+" → çevrimdışı cevap","err");
@@ -578,8 +604,10 @@ async function handle1(raw){
   log("$ "+t0+(t!==t0?"  →  "+t:""));
   if(busy){log("Sistem meşgul.","err");return}
   if(/para bitti/.test(t))return goodbye();
-  if(/yapay zek|anahtar|ayarlar/.test(t0)){openKey();return}
+  if(/^(devam[ıi]|devam[ıi]n[ıi] (oku|g[öo]ster|anlat)|daha fazla( anlat| oku)?|devam[ıi] ne)$/.test(t0))return wikiMore();
+  if(wikiPackCmd(t0))return;
   if(await wikiCmd(t0))return;
+  if(/yapay zek|anahtar|ayarlar/.test(t0)){openKey();return}
   if(await world(t))return;
   if(t==="yenihikaye"){sI=0;return story()}
   if(t==="hikaye"||t==="devam")return story();
@@ -603,7 +631,7 @@ async function handle1(raw){
   if(/sistem durumu|cpu|\bram\b/.test(t)){log("CPU: %"+(10+Math.random()*80|0)+"  RAM: %"+(20+Math.random()*60|0)+"  SICAKLIK: "+(35+Math.random()*30|0)+"°C","inf");return}
   if(/[şs]aka/.test(t)){log(JOKES[Math.random()*JOKES.length|0],"inf");return}
   if(/kimsin/.test(t)){log("Ben Hacker Yardımcısı Şikru. Çevrimdışıyım, ücretsizim, biraz da dramatiğim.","inf");return}
-  if(/yard[ıi]m|komutlar/.test(t)){log("KOMUTLAR (benzer cümleleri de anlarım: naber, selam, nasılsın, teşekkürler...): wiki <konu> (ör. wiki ay, türkiye nedir, atatürk kimdir: internet varsa canlı, yoksa çevrimdışı Vikipedi) · terminal · notlar · sayaç · fırını hackle · koruma duvarı aşılıyor · kendini hekle · para bitti · dünyayı yok et · matrix · disko · kırmızı/mavi/yeşil mod · kamera/uydu/wifi/televizyon/dron hackle · şifre kır · ağ tara · şifre üret · zar at · yazı tura · tarih · pil · sistem durumu · şaka · kimsin · sesi kapat/aç · hikaye anlat · devam · yeni hikaye · bekle · fırını patlat/kapat/aç · fırınla dünyayı yak · söndür · dünyayı geri getir · ne yaptık · durum · hafızayı sil · büyük metin · temizle","inf");return}
+  if(/yard[ıi]m|komutlar/.test(t)){log("KOMUTLAR (benzer cümleleri de anlarım: naber, selam, nasılsın, teşekkürler...): wiki <konu> (ör. wiki ay, türkiye nedir, türkiyenin başkenti neresi: internet varsa canlı, yoksa çevrimdışı Vikipedi) · devamı (maddenin devamını oku) · vikipedi indir / vikipedi ingilizce indir / vikipedi hepsini indir (tam metin paketleri) · vikipedi durum · vikipedi sil · terminal · notlar · sayaç · fırını hackle · koruma duvarı aşılıyor · kendini hekle · para bitti · dünyayı yok et · matrix · disko · kırmızı/mavi/yeşil mod · kamera/uydu/wifi/televizyon/dron hackle · şifre kır · ağ tara · şifre üret · zar at · yazı tura · tarih · pil · sistem durumu · şaka · kimsin · sesi kapat/aç · hikaye anlat · devam · yeni hikaye · bekle · fırını patlat/kapat/aç · fırınla dünyayı yak · söndür · dünyayı geri getir · ne yaptık · durum · hafızayı sil · büyük metin · temizle","inf");return}
   for(const [re,ti,st] of SIMS)if(re.test(t))return simulate(ti,st,false);
   if(/kendini (hekle|hackle|hakla|hack)|kendini he/.test(t))return simulate("ÖZ-HACK",["Çekirdek belleğe erişiliyor...","Kendi imzam okunuyor...","Root yetkisi kendime veriliyor...","Kendi şifrem kırılıyor...","Çekirdek kendini kopyalıyor...","Döngüsel referans bulundu...","Yığın taşıyor...","Bellek bozuluyor..."],true);
   if(/f[ıi]r[ıi]n/.test(t)){await countdown();return simulate("FIRIN SIZMASI",["Ağ taranıyor: 192.168.1.0/24","Akıllı fırın bulundu: OVEN-X900","Port 8080 açık, banner alınıyor...","Varsayılan şifre deneniyor: admin/admin","Erişim sağlandı!","Sıcaklık kontrolü ele geçirildi","Isıtma döngüsü 250°C ayarlandı","Fırın artık bizim. 🔥"])}
