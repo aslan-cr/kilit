@@ -24,6 +24,8 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -61,11 +63,14 @@ class MainActivity : Activity() {
         val pkg: String,
         val label: String,
         val vName: String,
-        val vCode: Long
+        val vCode: Long,
+        val icon: Drawable? = null
     )
 
     private lateinit var listBox: LinearLayout
     private lateinit var statusView: TextView
+    private lateinit var progress: ProgressBar
+    private lateinit var summary: TextView
 
     private val dir: File
         get() = File(filesDir, "apks").also { it.mkdirs() }
@@ -98,6 +103,14 @@ class MainActivity : Activity() {
         paintChip(statusView, GOOD)
         root.addView(statusView, lp(top = 14))
 
+        // Kontrol sürerken görünen ince ilerleme çizgisi
+        progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            isIndeterminate = true
+            indeterminateTintList = ColorStateList.valueOf(INK)
+            visibility = android.view.View.GONE
+        }
+        root.addView(progress, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(6)).apply { topMargin = dp(6) })
+
         val check = Button(this).apply {
             text = "Güncellemeleri kontrol et"
             setOnClickListener { checkUpdates() }
@@ -112,12 +125,15 @@ class MainActivity : Activity() {
         styleButton(add, 1)
         root.addView(add, lp(top = 8))
 
+        summary = text("", 13f, MUTED, true).also { it.letterSpacing = 0.06f }
+        root.addView(summary, lp(top = 16))
+
         listBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(
             ScrollView(this).apply { addView(listBox) },
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
-            ).apply { topMargin = dp(12) }
+            ).apply { topMargin = dp(4) }
         )
         setContentView(root)
 
@@ -132,7 +148,15 @@ class MainActivity : Activity() {
 
     private fun refresh() {
         listBox.removeAllViews()
-        val items = entries()
+        // Kurulacak/güncellenecek olanlar en üstte
+        val items = entries().sortedBy { if (needs(it)) 0 else 1 }
+        val waiting = items.count { needs(it) }
+        summary.text = when {
+            items.isEmpty() -> ""
+            waiting > 0 -> "${items.size} UYGULAMA  ·  $waiting TANESİ KURULMAYI/GÜNCELLENMEYİ BEKLİYOR"
+            else -> "${items.size} UYGULAMA  ·  HEPSİ GÜNCEL"
+        }
+        summary.setTextColor(if (waiting > 0) WARN else MUTED)
         if (items.isEmpty()) {
             listBox.addView(
                 text("Henüz APK yok. \"Güncellemeleri kontrol et\" ile başla.", 16f, MUTED, false)
@@ -141,6 +165,11 @@ class MainActivity : Activity() {
             return
         }
         for (e in items) listBox.addView(card(e), lp(top = 10))
+    }
+
+    private fun needs(e: Entry): Boolean {
+        val inst = installed(e.pkg) ?: return true
+        return e.vCode > versionCodeOf(inst)
     }
 
     private fun card(e: Entry): LinearLayout {
@@ -173,20 +202,36 @@ class MainActivity : Activity() {
 
         val c = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = box(CARD, INK, 12)
+            // Bekleyen güncelleme varsa kart sarı fosforlu zeminle öne çıkar
+            background = box(if (action != null) 0xFFFFFBEA.toInt() else CARD, if (action != null) WARN else INK, 14)
+            elevation = dp(if (action != null) 3 else 1).toFloat()
             val p = dp(16)
             setPadding(p, p, p, p)
         }
-        c.addView(
+        // Başlık satırı: uygulamanın kendi simgesi + ad + sürüm
+        val head = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        if (e.icon != null) {
+            head.addView(
+                ImageView(this).apply { setImageDrawable(e.icon) },
+                LinearLayout.LayoutParams(dp(52), dp(52)).apply { marginEnd = dp(14) }
+            )
+        }
+        val names = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        names.addView(
             text(e.label, 20f, INK, true).also {
                 it.gravity = Gravity.START
                 it.typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
             }
         )
-        c.addView(
-            text("${e.pkg}\nDosyadaki sürüm: ${e.vName} (kod ${e.vCode})", 13f, MUTED, false)
+        names.addView(
+            text("Sürüm ${e.vName}  ·  kod ${e.vCode}", 13f, MUTED, false)
                 .also { it.gravity = Gravity.START }
         )
+        head.addView(names, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        c.addView(head)
         val chip = text(status, 14f, color, true)
         paintChip(chip, color)
         c.addView(
@@ -333,6 +378,7 @@ class MainActivity : Activity() {
             return
         }
         setStatus("Kontrol ediliyor... (GitHub\u0027a bağlanılıyor)", WARN)
+        runOnUiThread { progress.visibility = android.view.View.VISIBLE }
         Thread {
             try {
                 val con = URL("https://api.github.com/repos/$REPO/releases/latest")
@@ -421,6 +467,7 @@ class MainActivity : Activity() {
             } catch (ex: Exception) {
                 setStatus("Kontrol edilemedi: ${ex.message ?: ex.javaClass.simpleName}. İnternet var mı?", WARN)
             } finally {
+                runOnUiThread { progress.visibility = android.view.View.GONE }
                 checking.set(false)
             }
         }.start()
@@ -520,7 +567,12 @@ class MainActivity : Activity() {
         } catch (_: Exception) {
             pi.packageName
         }
-        return Entry(f, pi.packageName, label, pi.versionName ?: "?", versionCodeOf(pi))
+        val icon = try {
+            ai.loadIcon(packageManager)
+        } catch (_: Exception) {
+            null
+        }
+        return Entry(f, pi.packageName, label, pi.versionName ?: "?", versionCodeOf(pi), icon)
     }
 
     private fun installed(pkg: String): PackageInfo? =

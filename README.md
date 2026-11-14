@@ -175,3 +175,25 @@ GitHub derlemesi `hackeryardimcisi.apk` olarak Release'e koyar, Güncelleyici li
 "para bitti" komutu uygulamayı kapatır. Başlığa 5 sn basılı tutunca mikrofon izni istenir ve sürekli dinleme açılır (tekrar 5 sn basınca kapanır). 2 sn ses gelmezse söylenen kısım komut olarak gönderilir, dinleme sürer (uygulamanın kendi Android ses tanıyıcısı, Google uygulaması gerekir). Komut kutusu her zaman çalışır.
 Yapay zeka (v1.4): komut kutusuna "ayarlar" yazınca Gemini API anahtarı girilir (aistudio.google.com/apikey). Anahtar yalnızca cihazda saklanır, depoya girmez.
 Anahtar varsa tanınmayan cümleleri Gemini cevaplar; kota bitince, internet yoksa ya da hata olursa yerleşik çevrimdışı cevap verilir. Bunun için INTERNET izni eklendi.
+
+### v4.3: Kabartmalı taş duvarlar
+Duvarlar artık düz boyalı tuğla değil: doku bir yükseklik haritasından üretilir (düzensiz kesme taşlar, yuvarlak kenarlar, çatlaklar) ve ışıkla gölgelenir. Beş çeşit duvar yüzü var (düz, yoğun yosun + sarmaşık, çatlak + düşmüş taş, kemerli demir parmaklıklı niş); yerden 1 birim yukarısı kalın temel sıralı ayrı dokudur. Zemin çamura gömülü kaldırım taşı ve su birikintisi oldu. Duvar dibi ve iç köşeler gölgelenir (`aoMask`, `solid`). Doku 128→256 piksel. Aynı duvarlar `gozkirpma-xbox` sürümüne de taşındı.
+
+## Görsel yenileme (Kasım 2026)
+Uygulamaların eski görünen yerleri türüne göre yenilendi; oyun kuralları ve veriler değişmedi.
+- **Göz Kırpma 4.3:** kabartmalı taş duvarlar (yukarıda anlatıldı).
+- **Dancing Cockroaches 1.1:** disko sahnesi: dönen ayna top, spot ışıkları, ekolayzır duvarı, perspektifli parlayan zemin; böceklerde gölge, renk geçişi ve parlaklık; hap şeklinde skor göstergeleri.
+- **Güneş Sistemi 1.1:** gezegenler düz nokta yerine dokulu küre (Dünya'da kıta ve bulut, Jüpiter'de kuşaklar ve Büyük Kırmızı Leke), Güneş'e göre gece/gündüz tarafı, Satürn halkaları, Halley'in kuyruğu, parlayan Güneş, bulutsulu yıldız arka planı, yörünge izleri. Dokular açılışta üretilir, dosya gerekmez.
+- **Yıkım Ustası 1.2:** bulutlu gökyüzü kubbesi, dokulu çim/toprak/beton zemin, şantiye bandı ve ağaçlar, pencereli şehir binaları, bina ve enkazda tuğla sırası ayrıntısı (gölgelendiriciyle, doku dosyası yok), yeni menü ve göstergeler.
+- **Hacker Yardımcısı 1.8:** CRT ekran görünümü, köşe braketleri, arkada soluk kod yağmuru, dokunmalık hızlı komut düğmeleri.
+- **Deneme Atölyesi 1.1:** başlık bandı, derse göre renkli ve simgeli kartlar, harf rozetli şıklar.
+- **Kullanım Kaydı 1.1 / Kullanım İzle 2.2:** kartlı tasarım, yuvarlak düğmeler, renkli durum noktaları, cihaz rozetleri, yuvarlak süre çubukları.
+- **Aile Kilidi 3.2:** bütün ekranlarda yuvarlak, renk geçişli düğmeler ve yuvarlak şifre kutusu (`Ui.button`, `Ui.pwField`).
+- **Güncelleyici 2.1:** kartlarda uygulamanın kendi simgesi, üstte özet satırı, kontrol sürerken ilerleme çizgisi; kurulmayı/güncellenmeyi bekleyenler en üstte ve sarı vurgulu.
+- **İnsan Vücudu 2.3:** sol panelde kesilen sayılar, telefonda sağa taşan "Anatomiyi patlat" kutusu ve çakışan altyazı düzeltildi; `klasik.html` (uygulamada bağlantısı olmayan ikinci 3B sayfa) aynı levha temasına çevrildi.
+
+## İnsan Vücudu 2.4: Erkek / Kadın
+Başlığın altındaki **Erkek / Kadın** düğmesi bedeni değiştirir (seçim hatırlanır; sayfa `index.html?sex=female` ile yeniden açılır).
+Kadın bedeni HuBMAP "3D Reference Organ Set for Female" v1.10 + v1.5 birleşimidir (951 parça, CC BY 4.0): saydam deri kabuğu, kadın üreme organları, meme bezleri, beyin, göz, ağız/dişler, kalp, akciğerler, karaciğer, bağırsaklar, böbrekler.
+SINIR: açık lisanslı kaynaklarda erkek modeli (2.234 parça) kadar ayrıntılı tam bir kadın modeli yok; bu sette iskelet ve kaslar kısmidir.
+Yeniden üretmek için: `npm i meshoptimizer` sonra `node organlar/tools/bake-female.mjs 0.2 <v1.10.glb> <v1.5.glb>`. Uygulama yaklaşık 22 MB büyüdü.

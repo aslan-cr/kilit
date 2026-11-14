@@ -15,9 +15,21 @@ Source OBJ comments mention an older CC BY-SA 2.1 Japan license. The official cu
 
 BodyParts3D represents an adult male reference anatomy based on TARO MRI and anatomical illustration refinements. It is not a complete model of every possible human anatomical structure or variation. This interface is educational and is not a clinical tool.
 
-## Historical assets (not included in the current release)
+## Female reference anatomy (Erkek / Kadın geçişi)
 
-Earlier repository revisions included female reference anatomy: Kristen Browne and Heidi Schlehlein, Human Reference Atlas / HuBMAP, *3D Reference Organ Set for Female v1.5* (2023). CC BY 4.0. Geometry adapted for this viewer.
+Kristen Browne and Heidi Schlehlein, Human Reference Atlas / HuBMAP, *3D Reference Organ Set for Female* v1.10 merged with v1.5. CC BY 4.0. Geometry adapted for this viewer.
+
+- Original GLBs: https://cdn.humanatlas.io/digital-objects/ref-organ/united-female/v1.10/assets/3d-vh-f-united.glb and .../v1.5/assets/3d-vh-f-united.glb
+- Source DOI (v1.5): https://doi.org/10.48539/HBM352.BTSQ.586
+- License: https://creativecommons.org/licenses/by/4.0/
+
+Adaptations (see `organlar/tools/bake-female.mjs`): v1.10 is the base (941 meshes); 10 meshes that exist only in v1.5 are added, since both versions share coordinates. Omentum and adipose layers are placed in the translucent body-surface layer so they do not hide the organs beneath. Node transforms applied, model translated onto the stage, coincident vertices welded, geometry simplified with meshoptimizer (target 20% of triangles, 0.4% relative error bound), normals recomputed and quantized to signed 16-bit. Display systems and colors are curated for this interface. 951 meshes are shown.
+
+Not included: placenta/umbilical reference structures and the out-of-scale lymph node sample (`Yao_lymph_node`). This is a reference organ set with a whole-body surface, not a complete model: skeleton and muscle coverage is partial (pelvis, vertebral column, sternum, lower limb and knee), so it is less detailed than the male BodyParts3D model.
+
+## Historical note
+
+Earlier upstream revisions included female reference anatomy: Kristen Browne and Heidi Schlehlein, Human Reference Atlas / HuBMAP, *3D Reference Organ Set for Female v1.5* (2023). CC BY 4.0. Geometry adapted for this viewer.
 
 - Source DOI: https://doi.org/10.48539/HBM352.BTSQ.586
 - Dataset: https://lod.humanatlas.io/ref-organ/united-female/v1.5

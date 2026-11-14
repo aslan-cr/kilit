@@ -49,19 +49,62 @@ body.t-red{--g:#ff2b4a;--c:#ffb000}
 body.t-blue{--g:#19b6ff;--c:#c9a0ff}
 @keyframes hue{to{filter:hue-rotate(360deg)}}
 body.disco #app{animation:hue 1.5s linear infinite}
+/* ===== v1.8 görünüm: CRT ekran, köşe braketleri, ızgara, hızlı komutlar ===== */
+html,body{background:radial-gradient(ellipse at 50% 35%,#04160f 0%,var(--bg) 62%,#000 100%)}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;background:linear-gradient(rgba(0,255,156,.055) 1px,transparent 1px) 0 0/100% 28px,linear-gradient(90deg,rgba(0,255,156,.055) 1px,transparent 1px) 0 0/28px 100%;-webkit-mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 85%);mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 85%)}
+body::after{z-index:60;background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.4) 100%)}
+#rain{position:fixed;inset:0;z-index:0;width:100%;height:100%;opacity:.16;pointer-events:none}
+#app{padding:12px;gap:0}
+#hdr{border:1px solid color-mix(in srgb,var(--g) 55%,transparent);border-radius:4px;background:linear-gradient(180deg,color-mix(in srgb,var(--g) 12%,transparent),color-mix(in srgb,var(--g) 3%,transparent));box-shadow:0 0 18px color-mix(in srgb,var(--g) 18%,transparent),inset 0 0 22px color-mix(in srgb,var(--g) 8%,transparent);gap:10px}
+#hdr b{display:flex;align-items:center;gap:10px;font-size:15px;letter-spacing:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hdr b::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;background:var(--g);box-shadow:0 0 6px var(--g),0 0 16px var(--g);animation:led 1.6s ease-in-out infinite}
+@keyframes led{50%{opacity:.35}}
+#status{font-size:11.5px;letter-spacing:1px;padding:4px 9px;border:1px solid color-mix(in srgb,var(--c) 55%,transparent);border-radius:999px;background:color-mix(in srgb,var(--c) 10%,transparent);text-shadow:0 0 8px var(--c);white-space:nowrap;flex:none}
+#main{border:1px solid color-mix(in srgb,var(--g) 35%,transparent);border-radius:4px;background:rgba(2,10,7,.62);box-shadow:inset 0 0 40px rgba(0,0,0,.7),inset 0 0 0 1px rgba(0,0,0,.6),0 0 22px color-mix(in srgb,var(--g) 10%,transparent);padding:16px 14px 14px}
+#main::before,#main::after{content:"";position:absolute;width:22px;height:22px;pointer-events:none;border:2px solid var(--g);filter:drop-shadow(0 0 5px var(--g))}
+#main::before{left:-1px;top:-1px;border-right:0;border-bottom:0}
+#main::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+#sweep{position:absolute;left:0;right:0;top:0;height:90px;pointer-events:none;background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--g) 7%,transparent) 80%,color-mix(in srgb,var(--g) 16%,transparent));animation:sweep 5.5s linear infinite;z-index:1}
+@keyframes sweep{from{transform:translateY(-100px)}to{transform:translateY(100vh)}}
+#log{position:relative;z-index:2;scrollbar-width:thin;scrollbar-color:var(--g) transparent}
+#log div{padding:1px 0 1px 10px;border-left:2px solid color-mix(in srgb,var(--g) 30%,transparent);margin-bottom:3px;animation:ln .18s ease-out}
+#log div.err{border-left-color:var(--r);text-shadow:0 0 6px var(--r);background:linear-gradient(90deg,color-mix(in srgb,var(--r) 12%,transparent),transparent 60%)}
+#log div.inf{border-left-color:var(--c);text-shadow:0 0 6px var(--c)}
+#log::after{content:"█";display:inline-block;margin-left:10px;animation:led 1s steps(1) infinite;text-shadow:0 0 8px var(--g)}
+@keyframes ln{from{opacity:0;transform:translateX(-6px)}}
+#time{font-weight:bold;font-size:min(15.5vw,120px);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+#notes{border-radius:4px;background:rgba(0,17,10,.7)}
+.prog{border-radius:3px;padding:2px;background:rgba(0,0,0,.5)}
+.prog i{background:repeating-linear-gradient(90deg,var(--g) 0 8px,transparent 8px 11px)}
+#chips{display:flex;gap:7px;overflow-x:auto;padding:0 0 9px;scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+#chips button{flex:none;background:color-mix(in srgb,var(--g) 7%,transparent);border:1px solid color-mix(in srgb,var(--g) 45%,transparent);color:var(--g);font:12.5px "Courier New",ui-monospace,monospace;padding:8px 11px;border-radius:3px;white-space:nowrap;text-shadow:0 0 6px var(--g);letter-spacing:.5px}
+#chips button::before{content:"> ";opacity:.6}
+#chips button:active{background:var(--g);color:#001a10;text-shadow:none}
+#cmdrow{position:relative;gap:8px}
+#cmdrow::before{content:"$";position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--c);text-shadow:0 0 8px var(--c);font-weight:bold;pointer-events:none;z-index:1}
+#cmd{border:1px solid color-mix(in srgb,var(--g) 45%,transparent);border-radius:4px;padding:12px 10px 12px 30px;font-size:15px;background:rgba(0,17,10,.8);outline:0;min-width:0}
+#cmd:focus{border-color:var(--g);box-shadow:0 0 14px color-mix(in srgb,var(--g) 35%,transparent)}
+#cmd::placeholder{color:color-mix(in srgb,var(--g) 45%,transparent)}
+#go{border-radius:4px;background:color-mix(in srgb,var(--g) 14%,transparent);font-weight:bold;letter-spacing:2px;padding:0 16px;text-shadow:0 0 8px var(--g);box-shadow:0 0 12px color-mix(in srgb,var(--g) 20%,transparent)}
+#go:active{background:var(--g);color:#001a10;text-shadow:none}
+#listen{border-radius:4px;bottom:120px;box-shadow:0 0 16px var(--c)}
+@media (prefers-reduced-motion:reduce){#sweep,#hdr b::before,#log::after{animation:none}}
 </style>
 </head>
 <body>
+<canvas id="rain"></canvas>
 <canvas id="sky"></canvas>
 <div id="app">
-  <div id="hdr"><b>◉ HACKER YARDIMCISI ŞİKRU</b><span id="status">HAZIR · 5 sn basılı tut</span><div id="bar"></div></div>
-  <div id="main">
+  <div id="hdr"><b>HACKER YARDIMCISI ŞİKRU</b><span id="status">HAZIR · 5 sn basılı tut</span><div id="bar"></div></div>
+  <div id="main"><div id="sweep"></div>
     <div class="view on" id="v-term"><div id="log"></div></div>
     <div class="view" id="v-notes"><textarea id="notes" placeholder="// lokal notlar..."></textarea></div>
     <div class="view" id="v-clock"><div id="clock"><div id="time">00:00:00</div><div id="date"></div></div></div>
     <div class="view" id="v-sim"><div id="simlog" style="flex:1;overflow:auto;font-size:15px;line-height:1.5;white-space:pre-wrap"></div><div class="prog"><i id="pb"></i></div><div id="pt" class="inf">0%</div></div>
   </div>
-  <div id="cmdrow"><input id="cmd" placeholder="komut yaz (mikrofon yoksa): terminal, notlar, sayaç, fırını hackle, koruma duvarı aşılıyor, kendini hekle, para bitti" autocomplete="off"><button id="go">GÖNDER</button></div>
+  <div id="chips"></div>
+  <div id="cmdrow"><input id="cmd" placeholder="komut yaz..." autocomplete="off"><button id="go">GÖNDER</button></div>
 </div>
 <div id="listen">🎙 DİNLİYOR...</div>
 <div class="ov" id="warn"><div class="t">⚠ UYARI ⚠</div><div class="n" id="wn">3</div><div class="t">SIZMA BAŞLIYOR</div></div>
@@ -542,6 +585,13 @@ async function handle1(raw){
 
 $("go").onclick=()=>{const v=$("cmd").value;$("cmd").value="";handle(v)};
 $("cmd").addEventListener("keydown",e=>{if(e.key==="Enter")$("go").onclick()});
+// Hızlı komut düğmeleri (yazmadan dokunarak)
+["terminal","notlar","sayaç","fırını hackle","koruma duvarı aşılıyor","kendini hekle","ayarlar"].forEach(c=>{const b=document.createElement("button");b.textContent=c;b.onclick=()=>handle(c);$("chips").appendChild(b)});
+// Boştayken arkada çok soluk kod yağmuru (ayrı tuval; sahne animasyonlarına karışmaz, saniyede ~14 kare)
+(()=>{const rc=$("rain"),rx=rc.getContext("2d");let cols=[],last=0;const fit=()=>{rc.width=innerWidth;rc.height=innerHeight;cols=Array.from({length:Math.ceil(rc.width/18)},()=>Math.random()*rc.height)};fit();addEventListener("resize",fit);
+ if(matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+ const f=t=>{requestAnimationFrame(f);if(t-last<70||document.hidden)return;last=t;rx.fillStyle="rgba(2,8,6,.16)";rx.fillRect(0,0,rc.width,rc.height);rx.font="15px monospace";rx.fillStyle=getComputedStyle(document.body).getPropertyValue("--g")||"#00ff9c";
+  cols.forEach((v,i)=>{rx.fillText(Math.random()<.5?String.fromCharCode(0x30A0+Math.random()*96):((Math.random()*2)|0)+"",i*18,v);cols[i]=v>rc.height&&Math.random()>.96?0:v+18})};requestAnimationFrame(f)})();
 
 // Sesli dinleme
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
