@@ -17,6 +17,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -26,7 +27,7 @@ import android.webkit.WebView
 import android.webkit.JavascriptInterface
 import android.webkit.WebViewClient
 
-/** Sayfa uygulamanın içinde (assets/index.html). İnternet gerekmez. */
+/** Sayfa uygulamanın içinde (assets/index.html). İnternet gerekmez; varsa Vikipedi canlı okunur. */
 class MainActivity : Activity() {
 
     private lateinit var web: WebView
@@ -157,6 +158,28 @@ class MainActivity : Activity() {
                 }.start()
             }
 
+            // Vikipedi'den bilgi getirir: internet varsa canlı (tr.wikipedia.org), yoksa uygulamaya gömülü
+            // çevrimdışı bilgi tabanından (assets/kb). Sonuç: __wikiDone(id, "on"|"off"|"", başlık, metin)
+            @JavascriptInterface
+            fun wiki(id: Int, query: String) {
+                Thread {
+                    var src = ""
+                    var title = ""
+                    var text = ""
+                    val topic = WikiKb.topicWords(query).joinToString(" ")
+                    if (topic.isNotEmpty()) {
+                        val on = try { wikiOnline(topic) } catch (_: Exception) { null }
+                        if (on != null) { src = "on"; title = on.first; text = on.second }
+                        else {
+                            val hit = try { kb.search(query) } catch (_: Exception) { null }
+                            if (hit != null) { src = "off"; title = hit.title; text = hit.text }
+                        }
+                    }
+                    val code = "window.__wikiDone(" + id + "," + JSONObject.quote(src) + "," + JSONObject.quote(title) + "," + JSONObject.quote(text) + ")"
+                    runOnUiThread { js(code) }
+                }.start()
+            }
+
             @JavascriptInterface
             fun stopListen() { runOnUiThread { stopAll() } }
         }, "AndroidApp")
@@ -169,6 +192,35 @@ class MainActivity : Activity() {
 
         if (savedInstanceState != null) web.restoreState(savedInstanceState)
         else web.loadUrl("file:///android_asset/index.html")
+    }
+
+    private val kb by lazy { WikiKb { name -> assets.open(name) } }
+
+    /** Canlı Vikipedi: konuyu arar, en iyi maddenin giriş bölümünü döndürür. İnternet yoksa hata fırlatır. */
+    private fun wikiOnline(topic: String): Pair<String, String>? {
+        val u = "https://tr.wikipedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=0&gsrlimit=1" +
+            "&prop=extracts&exintro=1&explaintext=1&redirects=1&gsrsearch=" + URLEncoder.encode(topic, "UTF-8")
+        val c = URL(u).openConnection() as HttpURLConnection
+        try {
+            c.connectTimeout = 4000
+            c.readTimeout = 6000
+            c.setRequestProperty("User-Agent", "HackerYardimcisiSikru/1.9 (Android uygulamasi)")
+            if (c.responseCode !in 200..299) return null
+            val pages = JSONObject(c.inputStream.bufferedReader().readText()).optJSONObject("query")?.optJSONObject("pages") ?: return null
+            val k = pages.keys()
+            if (!k.hasNext()) return null
+            val pg = pages.getJSONObject(k.next())
+            var t = pg.optString("extract").replace(Regex("\\s+"), " ").trim()
+            if (t.length < 20) return null
+            if (t.length > 600) {
+                val cut = t.substring(0, 600)
+                val m = cut.lastIndexOf(". ")
+                t = if (m >= 160) cut.substring(0, m + 1) else cut.substring(0, cut.lastIndexOf(' ').coerceAtLeast(1)) + "…"
+            }
+            return Pair(pg.optString("title"), t)
+        } finally {
+            c.disconnect()
+        }
     }
 
     private var rec: SpeechRecognizer? = null
