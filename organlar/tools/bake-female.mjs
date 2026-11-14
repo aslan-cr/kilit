@@ -1,6 +1,8 @@
 // Kadın referans modelini (HuBMAP "3D Reference Organ Set for Female v1.5", CC BY 4.0) uygulamanın parça biçimine pişirir.
 //   npm i meshoptimizer        (bir kez, herhangi bir klasörde; NODE_PATH ile gösterilebilir)
-//   node organlar/tools/bake-female.mjs <3d-vh-f-united.glb> [oran=0.22]
+//   node organlar/tools/bake-female.mjs <oran, örn. 0.22> <asıl.glb> [ek.glb ...]
+// Birden çok sürüm verilirse ilki esas alınır; sonrakilerden yalnızca ilkinde ADI bulunmayan parçalar eklenir
+// (v1.9'da ağız/diş/göğüs kemiği var ama bağırsaklar ve pankreas yok; v1.5'te tersi. Koordinatları aynıdır).
 // Çıktı: organlar/src/main/assets/models/atlas-female.json + fbody-N.bin.gz
 // Biçim (erkek modelle aynı): parça başına Float32 konum, Int16 normal, Uint32 indis; hepsi 4 bayta hizalı.
 import fs from "node:fs";
@@ -12,25 +14,39 @@ const require = createRequire(path.join(process.cwd(), "x.js"));
 const { MeshoptSimplifier } = require("meshoptimizer");
 await MeshoptSimplifier.ready;
 
-const [src, ratioArg] = process.argv.slice(2);
+const [ratioArg, ...srcs] = process.argv.slice(2);
 const RATIO = Number(ratioArg || 0.22), ERR = 0.004, CHUNK = 4.2e6;
 const OUT = path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/main/assets/models");
 
 // ---- GLB oku
-const buf = fs.readFileSync(src);
-const jl = buf.readUInt32LE(12), g = JSON.parse(buf.toString("utf8", 20, 20 + jl));
-const bin = buf.subarray(20 + jl + 8);
-function acc(i) {
-  const a = g.accessors[i], bv = g.bufferViews[a.bufferView], n = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }[a.type];
-  const off = bin.byteOffset + (bv.byteOffset || 0) + (a.byteOffset || 0);
-  const T = { 5126: Float32Array, 5125: Uint32Array, 5123: Uint16Array, 5121: Uint8Array }[a.componentType];
-  const size = T.BYTES_PER_ELEMENT * n, stride = bv.byteStride || size;
-  if (stride === size && off % T.BYTES_PER_ELEMENT === 0) return new T(bin.buffer, off, a.count * n);
-  const out = new T(a.count * n), dv = new DataView(bin.buffer, off);
-  const rd = { 5126: "getFloat32", 5125: "getUint32", 5123: "getUint16", 5121: "getUint8" }[a.componentType];
-  for (let k = 0; k < a.count; k++) for (let c = 0; c < n; c++) out[k * n + c] = dv[rd](k * stride + c * T.BYTES_PER_ELEMENT, true);
-  return out;
+function loadGlb(src) {
+  const buf = fs.readFileSync(src);
+  const jl = buf.readUInt32LE(12), g = JSON.parse(buf.toString("utf8", 20, 20 + jl));
+  const bin = buf.subarray(20 + jl + 8);
+  function acc(i) {
+    const a = g.accessors[i], bv = g.bufferViews[a.bufferView], n = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }[a.type];
+    const off = bin.byteOffset + (bv.byteOffset || 0) + (a.byteOffset || 0);
+    const T = { 5126: Float32Array, 5125: Uint32Array, 5123: Uint16Array, 5121: Uint8Array }[a.componentType];
+    const size = T.BYTES_PER_ELEMENT * n, stride = bv.byteStride || size;
+    if (stride === size && off % T.BYTES_PER_ELEMENT === 0) return new T(bin.buffer, off, a.count * n);
+    const out = new T(a.count * n), dv = new DataView(bin.buffer, off);
+    const rd = { 5126: "getFloat32", 5125: "getUint32", 5123: "getUint16", 5121: "getUint8" }[a.componentType];
+    for (let k = 0; k < a.count; k++) for (let c = 0; c < n; c++) out[k * n + c] = dv[rd](k * stride + c * T.BYTES_PER_ELEMENT, true);
+    return out;
+  }
+  return { g, acc };
 }
+// 4x4 (sütun öncelikli) yardımcıları: düğüm dönüşümleri (v1.9'da deri kabuğu ölçekli ve döndürülmüş gelir)
+const IDENT = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+function mul(a, b) { const o = new Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let v = 0; for (let k = 0; k < 4; k++) v += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = v; } return o; }
+function local(n) {
+  if (n.matrix) return n.matrix;
+  const t = n.translation || [0, 0, 0], q = n.rotation || [0, 0, 0, 1], s = n.scale || [1, 1, 1], [x, y, z, w] = q;
+  return [(1 - 2 * (y * y + z * z)) * s[0], 2 * (x * y + z * w) * s[0], 2 * (x * z - y * w) * s[0], 0,
+    2 * (x * y - z * w) * s[1], (1 - 2 * (x * x + z * z)) * s[1], 2 * (y * z + x * w) * s[1], 0,
+    2 * (x * z + y * w) * s[2], 2 * (y * z - x * w) * s[2], (1 - 2 * (x * x + y * y)) * s[2], 0, t[0], t[1], t[2], 1];
+}
+const xf = (m, x, y, z) => [m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]];
 
 // ---- Sistem eşlemesi (kaynak grup adı -> uygulamadaki sistem)
 const SKIP = /placenta|umbilical|chorion|amnio|Yao_lymph_node|Yao_/i;       // gebelik başvuru parçaları ve ölçek dışı lenf düğümü örneği alınmaz
@@ -44,6 +60,7 @@ function systemOf(p) {
   if (/urinary/.test(top)) return "urinary";
   if (/respiratory/.test(top)) return "respiratory";
   if (/lymphatic/.test(top)) return /thymus/.test(all) ? "endocrine" : "lymphatic";
+  if (/lower_limb/.test(top)) return /muscle|muscul/.test(all) ? "muscular" : /ligament|cartilage|menisc|enthesis|tendon/.test(all) ? "connective" : "skeletal";
   if (/skeletal/.test(top)) return /ligament|cartilage|menisc|enthesis/.test(all) ? "connective" : "skeletal";
   if (/circulatory/.test(top)) {
     if (/blood_vasculature/.test(all)) return /vein|vena|venous|sinus/.test(leaf) || (/veins?_/.test(all) && !/arter|aort/.test(leaf)) ? "venous" : "arterial";
@@ -54,23 +71,33 @@ function systemOf(p) {
 const clean = (s) => s.replace(/^(VH_F_|Allen_)/, "").replace(/_/g, " ").replace(/\s+/g, " ").trim()
   .replace(/ ([RL])( [a-z])?$/, (m, s, x) => (s === "R" ? " (right)" : " (left)") + (x ? x : ""));
 
-// ---- Düğümleri gez (kaynakta düğüm dönüşümü yok; yine de denetle)
-const leaves = [], groups = [];
-function walk(i, pth, gids) {
-  const n = g.nodes[i];
-  if (n.matrix || n.translation || n.rotation || n.scale) throw new Error("düğüm dönüşümü var: " + n.name);
-  const p = pth.concat(n.name);
-  if (SKIP.test(p.join("/"))) return;
-  let mine = gids;
-  if (n.children && pth.length >= 1) { const gid = "FG" + String(groups.length + 1).padStart(4, "0"); groups.push({ id: gid, name: clean(n.name), elements: [] }); mine = gids.concat(groups.length - 1); }
-  if (n.mesh != null) leaves.push({ name: n.name, path: p.slice(1), mesh: n.mesh, gids: mine });
-  (n.children || []).forEach((c) => walk(c, p, mine));
-}
-g.scenes[g.scene || 0].nodes.forEach((r) => walk(r, [], []));
+// ---- Düğümleri gez
+const leaves = [], groups = [], seen = new Set(), groupByName = new Map();
+srcs.forEach((src, si) => {
+  const G = loadGlb(src), g = G.g; let added = 0;
+  function walk(i, pth, gids, M) {
+    const n = g.nodes[i], W = n.matrix || n.translation || n.rotation || n.scale ? mul(M, local(n)) : M;
+    const p = pth.concat(n.name);
+    if (SKIP.test(p.join("/"))) return;
+    let mine = gids;
+    if (n.children && pth.length >= 1) {
+      let gi = groupByName.get(n.name);
+      if (gi === undefined) { gi = groups.length; groupByName.set(n.name, gi); groups.push({ id: "FG" + String(gi + 1).padStart(4, "0"), name: clean(n.name), elements: [] }); }
+      mine = gids.concat(gi);
+    }
+    if (n.mesh != null && !seen.has(n.name)) { seen.add(n.name); added++; leaves.push({ name: n.name, path: p.slice(1), mesh: n.mesh, gids: mine, G, W }); }
+    (n.children || []).forEach((c) => walk(c, p, mine, W));
+  }
+  g.scenes[g.scene || 0].nodes.forEach((r) => walk(r, [], [], IDENT));
+  console.log(path.basename(src), "->", added, "parça alındı");
+});
 
-// ---- Sahneye oturt: ayak tabanı y=0, x/z ortada (deri kabuğuna göre)
+// ---- Sahneye oturt: ayak tabanı y=0, x/z ortada
 let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
-for (const l of leaves) for (const pr of g.meshes[l.mesh].primitives) { const a = g.accessors[pr.attributes.POSITION]; for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], a.min[k]); mx[k] = Math.max(mx[k], a.max[k]); } }
+for (const l of leaves) for (const pr of l.G.g.meshes[l.mesh].primitives) {
+  const a = l.G.g.accessors[pr.attributes.POSITION];
+  for (let c = 0; c < 8; c++) { const v = xf(l.W, c & 1 ? a.max[0] : a.min[0], c & 2 ? a.max[1] : a.min[1], c & 4 ? a.max[2] : a.min[2]); for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], v[k]); mx[k] = Math.max(mx[k], v[k]); } }
+}
 const OFF = [-(mn[0] + mx[0]) / 2, -mn[1], -(mn[2] + mx[2]) / 2];
 console.log("kaynak sınırlar", mn, mx, "boy", (mx[1] - mn[1]).toFixed(3), "m");
 
@@ -80,10 +107,11 @@ const pad4 = (n) => (n + 3) & ~3;
 leaves.forEach((l, li) => {
   // ilkel(ler)i birleştir + çakışan köşeleri kaynakla
   const map = new Map(), P = [], I = [];
-  for (const pr of g.meshes[l.mesh].primitives) {
-    const pos = acc(pr.attributes.POSITION), idx = pr.indices != null ? acc(pr.indices) : null, n = idx ? idx.length : pos.length / 3;
+  for (const pr of l.G.g.meshes[l.mesh].primitives) {
+    const pos = l.G.acc(pr.attributes.POSITION), idx = pr.indices != null ? l.G.acc(pr.indices) : null, n = idx ? idx.length : pos.length / 3;
     for (let k = 0; k < n; k++) {
-      const v = idx ? idx[k] : k, x = pos[v * 3] + OFF[0], y = pos[v * 3 + 1] + OFF[1], z = pos[v * 3 + 2] + OFF[2];
+      const v = idx ? idx[k] : k, w = l.W === IDENT ? [pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]] : xf(l.W, pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]);
+      const x = w[0] + OFF[0], y = w[1] + OFF[1], z = w[2] + OFF[2];
       const key = Math.round(x * 2e5) + "," + Math.round(y * 2e5) + "," + Math.round(z * 2e5);
       let id = map.get(key); if (id === undefined) { id = P.length / 3; map.set(key, id); P.push(x, y, z); }
       I.push(id);
@@ -143,7 +171,7 @@ const chunkMeta = chunks.map((c, ci) => {
   return { url: `/models/fbody-${ci}.bin`, bytes: total, gzip: `/models/fbody-${ci}.bin.gz`, gzipBytes: gz.length };
 });
 const concepts = groups.filter((x) => x.elements.length > 1);
-const atlas = { version: "HRA 3D Reference Organ Set for Female v1.5", parts, chunks: chunkMeta, triangles: outTri, concepts, sourceTriangles: srcTri,
+const atlas = { version: "HRA 3D Reference Organ Set for Female v1.9 + v1.5", parts, chunks: chunkMeta, triangles: outTri, concepts, sourceTriangles: srcTri,
   optimized: { method: "meshoptimizer quadric simplification", maximumRelativeError: ERR, preservedMeshes: parts.length }, sex: "female", source: "Human Reference Atlas (HuBMAP)",
   scope: `Adult female reference organ set · ${parts.length} source meshes` };
 fs.writeFileSync(path.join(OUT, "atlas-female.json"), JSON.stringify(atlas));

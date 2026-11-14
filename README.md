@@ -191,3 +191,9 @@ Uygulamaların eski görünen yerleri türüne göre yenilendi; oyun kuralları 
 - **Aile Kilidi 3.2:** bütün ekranlarda yuvarlak, renk geçişli düğmeler ve yuvarlak şifre kutusu (`Ui.button`, `Ui.pwField`).
 - **Güncelleyici 2.1:** kartlarda uygulamanın kendi simgesi, üstte özet satırı, kontrol sürerken ilerleme çizgisi; kurulmayı/güncellenmeyi bekleyenler en üstte ve sarı vurgulu.
 - **İnsan Vücudu 2.3:** sol panelde kesilen sayılar, telefonda sağa taşan "Anatomiyi patlat" kutusu ve çakışan altyazı düzeltildi; `klasik.html` (uygulamada bağlantısı olmayan ikinci 3B sayfa) aynı levha temasına çevrildi.
+
+## İnsan Vücudu 2.4: Erkek / Kadın
+Başlığın altındaki **Erkek / Kadın** düğmesi bedeni değiştirir (seçim hatırlanır; sayfa `index.html?sex=female` ile yeniden açılır).
+Kadın bedeni HuBMAP "3D Reference Organ Set for Female" v1.9 + v1.5 birleşimidir (949 parça, CC BY 4.0): saydam deri kabuğu, kadın üreme organları, meme bezleri, beyin, göz, ağız/dişler, kalp, akciğerler, karaciğer, bağırsaklar, böbrekler.
+SINIR: açık lisanslı kaynaklarda erkek modeli (2.234 parça) kadar ayrıntılı tam bir kadın modeli yok; bu sette iskelet ve kaslar kısmidir.
+Yeniden üretmek için: `npm i meshoptimizer` sonra `node organlar/tools/bake-female.mjs 0.2 <v1.9.glb> <v1.5.glb>`. Uygulama yaklaşık 22 MB büyüdü.
