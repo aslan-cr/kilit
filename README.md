@@ -200,3 +200,8 @@ Başlığın altındaki **Erkek / Kadın** düğmesi bedeni değiştirir (seçim
 Kadın bedeni HuBMAP "3D Reference Organ Set for Female" v1.10 + v1.5 birleşimidir (951 parça, CC BY 4.0): saydam deri kabuğu, kadın üreme organları, meme bezleri, beyin, göz, ağız/dişler, kalp, akciğerler, karaciğer, bağırsaklar, böbrekler.
 SINIR: açık lisanslı kaynaklarda erkek modeli (2.234 parça) kadar ayrıntılı tam bir kadın modeli yok; bu sette iskelet ve kaslar kısmidir.
 Yeniden üretmek için: `npm i meshoptimizer` sonra `node organlar/tools/bake-female.mjs 0.2 <v1.10.glb> <v1.5.glb>`. Uygulama yaklaşık 22 MB büyüdü.
+
+## Gerçek fotoğraf dokuları (Kasım 2026)
+- **Güneş Sistemi 1.2:** Güneş, Merkür, Venüs, Dünya (bulutlarıyla), Ay, Mars, Jüpiter, Satürn (gerçek halka fotoğrafıyla), Uranüs ve Neptün artık NASA verilerinden üretilmiş gerçek yüzey haritalarıyla çiziliyor; arka planda gerçek Samanyolu fotoğrafı var. Haritalar `gunessistemi/src/main/assets/dokular.js` içine gömülü (internetsiz çalışır). Kaynak: Solar System Scope, CC BY 4.0 (uygulamanın alt notunda kaynak yazılı). Cüce gezegenler ve diğer uydular eskisi gibi üretilmiş yüzeyle çizilir.
+- **Yıkım Ustası 1.3:** çim, şantiye toprağı ve beton tabla gerçek zemin fotoğrafları oldu (`yikimustasi/src/main/assets/dokular.js`). Kaynak: ambientCG Ground037, Ground054, Concrete034 (CC0).
+- Fotoğraf dosyası yüklenemezse iki uygulama da eski üretilmiş dokulara döner.
