@@ -23,6 +23,37 @@ button.main:disabled{opacity:.5}button.lnk{background:none;border:0;color:var(--
 .mu{color:var(--mu);font-size:14px}.big{font:700 48px Georgia,serif}.tag{font-size:12px;color:var(--ac);font-weight:700}
 .ex{margin-top:8px;padding:10px;border-radius:10px;background:var(--ac2);font-size:14px}
 select{padding:8px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit}
+/* ===== v1.1 görünüm ===== */
+body{background:radial-gradient(1200px 500px at 50% -120px,color-mix(in srgb,var(--ac) 16%,transparent),transparent 70%),var(--bg);background-attachment:fixed;-webkit-tap-highlight-color:transparent}
+main{padding:16px 16px 28px}
+.hero{position:relative;overflow:hidden;margin:4px 0 6px;padding:22px 20px 20px;border-radius:22px;color:#fff;background:linear-gradient(135deg,#3d5afe 0%,#6a4bff 55%,#a14bff 100%);box-shadow:0 14px 34px color-mix(in srgb,#3d5afe 35%,transparent)}
+.hero:before,.hero:after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.12)}
+.hero:before{width:180px;height:180px;right:-50px;top:-70px}.hero:after{width:110px;height:110px;right:60px;bottom:-70px}
+.hero h1{margin:0 0 4px;font-size:28px;color:#fff;position:relative}.hero .mu{color:rgba(255,255,255,.86);position:relative}
+.hero .em{position:absolute;right:18px;top:16px;font-size:40px;line-height:1;z-index:1;filter:drop-shadow(0 4px 6px rgba(0,0,0,.25))}
+h2{display:flex;align-items:center;gap:8px;font-size:13px;margin:22px 2px 10px}
+h2:before{content:"";width:4px;height:14px;border-radius:3px;background:var(--ac)}
+.card{border-radius:18px;padding:16px;box-shadow:0 1px 2px rgba(20,25,45,.04),0 6px 18px rgba(20,25,45,.05)}
+.card.sj{border-left:5px solid var(--sc,var(--ac));padding-left:14px}
+.sub .ic{display:inline-grid;place-items:center;width:34px;height:34px;margin-right:10px;border-radius:11px;font-size:18px;background:color-mix(in srgb,var(--sc,var(--ac)) 16%,transparent);vertical-align:middle}
+.sub{margin-bottom:6px}
+.chip{border-radius:14px;padding:13px 12px;transition:transform .08s,border-color .15s,background .15s,box-shadow .15s;box-shadow:0 1px 2px rgba(20,25,45,.05)}
+.chip:active,.tp:active,.opt:active,button.main:active{transform:scale(.97)}
+.chip.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 18%,transparent);font-weight:700}
+.tp{padding:8px 13px;margin:6px 6px 0 0;transition:transform .08s,background .15s,color .15s,border-color .15s;line-height:1.3}
+.card.sj .tp.on{background:var(--sc,var(--ac));border-color:var(--sc,var(--ac));box-shadow:0 3px 8px color-mix(in srgb,var(--sc,var(--ac)) 35%,transparent)}
+button.main{border-radius:16px;padding:16px;margin-top:12px;background:linear-gradient(135deg,#3d5afe,#6a4bff);box-shadow:0 8px 20px color-mix(in srgb,#3d5afe 35%,transparent);letter-spacing:.2px;transition:transform .08s,opacity .15s}
+button.lnk{border-radius:8px;padding:6px 8px}
+.opt{display:flex;align-items:flex-start;gap:12px;border-radius:14px;padding:13px 14px;transition:transform .08s,border-color .15s,background .15s;line-height:1.4}
+.opt .lt{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:var(--ac2);color:var(--ac);font-weight:800;font-size:14px}
+.opt.ok .lt{background:var(--ok);color:#fff}.opt.no .lt{background:var(--no);color:#fff}
+.bar{height:8px}.bar i{background:linear-gradient(90deg,#3d5afe,#a14bff);border-radius:9px;transition:width .35s}
+.tag{display:inline-block;padding:4px 10px;border-radius:99px;background:var(--ac2);letter-spacing:.02em}
+.big{font-size:64px;line-height:1.1;background:linear-gradient(135deg,#3d5afe,#a14bff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ex{border-radius:12px;padding:12px 14px;border-left:4px solid var(--ac)}
+select{padding:11px 14px;border-radius:12px;font-weight:600;min-width:90px}
+.opt{font-size:16px;font-family:inherit;align-items:center;text-align:left}.chip{font-size:15.5px;font-family:inherit}button.main{font-size:17px;font-weight:700;font-family:inherit}button.lnk{font-size:14px;font-weight:600;font-family:inherit}
+textarea{font:inherit}textarea:focus,select:focus{outline:2px solid var(--ac);outline-offset:1px}
 </style></head><body><main id="app"></main>
 <script>
 const D={
@@ -52,13 +83,14 @@ const rnd=n=>Math.floor(Math.random()*n),shuf=a=>{a=[...a];for(let i=a.length-1;
 function curr(){const src=S.topics&&S.topics[S.g]||D[S.g];return src}
 function hist(){try{return JSON.parse(localStorage.getItem("hist")||"[]")}catch(e){return[]}}
 function saveHist(r){try{const h=hist();h.unshift(r);localStorage.setItem("hist",JSON.stringify(h.slice(0,15)))}catch(e){}}
+const SJ={"Matematik":["📐","#3d5afe"],"Türkçe":["📖","#e0568a"],"Fen Bilimleri":["🔬","#16a37a"],"Sosyal Bilgiler":["🌍","#e08a1e"],"T.C. İnkılap Tarihi":["🏛️","#c0453c"],"İngilizce":["💬","#8a56e0"],"Din Kültürü":["🕌","#1d9bb8"]};   // ders simgesi ve rengi
 function setup(){
  const c=curr(),subs=Object.keys(c);
- app.innerHTML=`<h1>Deneme Atölyesi</h1><div class="mu">${SY} eğitim yılı · her denemede yeni sorular</div>
+ app.innerHTML=`<div class="hero"><span class="em">📝</span><h1>Deneme Atölyesi</h1><div class="mu">${SY} eğitim yılı · her denemede yeni sorular</div></div>
  <h2>Sınıf</h2><div class="row">${[6,7,8].map(g=>`<button class="chip ${S.g==g?"on":""}" data-g="${g}">${g}. Sınıf</button>`).join("")}</div>
  <h2>Dönem</h2><div class="row">${[1,2].map(t=>`<button class="chip ${S.t==t?"on":""}" data-t="${t}">${t}. Dönem</button>`).join("")}</div>
  <h2>Dersler ve konular</h2>
- ${subs.map(s=>{const ts=c[s][S.t-1].split("|"),on=S.sel[s]||[];return `<div class="card"><div class="sub"><span>${esc(s)}</span><button class="lnk" data-all="${esc(s)}">${on.length==ts.length?"Temizle":"Tümü"}</button></div>${ts.map(t=>`<button class="tp ${on.includes(t)?"on":""}" data-s="${esc(s)}" data-tp="${esc(t)}">${esc(t)}</button>`).join("")}</div>`}).join("")}
+ ${subs.map(s=>{const ts=c[s][S.t-1].split("|"),on=S.sel[s]||[];const ic=SJ[s]||["📚","#3d5afe"];return `<div class="card sj" style="--sc:${ic[1]}"><div class="sub"><span><span class="ic">${ic[0]}</span>${esc(s)}</span><button class="lnk" data-all="${esc(s)}">${on.length==ts.length?"Temizle":"Tümü"}</button></div>${ts.map(t=>`<button class="tp ${on.includes(t)?"on":""}" data-s="${esc(s)}" data-tp="${esc(t)}">${esc(t)}</button>`).join("")}</div>`}).join("")}
  <h2>Sınav türü</h2><div class="row"><button class="chip ${S.mode!="yazili"?"on":""}" data-m="test">Test</button><button class="chip ${S.mode=="yazili"?"on":""}" data-m="yazili">Yazılı (açık uçlu)</button></div><h2>Ders başına soru sayısı</h2><select id="n">${[3,5,8,10].map(n=>`<option ${S.n==n?"selected":""}>${n}</option>`).join("")}</select>
  <button class="main" id="go">Denemeyi başlat</button>
  <button class="lnk" id="ref">↻ ${SY} konularını yapay zekâyla güncelle</button>
@@ -555,7 +587,7 @@ function quizTest(){
  const q=S.q[S.i],done=S.pick!==null;
  app.innerHTML=`<div class="mu">${S.i+1} / ${S.q.length} · <span id="tm"></span></div><div class="bar"><i style="width:${100*S.i/S.q.length}%"></i></div>
  <div class="card"><div class="tag">${esc(q.s)} · ${esc(q.t||"")}</div><p>${esc(q.q)}</p>
- ${q.o.map((o,i)=>`<button class="opt ${done?(i==q.a?"ok":i==S.pick?"no":""):""}" data-i="${i}" ${done?"disabled":""}>${"ABCD"[i]}) ${esc(o)}</button>`).join("")}
+ ${q.o.map((o,i)=>`<button class="opt ${done?(i==q.a?"ok":i==S.pick?"no":""):""}" data-i="${i}" ${done?"disabled":""}><span class="lt">${"ABCD"[i]}</span><span>${esc(o)}</span></button>`).join("")}
  ${done?`<div class="ex">${S.pick==q.a?"✓ Doğru. ":"✗ Yanlış. "}${esc(q.e||"")}</div>`:""}</div>
  ${done?`<button class="main" id="nx">${S.i+1<S.q.length?"Sonraki soru":"Sonucu gör"}</button>`:""}`;
  app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>{S.pick=+b.dataset.i;S.ans.push(S.pick);quiz()});
