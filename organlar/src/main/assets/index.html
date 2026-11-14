@@ -416,6 +416,14 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:4px solid var(
 @media(max-width:350px){.top-actions button,.top-actions .icon-button{width:48px;min-width:48px}}
 @media(min-width:768px) and (max-height:720px){.studio-footer>span{display:none}.scene-caption{display:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+/* Erkek / Kadın geçişi */
+.sex-switch{position:absolute;left:44px;top:112px;z-index:3;display:inline-flex;border:2px solid var(--ink);border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 3px 0 #1d4a7333}
+.sex-switch button{border:0;background:none;min-width:84px;height:44px;padding:0 16px;font:700 15px inherit;font-family:inherit;color:var(--ink);cursor:pointer}
+.sex-switch button+button{border-left:2px solid var(--ink)}
+.sex-switch button.on{background:var(--ink);color:#fff}
+body.has-detail .sex-switch{visibility:hidden}
+@media(max-width:767px){.sex-switch{left:max(16px,env(safe-area-inset-left));top:calc(max(18px,env(safe-area-inset-top)) + 40px)}.sex-switch button{min-width:72px;height:40px;font-size:14px}.identity-meta{display:none}}
+@media(min-width:768px) and (max-height:720px){.sex-switch{top:106px}}
 </style></head>
 <body>
 <main class="studio" id="studio">
@@ -426,6 +434,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:4px solid var(
   <h1>İnsan Vücudu Atlası<span class="badge">3D</span></h1>
   <div class="identity-meta"><span id="metaCount" style="padding:0;color:inherit">2.234</span> parçalık gerçek model</div>
  </header>
+
+ <div class="sex-switch" id="sexSwitch" role="group" aria-label="Beden seçimi"><button data-sex="male">Erkek</button><button data-sex="female">Kadın</button></div>
 
  <nav class="top-actions" aria-label="Gezgin panelleri">
   <button id="bSearch" aria-label="Anatomide ara"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>Yapı bul</span><kbd>/</kbd></button>
@@ -479,9 +489,10 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:4px solid var(
   <button class="close" id="aboutClose" aria-label="Kapat"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
   <div class="eyebrow">Kaynak ve kapsam</div>
   <h2 class="structure-title" style="margin-top:12px">Ortaya çıkan bir beden.</h2>
-  <p class="desc">BodyParts3D’deki yetişkin erkek referans anatomisini keşfedin.</p>
+  <p class="desc">Yetişkin erkek ve kadın referans anatomisini keşfedin. Bedeni üstteki Erkek / Kadın düğmesinden değiştirin.</p>
   <div class="about-copy">
-   <p><strong>Erkek · BodyParts3D</strong><br>Yetişkin erkek referans anatomisinden 2.234 ayrı model parçası ve 3.432 adlandırılmış kavram.</p>
+   <p id="aboutMale"><strong>Erkek · BodyParts3D</strong><br>Yetişkin erkek referans anatomisinden 2.234 ayrı model parçası ve 3.432 adlandırılmış kavram.</p>
+   <p id="aboutFemale" hidden><strong>Kadın · Human Reference Atlas (HuBMAP)</strong><br>“3D Reference Organ Set for Female v1.5” (Kristen Browne, Heidi Schlehlein; CC Atıf 4.0). Vücut yüzeyi ve seçilmiş organlar: kadın üreme organları, beyin, kalp, akciğerler, sindirim ve idrar yolları. İskelet ve kaslar bu sette yalnızca kısmen vardır (leğen, omurga, diz). Gebelik başvuru parçaları (plasenta) alınmadı.</p>
    <p>Bu referans, insandaki her yapıyı ya da bireysel farkları içermez. Adlandırılmış bir kavram birden çok parça içerebilir; kaynaktaki her model bir kez çizilir.</p>
    <p>Renkler ve sistem gruplamaları keşif için tasarlanmıştır. Geometri web için sadeleştirilmiştir; kısa açıklamalar genel eğitim amaçlıdır. Bu bir anatomi başvuru kaynağıdır; tanı ya da cerrahi için kullanılamaz.</p>
    <p>Yapı adları, BodyParts3D’nin İngilizce (FMA) adlarıdır; bilinen başlıca yapıların yanında Türkçe karşılığı gösterilir. Aramada Türkçe ve İngilizce kullanabilirsiniz.</p>

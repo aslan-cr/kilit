@@ -28,7 +28,11 @@ var SYSTEMS=[
  {id:"connective",name:"Bağ dokusu",color:"#aec3bb",description:"Kıkırdak, bağlar ve diğer bağ dokuları yapıları destekler, birbirine bağlar ve ayırır. Eklemleri dengeler ve mekanik yükleri dağıtır."}
 ];
 var SYS={};SYSTEMS.forEach(function(s){SYS[s.id]=s});
-var DEFAULT_VISIBLE=["cardiac","sensory","skeletal","muscular","arterial","venous","nervous","respiratory","digestive","urinary","lymphatic","endocrine","reproductive","connective"];
+/* Hangi beden: erkek (BodyParts3D) ya da kadın (HuBMAP). Seçim adres satırında (?sex=female) ve cihazda saklanır. */
+var SEX=(function(){var m=/[?&]sex=(female|male)/.exec(location.search);if(m)return m[1];try{return localStorage.getItem("atlasSex")==="female"?"female":"male"}catch(e){return "male"}})();
+var FEMALE=SEX==="female";
+if(FEMALE){SYSTEMS.forEach(function(s){if(s.id==="reproductive")s.description="Burada gösterilen kadın üreme yapıları (rahim, yumurtalıklar, yumurta kanalları, vajina ve meme bezleri) yumurta üretimine, döllenmeye, gebeliğe ve cinsiyet hormonlarının üretimine katkı sağlar."})}
+var DEFAULT_VISIBLE=["cardiac","sensory","skeletal","muscular","arterial","venous","nervous","respiratory","digestive","urinary","lymphatic","endocrine","reproductive","connective"].concat(FEMALE?["integumentary"]:[]);   // kadın modelinde iskelet ve kas kısmi olduğu için saydam deri kabuğu açık başlar
 var ORGAN_SET=["cardiac","respiratory","digestive","urinary","endocrine","reproductive"];
 
 var EXPL={
@@ -60,6 +64,7 @@ function explanation(name,sys){
 
 /* Başlıca yapıların Türkçe karşılıkları (İngilizce FMA adı → Türkçe) */
 var TRN={
+ "uterus":"Rahim","body of uterus":"Rahim gövdesi","fundus of uterus":"Rahim tabanı (fundus)","cervix":"Rahim ağzı","uterine cervix":"Rahim ağzı","ovary":"Yumurtalık","fallopian tube":"Yumurta kanalı (fallop tüpü)","uterine tube":"Yumurta kanalı (fallop tüpü)","vagina":"Vajina","mammary gland":"Meme bezi","endometrium":"Rahim iç zarı (endometriyum)","myometrium":"Rahim kası (miyometriyum)","ligaments of uterus and ovaries":"Rahim ve yumurtalık bağları","round ligament of uterus":"Rahmin yuvarlak bağı","ovarian ligament":"Yumurtalık bağı","nipple":"Meme başı","areola":"Meme halkası (areola)","lungs":"Akciğerler","eyes":"Gözler","kidney":"Böbrek","renal pelvis":"Böbrek havuzu","renal pyramid":"Böbrek piramidi","renal papilla":"Böbrek papillası","jejenum":"Boş bağırsak","retina":"Ağ tabaka (retina)","iris":"İris","lens":"Göz merceği","cornea":"Saydam tabaka (kornea)","sclera":"Göz akı (sklera)",
  "heart":"Kalp","brain":"Beyin","cerebellum":"Beyincik","cerebrum":"Büyük beyin","brainstem":"Beyin sapı","brain stem":"Beyin sapı","medulla oblongata":"Omurilik soğanı","pons":"Pons (köprü)","corpus callosum":"Nasırlı cisim",
  "liver":"Karaciğer","stomach":"Mide","spleen":"Dalak","pancreas":"Pankreas","gallbladder":"Safra kesesi","urinary bladder":"İdrar kesesi (mesane)","trachea":"Soluk borusu (trakea)","bronchus":"Bronş",
  "kidney":"Böbrek","lung":"Akciğer","esophagus":"Yemek borusu","small intestine":"İnce bağırsak","large intestine":"Kalın bağırsak","duodenum":"Oniki parmak bağırsağı","jejunum":"Boş bağırsak","ileum":"Kıvrım bağırsağı","cecum":"Kör bağırsak","appendix":"Apandis (apandiks)","colon":"Kolon","rectum":"Rektum","anal canal":"Anal kanal",
@@ -77,6 +82,8 @@ var TRW=[["kas","muscle"],["kemik","bone"],["atardamar","artery"],["toplardamar"
 function fold(s){return String(s).toLocaleLowerCase("tr").replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u").replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c").replace(/İ/g,"i").replace(/̇/g,"")}
 function trName(name){
  var l=name.toLowerCase();if(TRN[l])return TRN[l];
+ var f=/^(.+) \((left|right)\)( [a-z])?$/.exec(l);if(f)l=f[2]+" "+f[1];      // kadın modelindeki "ad (left)" biçimi
+ if(TRN[l])return TRN[l];
  var m=/^(left|right) (.+)$/.exec(l);
  if(m&&TRN[m[2]])return (m[1]==="left"?"Sol ":"Sağ ")+TRN[m[2]].charAt(0).toLocaleLowerCase("tr")+TRN[m[2]].slice(1);
  return null;
@@ -229,12 +236,19 @@ function ui(){
  $("bRot").setAttribute("aria-label",S.rotate?"Dönmeyi duraklat":"Vücudu döndür");
  // alt dock
  var pct=Math.round(S.explode*100);$("exOut").innerHTML=pct+"<span>%</span>";$("exr").style.setProperty("--p",pct+"%");
- $("caption").textContent=S.isolate?(chosen?(trName(chosen.name)||chosen.name).toLocaleLowerCase("tr"):"Seçili yapı"):S.explode>.95?"Her parça ayrı":S.explode>.05?"Parçalar ayrılıyor":"Yetişkin insan vücudu";
+ $("caption").textContent=S.isolate?(chosen?(trName(chosen.name)||chosen.name).toLocaleLowerCase("tr"):"Seçili yapı"):S.explode>.95?"Her parça ayrı":S.explode>.05?"Parçalar ayrılıyor":(FEMALE?"Yetişkin kadın v":"Yetişkin erkek v")+"ücudu";
  $("footHint").innerHTML=(S.explode>.8?"Sürükle: kaydır.":"Sürükle: döndür.")+" İki parmak: yakınlaştır. Dokun: incele.";
 }
 
 function wireUi(){
  $("bSearch").onclick=function(){setPanel("search")};
+ /* Erkek / Kadın geçişi: seçimi sakla ve sayfayı o bedenle yeniden aç */
+ Array.prototype.forEach.call(document.querySelectorAll("#sexSwitch button"),function(b){
+  var on=b.getAttribute("data-sex")===SEX;b.classList.toggle("on",on);b.setAttribute("aria-pressed",on?"true":"false");
+  b.onclick=function(){var v=b.getAttribute("data-sex");if(v===SEX)return;try{localStorage.setItem("atlasSex",v)}catch(e){}location.replace("index.html?sex="+v)};
+ });
+ if(FEMALE){var c=$("caption");if(c)c.textContent="Yetişkin kadın vücudu";var am=$("aboutMale"),af=$("aboutFemale");if(am)am.hidden=true;if(af)af.hidden=false}
+ else{var c2=$("caption");if(c2)c2.textContent="Yetişkin erkek vücudu"}
  $("searchClose").onclick=function(){panel=null;ui()};
  $("bAbout").onclick=$("bCredits").onclick=function(){details=false;panel=null;aboutOpen=true;ui()};
  $("aboutClose").onclick=$("scrim").onclick=function(){aboutOpen=false;ui()};
@@ -579,7 +593,7 @@ function initScene(){
 
 /* ------------------------------------------------------------------ başlat */
 wireUi();
-fetch("models/atlas.json").then(function(r){if(!r.ok)throw new Error("Anatomi kataloğu yüklenemedi.");return r.json()}).then(function(data){
+fetch(FEMALE?"models/atlas-female.json":"models/atlas.json").then(function(r){if(!r.ok)throw new Error("Anatomi kataloğu yüklenemedi.");return r.json()}).then(function(data){
  atlas=data;sysCountsInit();buildLayers();$("loadTxt").textContent="0% · "+fmt(atlas.parts.length)+" parça yükleniyor";
  ui();initScene();
 }).catch(function(e){showError(e&&e.message?e.message:"Anatomi kataloğu yüklenemedi.")});
