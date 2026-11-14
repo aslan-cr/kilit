@@ -189,4 +189,5 @@ Uygulamaların eski görünen yerleri türüne göre yenilendi; oyun kuralları 
 - **Deneme Atölyesi 1.1:** başlık bandı, derse göre renkli ve simgeli kartlar, harf rozetli şıklar.
 - **Kullanım Kaydı 1.1 / Kullanım İzle 2.2:** kartlı tasarım, yuvarlak düğmeler, renkli durum noktaları, cihaz rozetleri, yuvarlak süre çubukları.
 - **Aile Kilidi 3.2:** bütün ekranlarda yuvarlak, renk geçişli düğmeler ve yuvarlak şifre kutusu (`Ui.button`, `Ui.pwField`).
-- İnsan Vücudu ve Güncelleyici yakın zamanda yenilendiği için dokunulmadı.
+- **Güncelleyici 2.1:** kartlarda uygulamanın kendi simgesi, üstte özet satırı, kontrol sürerken ilerleme çizgisi; kurulmayı/güncellenmeyi bekleyenler en üstte ve sarı vurgulu.
+- **İnsan Vücudu 2.3:** sol panelde kesilen sayılar, telefonda sağa taşan "Anatomiyi patlat" kutusu ve çakışan altyazı düzeltildi; `klasik.html` (uygulamada bağlantısı olmayan ikinci 3B sayfa) aynı levha temasına çevrildi.
