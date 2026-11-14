@@ -11,8 +11,8 @@ android {
         applicationId = "com.beranmeva.kilit"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "3.1"
+        versionCode = 17
+        versionName = "3.2"
     }
 
     // Sabit imza: her derlemede aynı anahtar kullanılır, böylece yeni APK eskinin üstüne kurulur.
