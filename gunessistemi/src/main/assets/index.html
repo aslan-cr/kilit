@@ -33,7 +33,8 @@ canvas{width:100%;height:100%;display:block;touch-action:none}
 <button id="fb">☰ Seç</button><button id="zi">＋</button><button id="zo">－</button></div>
 <div id="cw"><canvas id="c"></canvas><div id="info"></div><div id="fp" hidden></div></div>
 <div id="chips"></div>
-<div id="note">Gezegen ve cüce gezegen konumları yörünge elemanlarından o anki tarih için hesaplanır. Uydu ve yapay uydu konumları yaklaşık yörünge periyotlarından üretilir; canlı TLE verisi bu sayfadan alınamadığı için gerçek anlık konumlar değildir. Uzaklıklar karekök ölçeklidir, cisim boyutları büyütülmüştür.</div>
+<div id="note">Gezegen ve cüce gezegen konumları yörünge elemanlarından o anki tarih için hesaplanır. Uydu ve yapay uydu konumları yaklaşık yörünge periyotlarından üretilir; canlı TLE verisi bu sayfadan alınamadığı için gerçek anlık konumlar değildir. Uzaklıklar karekök ölçeklidir, cisim boyutları büyütülmüştür. Gezegen fotoğrafları: Solar System Scope (CC BY 4.0, NASA verileri).</div>
+<script src="dokular.js"></script>
 <script>
 const D2R=Math.PI/180,J2000=Date.UTC(2000,0,1,12),YMS=31557600000;
 const Pl=(n,c,px,a,e,i,L,vp,om,r)=>({n,c,px,a,e,i,om,vp,ml:T=>L+r*T-vp});
@@ -111,13 +112,14 @@ function mkBg(d){
   bg=document.createElement("canvas");bg.width=Math.max(2,W*d);bg.height=Math.max(2,H*d);const c=bg.getContext("2d");c.setTransform(d,0,0,d,0,0);
   let s=20261113;const r=()=>(s=(Math.imul(s,1664525)+1013904223)|0,(s>>>8)/16777216);
   const g0=c.createLinearGradient(0,0,W,H);g0.addColorStop(0,"#070a18");g0.addColorStop(.5,"#04050c");g0.addColorStop(1,"#0a0716");c.fillStyle=g0;c.fillRect(0,0,W,H);
+  const sky=IM.yildizlar;if(sky){const iw=sky.width*.62,ih=sky.height,k=Math.max(W/iw,H/ih);c.globalAlpha=.75;c.drawImage(sky,sky.width*.19,0,iw,ih,(W-iw*k)/2,(H-ih*k)/2,iw*k,ih*k);c.globalAlpha=1}
   c.globalCompositeOperation="lighter";
   const M=Math.max(W,H);
   [["60,40,140",.07],["20,90,130",.06],["130,40,90",.045],["40,60,160",.05],["90,50,150",.04]].forEach(([col,a])=>{for(let k=0;k<3;k++){const x=r()*W,y=r()*H,R=M*(.22+r()*.3),g=c.createRadialGradient(x,y,0,x,y,R);g.addColorStop(0,"rgba("+col+","+a+")");g.addColorStop(1,"rgba("+col+",0)");c.fillStyle=g;c.fillRect(x-R,y-R,R*2,R*2)}});
-  c.save();c.translate(W/2,H/2);c.rotate(-.55);                              // Samanyolu
+  if(!sky){c.save();c.translate(W/2,H/2);c.rotate(-.55);                              // Samanyolu (fotoğraf yüklenmediyse)
   const L=Math.hypot(W,H);const mg=c.createLinearGradient(0,-M*.16,0,M*.16);mg.addColorStop(0,"rgba(150,160,220,0)");mg.addColorStop(.5,"rgba(170,175,230,.1)");mg.addColorStop(1,"rgba(150,160,220,0)");c.fillStyle=mg;c.fillRect(-L,-M*.16,L*2,M*.32);
   for(let i=0;i<Math.min(2600,W*H/260);i++){const x=(r()-.5)*L*1.2,y=(r()+r()+r()-1.5)*M*.09;c.fillStyle="rgba(220,225,255,"+(.1+r()*.35)+")";c.fillRect(x,y,r()<.9?.8:1.3,r()<.9?.8:1.3)}
-  c.restore();
+  c.restore();}
   const cols=["255,255,255","255,244,220","200,220,255","255,214,180","190,205,255"];
   for(let i=0;i<Math.min(900,W*H/900);i++){const x=r()*W,y=r()*H,z=r(),sz=z<.86?.9:z<.97?1.5:2.2;c.fillStyle="rgba("+cols[(r()*5)|0]+","+(.25+r()*.6)+")";c.beginPath();c.arc(x,y,sz/2+.2,0,7);c.fill();
     if(z>.993){const g=c.createRadialGradient(x,y,0,x,y,9);g.addColorStop(0,"rgba(255,255,255,.5)");g.addColorStop(1,"rgba(255,255,255,0)");c.fillStyle=g;c.fillRect(x-9,y-9,18,18);c.fillStyle="rgba(255,255,255,.35)";c.fillRect(x-7,y-.4,14,.8);c.fillRect(x-.4,y-7,.8,14)}}
@@ -162,10 +164,22 @@ const SURF={
 "Halley":(x,y,z)=>{const n=f3(x*4,y*4,z*4),v=50+n*60;return[v,v*.95,v*.9]},
 "Ay":(x,y,z)=>{const n=f3(x*3,y*3+3,z*3),m=f3(x*1.8+5,y*1.8,z*1.8+2),c=n3(x*11,y*11,z*11);let v=150+n*70;v=v*(1-ss(.5,.62,m)*.42)-(c>.74?(c-.74)*170:0);return[v,v*.98,v*.95]}};
 const ATM={"Dünya":"110,170,255","Venüs":"255,220,150","Jüpiter":"240,200,150","Satürn":"240,220,160","Uranüs":"150,235,245","Neptün":"110,150,255","Mars":"240,150,110"};
-const TXN=220,TXC={},txq=[];
+// Gerçek yüzey fotoğrafları (dokular.js): eşdikdörtgen haritalar küreye sarılır. Yüklenmezse yukarıdaki üretilmiş yüzey kullanılır.
+const IM={},MAP={},MAPN={"Güneş":"gunes","Merkür":"merkur","Venüs":"venus","Dünya":"dunya","Mars":"mars","Jüpiter":"jupiter","Satürn":"saturn","Uranüs":"uranus","Neptün":"neptun","Ay":"ay"};
+const LON={"Dünya":.62,"Jüpiter":.15,"Mars":.3,"Ay":0,"Neptün":.2};                       // ilk bakılan boylam (tur)
+function pix(im){const c=document.createElement("canvas");c.width=im.width;c.height=im.height;const x=c.getContext("2d");x.drawImage(im,0,0);return{w:c.width,h:c.height,d:x.getImageData(0,0,c.width,c.height).data}}
+function loadMaps(){const D=window.DOKU||{};let left=0;
+  for(const n in D){left++;const im=new Image();im.onload=()=>{IM[n]=im;try{MAP[n]=pix(im)}catch(e){}
+    for(const k in MAPN)if(MAPN[k]==n||(n=="bulut"&&k=="Dünya")){delete TXC[k];tex(k)}
+    if(n=="yildizlar"&&W)mkBg(devicePixelRatio||1);if(n=="halka")ringTex=null;};im.src=D[n]}}
+function sampleMap(m,u,v){u-=Math.floor(u);const x=Math.min(m.w-1,u*m.w|0),y=Math.min(m.h-1,Math.max(0,v*m.h|0)),o=(y*m.w+x)*4;return[m.d[o],m.d[o+1],m.d[o+2]]}
+function mapSurf(k){const m=MAP[MAPN[k]];if(!m)return null;const cl=k=="Dünya"?MAP.bulut:null,l0=LON[k]||0;
+  return(x,y,z)=>{const u=Math.atan2(x,z)/6.2832+.5+l0,v=Math.asin(Math.max(-1,Math.min(1,y)))/3.1416+.5;let c=sampleMap(m,u,v);
+    if(cl){const a=sampleMap(cl,u,v)[0]/255*.9;c=[c[0]+(255-c[0])*a,c[1]+(255-c[1])*a,c[2]+(255-c[2])*a]}return c}}
+const TXN=360,TXC={},txq=[];
 function mkTex(k){
-  const c=document.createElement("canvas");c.width=c.height=TXN;const x2=c.getContext("2d"),im=x2.createImageData(TXN,TXN),d=im.data,f=SURF[k]||SURF.Ceres,R=TXN/2;
-  for(let j=0;j<TXN;j++)for(let i=0;i<TXN;i++){const x=(i+.5)/R-1,y=(j+.5)/R-1,r2=x*x+y*y;if(r2>1)continue;const z=Math.sqrt(1-r2),rr=Math.sqrt(r2),col=f(x,y,z),lm=.5+.5*Math.pow(z,.55),o=(j*TXN+i)*4;
+  const c=document.createElement("canvas");c.width=c.height=TXN;const x2=c.getContext("2d"),im=x2.createImageData(TXN,TXN),d=im.data,f=mapSurf(k)||SURF[k]||SURF.Ceres,R=TXN/2;
+  for(let j=0;j<TXN;j++)for(let i=0;i<TXN;i++){const x=(i+.5)/R-1,y=(j+.5)/R-1,r2=x*x+y*y;if(r2>1)continue;const z=Math.sqrt(1-r2),rr=Math.sqrt(r2),col=f(x,y,z),lm=k=="Güneş"?.62+.38*Math.pow(z,.4):.5+.5*Math.pow(z,.55),o=(j*TXN+i)*4;
     d[o]=col[0]*lm;d[o+1]=col[1]*lm;d[o+2]=col[2]*lm;d[o+3]=Math.min(1,(1-rr)*R)*255}
   x2.putImageData(im,0,0);return c;
 }
@@ -186,8 +200,14 @@ function ball(k,col,x,y,r,sa){
   ctx.restore();
 }
 // Halka (Satürn, soluk Uranüs): arka yarı gezegenden önce, ön yarı sonra çizilir.
+let ringTex=null;const RI=1.24,RO=2.3;
+function mkRing(){const m=MAP.halka;if(!m)return null;const N=512,c=document.createElement("canvas");c.width=c.height=N;const x=c.getContext("2d"),im=x.createImageData(N,N),d=im.data,h=N/2;
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const rr=Math.hypot(i+.5-h,j+.5-h)/h*RO;if(rr<RI||rr>RO)continue;const u=(rr-RI)/(RO-RI),q=Math.min(m.w-1,u*m.w|0)*4+(m.h>>1)*m.w*4,o=(j*N+i)*4;
+    d[o]=m.d[q];d[o+1]=m.d[q+1];d[o+2]=m.d[q+2];d[o+3]=m.d[q+3]*.95}
+  x.putImageData(im,0,0);return c}
 function rings(x,y,r,sq,rot,front,dim){
   ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.beginPath();ctx.rect(-r*3,front?0:-r*3,r*6,r*3);ctx.clip();
+  if(!dim&&MAP.halka){if(!ringTex)ringTex=mkRing();ctx.scale(1,Math.max(.02,sq));ctx.drawImage(ringTex,-RO*r,-RO*r,RO*r*2,RO*r*2);ctx.restore();return}
   for(const[r0,r1,a,c]of dim?[[1.55,1.62,.3,"190,230,240"],[1.9,2,.4,"190,230,240"]]:[[1.22,1.5,.3,"170,150,110"],[1.52,1.94,.82,"232,214,168"],[2.02,2.28,.6,"206,186,142"],[2.34,2.38,.3,"206,186,142"]]){
     ctx.fillStyle="rgba("+c+","+a*(dim||1)+")";ctx.beginPath();ctx.ellipse(0,0,r1*r,Math.max(.6,r1*r*sq),0,0,7);ctx.ellipse(0,0,r0*r,Math.max(.3,r0*r*sq),0,0,7);ctx.fill("evenodd")}
   ctx.restore();
@@ -199,6 +219,7 @@ function sun(x,y,r,now){
   for(let i=0;i<14;i++){const a=i*6.283/14,l=r*(2.6+1.4*Math.sin(i*2.7+now*.0006));ctx.rotate(6.283/14);const rg=ctx.createLinearGradient(0,0,l,0);rg.addColorStop(0,"rgba(255,220,130,.34)");rg.addColorStop(1,"rgba(255,180,60,0)");ctx.fillStyle=rg;ctx.beginPath();ctx.moveTo(0,-r*.3);ctx.lineTo(l,0);ctx.lineTo(0,r*.3);ctx.fill()}
   ctx.restore();
   const g2=ctx.createRadialGradient(x-r*.2,y-r*.2,0,x,y,r);g2.addColorStop(0,"#fffdf0");g2.addColorStop(.45,"#ffe27a");g2.addColorStop(.85,"#ffab2e");g2.addColorStop(1,"#f07a12");ctx.fillStyle=g2;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  const st=r>=4&&MAP.gunes?tex("Güneş"):null;if(st){ctx.drawImage(st,x-r,y-r,r*2,r*2);const h=ctx.createRadialGradient(x,y,r*.55,x,y,r);h.addColorStop(0,"rgba(255,240,180,0)");h.addColorStop(1,"rgba(255,150,40,.35)");ctx.fillStyle=h;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill()}
 }
 function label(s,x,y,c){ctx.font="600 11px system-ui,sans-serif";ctx.lineWidth=3;ctx.lineJoin="round";ctx.strokeStyle="rgba(4,5,12,.8)";ctx.strokeText(s,x+6,y-5);ctx.fillStyle=c||"#cfd6ea";ctx.fillText(s,x+6,y-5)}
 function rgba(hex,a){const n=parseInt(hex.length<6?hex.slice(1).replace(/./g,"$&$&"):hex.slice(1),16);return"rgba("+(n>>16)+","+((n>>8)&255)+","+(n&255)+","+a+")"}
@@ -262,5 +283,5 @@ grp("Kuşaklar",[["k:ast","Asteroit kuşağı"],["k:kb","Kuiper kuşağı"],["k:
 grp("Uzay araçları",Pr.map(p=>["p:"+p[0],p[0]]));
 Object.keys(Mo).forEach(h=>grp(h+" uyduları ve yapay uyduları",Mo[h].map(m=>["m:"+h+":"+m[0],m[0]])));
 document.getElementById("fb").onclick=()=>fp.hidden=!fp.hidden;
-rs();B.forEach(b=>tex(b.n));tex("Ay");requestAnimationFrame(frame);
+rs();B.forEach(b=>tex(b.n));tex("Ay");loadMaps();requestAnimationFrame(frame);
 </script></body></html>
