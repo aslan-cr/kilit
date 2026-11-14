@@ -42,6 +42,7 @@ button{background:linear-gradient(180deg,#ffc64a,#ffa412);color:#1a1200;border:0
 <div id="ov"><div id="ovw"><div id="ovb"></div><div id="lobby"><div style="font-weight:700;margin-bottom:8px">Çok oyunculu</div><button id="autoPlay">Arkadaşlarla oyna</button><div id="lmsg" style="margin-top:8px;font-size:14px;opacity:.95">Arkadaşların da aynı tuşa bassın, otomatik eşleşirsiniz. İnternet gerekir.</div><button id="lvRoom" style="display:none">Ayrıl</button></div></div></div>
 <script src="three.min.js"></script>
 <script src="cannon.min.js"></script>
+<script src="dokular.js"></script>
 <script>
 const $=id=>document.getElementById(id),V3=CANNON.Vec3,rnd=(a,b)=>a+Math.random()*(b-a);
 const LV=[{w:8,d:8,h:12,b:4,r:3.4},{w:10,d:8,h:16,b:5,r:3.6},{w:12,d:10,h:24,b:6,r:3.8}];
@@ -65,6 +66,10 @@ const TXG=cvTex(256,256,(x,w,h)=>{x.fillStyle='#667a4c';x.fillRect(0,0,w,h);spec
 const TXC=cvTex(256,256,(x,w,h)=>{x.fillStyle='#9a9690';x.fillRect(0,0,w,h);speck(x,w,h,3000,['#8a8680','#a8a49d','#93908a','#b0aca4'],.2,.6,1,3);speck(x,w,h,26,['#6f6b66','#7d7872'],.12,.3,10,40);
   x.strokeStyle='rgba(60,58,54,.55)';x.lineWidth=3;x.strokeRect(0,0,w,h);x.strokeStyle='rgba(60,58,54,.5)';x.lineWidth=1;for(let i=0;i<5;i++){x.beginPath();let px=Math.random()*w,py=Math.random()*h;x.moveTo(px,py);for(let k=0;k<8;k++){px+=(Math.random()-.5)*34;py+=(Math.random()-.3)*26;x.lineTo(px,py)}x.stroke()}},1,1);
 const TXD=cvTex(256,256,(x,w,h)=>{x.fillStyle='#7d6a50';x.fillRect(0,0,w,h);speck(x,w,h,5200,['#6f5d45','#8a7558','#65543d','#93805f','#75634a'],.25,.7,1,3);speck(x,w,h,220,['#55452f','#9a8a6c'],.2,.5,2,5);x.strokeStyle='rgba(60,46,30,.35)';x.lineWidth=5;for(let i=0;i<3;i++){const y0=30+i*80+Math.random()*20;x.beginPath();x.moveTo(0,y0);x.bezierCurveTo(80,y0+14,170,y0-14,256,y0);x.stroke()}},1,1);
+// Gerçek zemin fotoğrafları (dokular.js, ambientCG CC0): yüklenince çim/toprak/beton tuvallerinin üstüne çizilir; yüklenemezse üretilmiş dokular kalır.
+{const D=window.DOKU||{};[[TXG,'cim','#8f9a7a'],[TXD,'toprak','#a08c70'],[TXC,'beton','#c4c0b8']].forEach(([t,k,tint])=>{if(!D[k])return;const im=new Image();im.onload=()=>{const c=t.image,x=c.getContext('2d');
+  c.width=c.height=512;x.drawImage(im,0,0,512,512);x.globalCompositeOperation='multiply';x.fillStyle=tint;x.fillRect(0,0,512,512);x.globalCompositeOperation='source-over';
+  t.needsUpdate=true;scene.traverse(o=>{const m=o.material;if(m&&m.map&&m.map.image===c)m.map.needsUpdate=true})};im.src=D[k]})}
 // Uzaktaki binalar: pencereli cephe dokuları (3 çeşit)
 const TXB=[['#9aa3ad','#34495e'],['#bfb09a','#3d5263'],['#868f9b','#2c4660'],['#b3a49d','#3a4f61']].map(([wall,glass])=>cvTex(64,64,(x,w,h)=>{x.fillStyle=wall;x.fillRect(0,0,w,h);speck(x,w,h,160,['#000','#fff'],.03,.09,1,3);
   for(let r=0;r<4;r++)for(let c=0;c<4;c++){const lit=Math.random()<.12;x.fillStyle=lit?'#f3d98a':glass;x.globalAlpha=lit?1:.75+Math.random()*.25;x.fillRect(c*16+3,r*16+3,10,10);x.globalAlpha=.35;x.fillStyle='#fff';x.fillRect(c*16+3,r*16+3,10,2);x.globalAlpha=.3;x.fillStyle='#000';x.fillRect(c*16+3,r*16+12,10,1)}x.globalAlpha=1},1,1));
