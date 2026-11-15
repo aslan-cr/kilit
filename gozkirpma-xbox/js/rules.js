@@ -99,6 +99,8 @@ export const RULES = {
       candleSmall: { c: [1.0, 0.8, 0.45], r: 1.5, k: 0.6 }, lampPost: { c: [0.9, 1.0, 0.6], r: 3.6, k: 1.3 },
     },
   },
+  // Görüntü: tavan yok; duvarlar yukarı doğru wallFade birim uzar ve karanlığa karışır. voidHaze: boşluğun ufka yakın hafif sisi (0 = tam siyah)
+  view: { wallFade: 2.6, voidHaze: 7 },
   danger: { range: 8 },                      // bu kadar yakında düşman varsa kalp atışı hızlanır
   scare: { seconds: 3.0 },                   // yakalanma sahnesi süresi (karanlık + saldırı + kararma)
   // Çevrim içi: yakalanınca hemen lobiye dönülmez, yere düşülür. Odadaki bir arkadaş yanına gelip `seconds` sn yanında durursa kalkarsın.

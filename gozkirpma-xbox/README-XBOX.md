@@ -32,3 +32,6 @@ Android sürümüyle aynı: çevrim içi odada yakalanınca lobiye dönülmez, y
 
 ## Yukarı/aşağı bakış
 Sağ çubuğu yukarı/aşağı itince yukarı/aşağı bakılır (sınır `rules.player.pitchMax` ≈43°, hız `pitchKeys`). Görüntü gerçek baş eğimi gibi perspektifle düzeltilir (`pitchWarp`), büyüteç/gerilme etkisi olmaz. Klavyede Z yukarı, X aşağı; dokunmatikte sağ yarıda parmağı yukarı/aşağı sürükle. Ateş ve vuruş hâlâ yatay düzlemde.
+
+## Tavan yok
+Android sürümündeki gibi tavan kaldırıldı: duvarlar yukarı doğru uzayıp karanlığa karışır, üstte sonsuz karanlık bir boşluk var (`rules.view.wallFade`, `voidHaze`). Yukarı bakınca bu boşluk görünür.

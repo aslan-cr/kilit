@@ -377,6 +377,10 @@ export class Renderer {
     const cam = { x: g.px, y: g.py, yaw: g.yaw, pitch: down ? 0.35 : g.pitch || 0, eye: down ? (R.revive ? R.revive.eyeHeight : 0.1) : R.player.eyeHeight, bob: down ? 0 : g.bob, time: fx.time };
     // Yukarı/aşağı bakış: görüntü önce dik bir perde üzerine (daha geniş açıyla) çizilir, sonra gerçek baş eğimine göre
     // perspektifi düzeltilerek ekrana yerleştirilir. Sadece ufku kaydırmak kenarları gerip "büyüteç" etkisi yapıyordu.
+    if (cam.pitch) {                                  // uzun ekranda kenar boş kalmasın: bu ekranın sınırına çek (oyunun açısı da, ölü bölge olmasın)
+      const pm = this.pitchLimit(); cam.pitch = Math.max(-pm, Math.min(pm, cam.pitch));
+      if (!down && Math.abs(g.pitch || 0) > pm) g.pitch = cam.pitch;
+    }
     const SC0 = this.SC, warp = Math.abs(cam.pitch || 0) > 0.005;
     if (warp) this.SC = SC0 * this.pitchFit(cam.pitch, SC0);
     this.world(g, cam, fx);
@@ -473,6 +477,22 @@ export class Renderer {
     const dy = Math.tan(Math.min(1.5, a + Math.atan(vmax))) - Math.tan(a);
     const k = Math.max(0.05, Math.cos(a) - vmax * Math.sin(a));
     return Math.max(0.36, Math.min(1, vmax / dy, k) * 0.98);
+  }
+
+  // Bu ekran oranında perdenin ekranı tamamen doldurduğu en büyük eğim (ekran boyu değişince yeniden hesaplanır)
+  pitchLimit() {
+    const key = this.RW + "x" + this.RH;
+    if (this._plKey !== key) {
+      const vmax = this.RH / 2 / this.SC + 0.02, hmax = this.RW / 2 / this.SC;
+      let a = 1.4;
+      while (a > 0.2) {
+        const dy = Math.tan(Math.min(1.5, a + Math.atan(vmax))) - Math.tan(a), k = Math.cos(a) - vmax * Math.sin(a);
+        if (Math.min(vmax / dy, k) * 0.98 >= 0.36) break;
+        a -= 0.01;
+      }
+      this._plKey = key; this._pl = a;
+    }
+    return this._pl;
   }
 
   // Dik perdeye çizilmiş görüntüyü (SC = geniş açı, ufuk = tan(p)) gerçek eğik kameraya (SC0) çevirir. En yakın piksel.

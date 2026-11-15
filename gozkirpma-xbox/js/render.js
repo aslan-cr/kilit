@@ -322,8 +322,6 @@ const WALLS = [
 ];
 function wallPick(mx, my, side) { const h = hash(mx * 3.7 + side * 17.3, my * 5.1 + side * 29.9); return h < 0.38 ? 0 : h < 0.72 ? 1 : h < 0.85 ? 2 : h < 0.92 ? 3 : 4; }
 const TEX_FLOOR = makeFloor();
-// Tavan: kaba, koyu taş (bu sürümde tavan var)
-const TEX_CEIL = (() => { const T = new Uint8Array(TS * TS * 3); for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) { const u = (x + 0.5) / TS, v = (y + 0.5) / TS, n = fbm(u, v, 8), f = pnoise(u * 64, v * 64, 64), c = sstep(0.5, 0.56, pnoise(u * 12 + 3, v * 12, 12)) * (1 - sstep(0.56, 0.62, pnoise(u * 12 + 3, v * 12, 12))), m = (34 + n * 44 + (f - 0.5) * 18) * (1 - c * 0.6), i = (y * TS + x) * 3; T[i] = m * 0.82; T[i + 1] = m * 0.9; T[i + 2] = m; } return T; })();
 const noise = new Float32Array(4096).map(() => Math.random());
 
 function px32(r, g, b) {
@@ -378,6 +376,10 @@ export class Renderer {
     const cam = { x: g.px, y: g.py, yaw: g.yaw, pitch: down ? 0.35 : g.pitch || 0, eye: down ? (R.revive ? R.revive.eyeHeight : 0.1) : R.player.eyeHeight, bob: down ? 0 : g.bob, time: fx.time };
     // Yukarı/aşağı bakış: görüntü önce dik bir perde üzerine (daha geniş açıyla) çizilir, sonra gerçek baş eğimine göre
     // perspektifi düzeltilerek ekrana yerleştirilir. Sadece ufku kaydırmak kenarları gerip "büyüteç" etkisi yapıyordu.
+    if (cam.pitch) {                                  // uzun ekranda kenar boş kalmasın: bu ekranın sınırına çek (oyunun açısı da, ölü bölge olmasın)
+      const pm = this.pitchLimit(); cam.pitch = Math.max(-pm, Math.min(pm, cam.pitch));
+      if (!down && Math.abs(g.pitch || 0) > pm) g.pitch = cam.pitch;
+    }
     const SC0 = this.SC, warp = Math.abs(cam.pitch || 0) > 0.005;
     if (warp) this.SC = SC0 * this.pitchFit(cam.pitch, SC0);
     this.world(g, cam, fx);
@@ -476,6 +478,22 @@ export class Renderer {
     return Math.max(0.36, Math.min(1, vmax / dy, k) * 0.98);
   }
 
+  // Bu ekran oranında perdenin ekranı tamamen doldurduğu en büyük eğim (ekran boyu değişince yeniden hesaplanır)
+  pitchLimit() {
+    const key = this.RW + "x" + this.RH;
+    if (this._plKey !== key) {
+      const vmax = this.RH / 2 / this.SC + 0.02, hmax = this.RW / 2 / this.SC;
+      let a = 1.4;
+      while (a > 0.2) {
+        const dy = Math.tan(Math.min(1.5, a + Math.atan(vmax))) - Math.tan(a), k = Math.cos(a) - vmax * Math.sin(a);
+        if (Math.min(vmax / dy, k) * 0.98 >= 0.36) break;
+        a -= 0.01;
+      }
+      this._plKey = key; this._pl = a;
+    }
+    return this._pl;
+  }
+
   // Dik perdeye çizilmiş görüntüyü (SC = geniş açı, ufuk = tan(p)) gerçek eğik kameraya (SC0) çevirir. En yakın piksel.
   pitchWarp(cam, SC0) {
     const RW = this.RW, RH = this.RH, SCs = this.SC, p = cam.pitch, cp = Math.cos(p), sp = Math.sin(p);
@@ -542,20 +560,25 @@ export class Renderer {
     } else {
       // Zemin ve tavan
       const ambFill = px32(AMB * 150, AMB * 190, AMB * 170);
+      const hazeK = g.rules.view.voidHaze;
       for (let y = 0; y < RH; y++) {
         const isFloor = y > horizon;
         const dy = isFloor ? y - horizon : horizon - y;
+        if (!isFloor) {                                          // tavan yok: sonsuza giden karanlık boşluk (ufka yakın çok hafif sis)
+          const base = y * RW, hz = hazeK * Math.exp(-dy / 55);
+          for (let x = 0; x < RW; x++) buf32[base + x] = hz < 0.5 ? 0xff000000 : px32(hz * 0.55, hz, hz * 0.8);
+          continue;
+        }
         if (dy < 0.5) { for (let x = 0; x < RW; x++) buf32[y * RW + x] = 0xff000000; continue; }
-        const rowDist = ((isFloor ? cam.eye : 1 - cam.eye) * SC) / dy;
+        const rowDist = (cam.eye * SC) / dy;
         const sh = this.light(rowDist);
         if (sh < AMB * 1.25 && !NL) { const base = y * RW; for (let x = 0; x < RW; x++) buf32[base + x] = ambFill; continue; }
-        const tex = isFloor ? TEX_FLOOR : TEX_CEIL;
-        const mul = isFloor ? 1.0 : 0.7, TW = isFloor ? FS : TS;
+        const tex = TEX_FLOOR, mul = 1.0, TW = FS;
         let fx2 = cam.x + rowDist * (dirX - plX), fy2 = cam.y + rowDist * (dirY - plY);
         const sx = (rowDist * 2 * plX) / RW, sy = (rowDist * 2 * plY) / RW;
         const base = y * RW;
         for (let x = 0; x < RW; x++) {
-          const tk = isFloor ? 0.5 : 1, hx2 = fx2 * tk, hy2 = fy2 * tk;   // zemin dokusu 2x2 kareyi kaplar
+          const hx2 = fx2 * 0.5, hy2 = fy2 * 0.5;   // zemin dokusu 2x2 kareyi kaplar
           const tx = ((hx2 - Math.floor(hx2)) * TW) | 0, ty = ((hy2 - Math.floor(hy2)) * TW) | 0;
           const ti = (ty * TW + tx) * 3;
           let lr = sh * TINT[0], lg = sh * TINT[1], lb = sh * TINT[2];
@@ -590,8 +613,9 @@ export class Renderer {
         wallX -= Math.floor(wallX);
         let texX = (wallX * TS) | 0;
         if ((side === 0 && rdx > 0) || (side === 1 && rdy < 0)) texX = TS - 1 - texX;
-        const lineH = SC / perp;
-        const topF = horizon - (1 - cam.eye) * lineH;
+        const lineH = SC / perp, V = g.rules.view;
+        const hTop = 1 + V.wallFade;                               // duvar yukarı doğru uzar ve karanlığa karışır (tavan yok)
+        const topF = horizon - (hTop - cam.eye) * lineH;
         const y0 = Math.max(0, topF | 0), y1 = Math.min(RH - 1, (horizon + cam.eye * lineH) | 0);
         let sh = this.light(perp) * (side ? 0.78 : 1);
         {                                                          // iç köşe gölgesi
@@ -601,7 +625,7 @@ export class Renderer {
           if (w0 && wallX < 0.22) { const q = 1 - wallX / 0.22; sh *= 1 - 0.5 * q * q; }
           if (w1 && wallX > 0.78) { const q = (wallX - 0.78) / 0.22; sh *= 1 - 0.5 * q * q; }
         }
-        const TEX_WALL = WALLS[wallPick(mx, my, side)][0];
+        const WT = WALLS[wallPick(mx, my, side)], texLow = WT[0], texUp = WT[1];
         let lr = sh * TINT[0], lg = sh * TINT[1], lb = sh * TINT[2];
         if (NL) {
           const hx = cam.x + perp * rdx, hy = cam.y + perp * rdy;
@@ -610,13 +634,16 @@ export class Renderer {
             if (q > 0) { let a = q * q * L.k * this.flick; if (L.cone) a *= coneF(L, ddx2, ddy2, d22); lr += a * L.c[0]; lg += a * L.c[1]; lb += a * L.c[2]; }
           }
         }
-        const stepT = TS / lineH;
-        let tyF = (y0 - topF) * stepT;
+        const stepT = TS / lineH, yb = horizon - (1 - cam.eye) * lineH;      // yb: eski duvar tepesi (h = 1)
+        let tyF = (1 - (cam.eye + (horizon - y0) / lineH)) * TS + TS * 64;  // doku satırı (negatif olmasın diye kaydırılmış)
+        const inv = 1 / (lineH * V.wallFade);
         for (let y = y0; y <= y1; y++) {
-          const ti = ((tyF & (TS - 1)) * TS + texX) * 3;
+          const row = tyF | 0, TEX_WALL = (row >> TSH) === 64 ? texLow : texUp;   // yerden 1 birim: temel sıralı alt doku, üstü: üst doku
+          const ti = ((row & (TS - 1)) * TS + texX) * 3;
           tyF += stepT;
           const idx = y * RW + x;
-          const m = vig[idx] * (0.92 + noise[(idx + noiseOff) & 4095] * 0.16);
+          let m = vig[idx] * (0.92 + noise[(idx + noiseOff) & 4095] * 0.16);
+          if (y < yb) { const f = 1 - (yb - y) * inv; if (f <= 0) continue; m *= f * f; }
           buf32[idx] = px32(TEX_WALL[ti] * lr * m, TEX_WALL[ti + 1] * lg * m, TEX_WALL[ti + 2] * lb * m);
         }
       }
