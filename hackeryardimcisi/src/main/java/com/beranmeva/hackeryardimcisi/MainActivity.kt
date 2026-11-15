@@ -245,6 +245,22 @@ class MainActivity : Activity() {
 
     private fun mb(b: Long) = if (b >= 1L shl 30) String.format("%.1f GB", b / 1073741824.0) else String.format("%d MB", b / 1048576)
 
+    private fun pauseReason(r: Int) = when (r) {
+        DownloadManager.PAUSED_WAITING_TO_RETRY -> "bağlantı koptu, yeniden denenecek"
+        DownloadManager.PAUSED_WAITING_FOR_NETWORK -> "ağ bekleniyor"
+        DownloadManager.PAUSED_QUEUED_FOR_WIFI -> "Wi-Fi bekleniyor"
+        else -> "bekletiliyor ($r)"
+    }
+
+    private fun failReason(r: Int) = when (r) {
+        DownloadManager.ERROR_INSUFFICIENT_SPACE -> "yer yetmedi"
+        DownloadManager.ERROR_DEVICE_NOT_FOUND -> "depolama bulunamadı"
+        DownloadManager.ERROR_FILE_ERROR -> "dosya yazılamadı"
+        DownloadManager.ERROR_HTTP_DATA_ERROR, DownloadManager.ERROR_CANNOT_RESUME -> "bağlantı hatası"
+        DownloadManager.ERROR_TOO_MANY_REDIRECTS -> "yönlendirme hatası"
+        else -> if (r in 400..599) "sunucu hatası HTTP $r" else "hata ($r)"
+    }
+
     private fun langName(l: String) = if (l == "tr") "Türkçe" else if (l == "en") "İngilizce" else l
 
     private fun packCommand(cmd: String): String {
@@ -289,8 +305,11 @@ class MainActivity : Activity() {
                         .setTitle("Şikru Vikipedi (" + langName(t.second) + ")")
                         .setDescription(t.first)
                         .setDestinationInExternalFilesDir(this, "vikipedi", t.first)
+                        // Yalnızca Wi-Fi (mobil veri yemesin). "Sınırlı/ücretli" sayılan Wi-Fi da serbest:
+                        // aksi hâlde bazı modem ve erişim noktalarında indirme hiç başlamıyor.
                         .setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI)
-                        .setAllowedOverMetered(false)
+                        .setAllowedOverMetered(true)
+                        .setAllowedOverRoaming(false)
                         .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
                     newIds.add(dm.enqueue(r).toString())
                 }
@@ -324,6 +343,7 @@ class MainActivity : Activity() {
                     var running = 0
                     var waiting = 0
                     var failed = 0
+                    val why = LinkedHashSet<String>()
                     dm.query(DownloadManager.Query().setFilterById(*ids.toLongArray()))?.use { cur ->
                         while (cur.moveToNext()) {
                             val st = cur.getInt(cur.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
@@ -331,10 +351,12 @@ class MainActivity : Activity() {
                             val tt = cur.getLong(cur.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
                             done += so
                             if (tt > 0) total += tt
+                            val rs = cur.getInt(cur.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
                             when (st) {
                                 DownloadManager.STATUS_RUNNING -> running++
-                                DownloadManager.STATUS_PENDING, DownloadManager.STATUS_PAUSED -> waiting++
-                                DownloadManager.STATUS_FAILED -> failed++
+                                DownloadManager.STATUS_PENDING -> waiting++
+                                DownloadManager.STATUS_PAUSED -> { waiting++; why.add(pauseReason(rs)) }
+                                DownloadManager.STATUS_FAILED -> { failed++; why.add(failReason(rs)) }
                             }
                         }
                     }
@@ -342,10 +364,13 @@ class MainActivity : Activity() {
                         sb.append("\n⬇ İndiriliyor: ").append(mb(done))
                         if (total > 0) sb.append(" / ").append(mb(total)).append(" (%").append(done * 100 / total).append(")")
                         if (waiting > 0) sb.append(" · ").append(waiting).append(" dosya sırada/Wi-Fi bekliyor")
-                        if (failed > 0) sb.append(" · ").append(failed).append(" dosya hata verdi (tekrar: vikipedi indir)")
+                        if (running > 0) sb.append(" · ").append(running).append(" dosya iniyor")
+                        if (failed > 0) sb.append(" · ").append(failed).append(" dosya hata verdi (tekrar: vikipedi hepsini indir)")
+                        if (why.isNotEmpty()) sb.append("\nNeden: ").append(why.joinToString(", "))
+                        if (running == 0 && failed == 0) sb.append("\nHiçbiri başlamadıysa: Wi-Fi'ı kapatıp açın ya da Ayarlar > Uygulamalar > İndirme Yöneticisi'nin açık olduğunu kontrol edin.")
                     }
                 }
-                if (ready.isEmpty()) sb.append("\nTam metin için: vikipedi indir (Türkçe) · vikipedi ingilizce indir · vikipedi hepsini indir")
+                if (ready.isEmpty() && ids.isEmpty()) sb.append("\nTam metin için: vikipedi indir (Türkçe) · vikipedi ingilizce indir · vikipedi hepsini indir")
                 return sb.toString()
             }
         }
