@@ -192,6 +192,7 @@ Uygulamaların eski görünen yerleri türüne göre yenilendi; oyun kuralları 
 - **Dancing Cockroaches 1.1:** disko sahnesi: dönen ayna top, spot ışıkları, ekolayzır duvarı, perspektifli parlayan zemin; böceklerde gölge, renk geçişi ve parlaklık; hap şeklinde skor göstergeleri.
 - **Güneş Sistemi 1.1:** gezegenler düz nokta yerine dokulu küre (Dünya'da kıta ve bulut, Jüpiter'de kuşaklar ve Büyük Kırmızı Leke), Güneş'e göre gece/gündüz tarafı, Satürn halkaları, Halley'in kuyruğu, parlayan Güneş, bulutsulu yıldız arka planı, yörünge izleri. Dokular açılışta üretilir, dosya gerekmez.
 - **Yıkım Ustası 1.2:** bulutlu gökyüzü kubbesi, dokulu çim/toprak/beton zemin, şantiye bandı ve ağaçlar, pencereli şehir binaları, bina ve enkazda tuğla sırası ayrıntısı (gölgelendiriciyle, doku dosyası yok), yeni menü ve göstergeler.
+- **Hacker Yardımcısı 2.1:** Vikipedi indirmesi "sınırlı" sayılan Wi-Fi ağlarında da başlıyor; `vikipedi durum` bekleme ve hata nedenini gösteriyor.
 - **Hacker Yardımcısı 2.0:** Vikipedi: gömülü 689 bin maddelik Türkçe taban, indirilebilir tam metin Türkçe + İngilizce paketler, maddeden cevap cümlesi seçme, internet varsa canlı okuma.
 - **Hacker Yardımcısı 1.8:** CRT ekran görünümü, köşe braketleri, arkada soluk kod yağmuru, dokunmalık hızlı komut düğmeleri.
 - **Deneme Atölyesi 1.1:** başlık bandı, derse göre renkli ve simgeli kartlar, harf rozetli şıklar.
