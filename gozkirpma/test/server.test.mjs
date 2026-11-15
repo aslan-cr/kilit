@@ -88,3 +88,21 @@ test("sunucu: herkes 1. lobiye girer; 20 dolunca 2. lobi açılır; biri çıkı
     for (const c of [...cs, late]) c.ws.close();
   } finally { srv.close(); }
 });
+
+test("sunucu: yere düşen oyuncuyu arkadaşı kaldırınca ona 'revived' gider", async () => {
+  const srv = createServer({ port: 0, sendHz: 40, rules: { ...RULES, lobby: { ...RULES.lobby, countdown: 0.3 } } });
+  const port = await srv.listen();
+  try {
+    const a = await client(port, "Ayşe"), b = await client(port, "Kaan");
+    const c0 = cabin(RULES, 0);
+    a.moveTo(c0.cx, c0.cy); await wait(50); b.moveTo(c0.cx, c0.cy);
+    await until(() => a.msgs.find((m) => m.t === "start") && b.msgs.find((m) => m.t === "start"), 4000);
+    a.ws.send(JSON.stringify({ t: "pos", x: 3.5, y: 1.5, yaw: 0, walk: 0, moving: 0, d: 1 }));
+    await wait(50); b.moveTo(4.2, 1.5);
+    await until(() => b.snap && b.snap.players.find((p) => p.id === a.welcome.id && p.d === 1));
+    b.ws.send(JSON.stringify({ t: "revive", id: a.welcome.id }));
+    const rv = await until(() => a.msgs.find((m) => m.t === "revived"));
+    assert.equal(rv.by, "Kaan");
+    a.ws.close(); b.ws.close();
+  } finally { srv.close(); }
+});

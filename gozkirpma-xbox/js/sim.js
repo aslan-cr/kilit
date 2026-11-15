@@ -157,7 +157,7 @@ export function createGame(seed = 1, rules = RULES) {
 
   const g = {
     rules: R, seed, rand, map, S, distStart,
-    px: 1.5, py: 1.5, yaw, bob: 0, moving: 0,
+    px: 1.5, py: 1.5, yaw, pitch: 0, bob: 0, moving: 0,
     enemies, flies, boxes, gunItems, props, lights, players: [],      // players: diğer oyuncular (çok oyunculu için), {id,name,x,y,yaw,walk,moving}
     shells: R.ammo.start, owned: [R.weapons.start], cur: R.weapons.start, cooldown: 0, recoil: 0, flash: 0,
     coins: [], money: 0, coinT: 0, crand,
@@ -234,6 +234,7 @@ function emit(g, e) { g.events.push(e); }
 export function movePlayer(g, dt, input) {
   const R = g.rules.player;
   g.yaw += (input.yaw || 0) + (input.turn || 0) * dt;
+  g.pitch = Math.max(-R.pitchMax, Math.min(R.pitchMax, (g.pitch || 0) + (input.pitch || 0) + (input.pitchRate || 0) * dt));
   let fwd = input.fwd || 0, str = input.str || 0;
   const len = Math.hypot(fwd, str);
   if (len > 1) { fwd /= len; str /= len; }
@@ -413,7 +414,7 @@ export function step(g, dt, input = {}) {
   if (input.fire) fire(g);
 
   // Gölgeler yalnızca gözler KAPALIYKEN ilerler
-  if (g.eyesClosed) {
+  if (g.eyesClosed && !(g.safe > 0)) {
     const dist = bfs(g.map, g.S, g.px | 0, g.py | 0);
     for (const e of g.enemies) if (e.alive && e.stun <= 0) moveEnemy(g, e, dt, dist);
     g.stepT = (g.stepT || 0) - dt;
@@ -451,10 +452,66 @@ export function step(g, dt, input = {}) {
     g.cur = o.weapon; g.slot = "gun"; g.sw = null; g.raise = 1; g.lightOn = false;
     emit(g, { t: "gun", weapon: o.weapon });
   }
-  // Yakalanma
+  updateRevive(g, dt);
+  // Yakalanma (canlandırıldıktan hemen sonra kısa bir süre korunursun)
+  if (g.safe > 0) { g.safe = Math.max(0, g.safe - dt); return; }
   for (const e of g.enemies) {
     if (e.alive && Math.hypot(e.x - g.px, e.y - g.py) < g.rules.enemies.catchDist) {
       g.state = "dead"; g.killer = e.id; emit(g, { t: "caught", id: e.id }); return;
     }
+  }
+}
+
+// ---------- Yere düşme / canlandırma (çevrim içi) ----------
+// Yakalanınca çevrim içinde g.state = "down" olur: oyuncu yerde yatar, hareket edemez, yalnızca etrafına bakabilir.
+// Odadaki bir arkadaş yanında rules.revive.seconds sn durursa "revive" olayı çıkar; ağ katmanı bunu yerdeki oyuncuya iletir.
+export function goDown(g) {
+  const V = g.rules.revive;
+  g.state = "down"; g.downT = V.bleedSec; g.eyesClosed = false; g.forced = 0; g.dry = 0;
+  g.sw = null; g.lightOn = false; g.moving = 0; g.pitch = 0; g.downYaw = g.yaw; g.reviving = null;
+  for (const e of g.enemies) if (e.alive && Math.hypot(e.x - g.px, e.y - g.py) < 1.5) respawnEnemy(g, e);   // yakalayan çekilir: yerden etraf görünsün
+  emit(g, { t: "down" });
+}
+
+// Yerdeyken adım: süre azalır, etrafa bakılabilir; süre dolarsa "bleedOut"
+export function stepDown(g, dt, input = {}) {
+  if (g.state !== "down") return;
+  g.time += dt;
+  g.yaw += (input.yaw || 0) + (input.turn || 0) * dt;
+  g.downT -= dt;
+  if (g.downT <= 0) { g.downT = 0; g.state = "dead"; emit(g, { t: "bleedOut" }); }
+}
+
+// Arkadaşın kaldırdı: ayağa kalk, yakındaki gölgeleri uzağa savur, kısa süre korun
+export function revivePlayer(g) {
+  if (g.state !== "down") return false;
+  const V = g.rules.revive;
+  g.state = "play"; g.downT = 0; g.killer = -1; g.safe = V.safeSec;
+  g.eyesClosed = false; g.forced = 0; g.dry = 0; g.raise = 1; g.slot = "gun"; g.lightOn = false;
+  for (const e of g.enemies) {
+    if (!e.alive) continue;
+    if (Math.hypot(e.x - g.px, e.y - g.py) < V.clearDist) respawnEnemy(g, e);
+    e.stun = Math.max(e.stun, V.safeSec);
+  }
+  emit(g, { t: "revived" });
+  return true;
+}
+
+// Ayaktayken yerdeki arkadaşın yanında durunca canlandırma ilerler (g.players[i].down)
+function updateRevive(g, dt) {
+  const V = g.rules.revive;
+  let target = null, best = V.radius;
+  for (const p of g.players) {
+    if (!p.down) continue;
+    const d = Math.hypot(p.x - g.px, p.y - g.py);
+    if (d <= best) { best = d; target = p; }
+  }
+  if (!target) { if (g.reviving) { g.reviving = null; emit(g, { t: "reviveStop" }); } return; }
+  if (!g.reviving || g.reviving.id !== target.id) { g.reviving = { id: target.id, name: target.name, t: 0 }; emit(g, { t: "reviveStart", id: target.id, name: target.name }); }
+  g.reviving.t += dt;
+  if (g.reviving.t >= V.seconds) {
+    target.down = 0;                                  // sunucu onaylayana kadar tekrar sayma
+    emit(g, { t: "revive", id: target.id, name: target.name });
+    g.reviving = null;
   }
 }

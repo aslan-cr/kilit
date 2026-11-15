@@ -10,6 +10,8 @@ export const RULES = {
     scale: 0.27,                             // Hazmat boyu 2.43 birim -> duvar yüksekliğinin ~0.66'sı
     eyeHeight: 0.42,                         // kurbağa göz hizası (duvar yüksekliği = 1)
     lookSens: 0.0055,                        // rad/piksel (dokunmatik bakış)
+    pitchMax: 0.75,                          // yukarı/aşağı bakış sınırı (rad, ≈43°); daha büyükse ekran kenarları kararır
+    pitchKeys: 1.6,                          // rad/sn (klavye Z/X; sağ çubuk yukarı/aşağı bunun 1.6 katı)
     turnKeys: 2.0,                           // rad/sn (klavye ok tuşları)
   },
   eyes: {
@@ -97,8 +99,20 @@ export const RULES = {
       candleSmall: { c: [1.0, 0.8, 0.45], r: 1.5, k: 0.6 }, lampPost: { c: [0.9, 1.0, 0.6], r: 3.6, k: 1.3 },
     },
   },
+  // Görüntü: tavan yok; duvarlar yukarı doğru wallFade birim uzar ve karanlığa karışır. voidHaze: boşluğun ufka yakın hafif sisi (0 = tam siyah)
+  view: { wallFade: 2.6, voidHaze: 7 },
   danger: { range: 8 },                      // bu kadar yakında düşman varsa kalp atışı hızlanır
   scare: { seconds: 3.0 },                   // yakalanma sahnesi süresi (karanlık + saldırı + kararma)
+  // Çevrim içi: yakalanınca hemen lobiye dönülmez, yere düşülür. Odadaki bir arkadaş yanına gelip `seconds` sn yanında durursa kalkarsın.
+  // bleedSec dolarsa ya da odada ayakta kimse kalmazsa oyun biter. Kalkınca safeSec sn boyunca gölgeler yakalayamaz.
+  revive: {
+    bleedSec: 45,                            // yerde bu kadar bekleyebilirsin; dolunca ölürsün
+    seconds: 3,                              // canlandırmak için yanında bu kadar durmak gerekir
+    radius: 1.1,                             // canlandırma mesafesi (karo)
+    safeSec: 3,                              // kalkınca gölgeler bu kadar sn yakalayamaz (hepsi donar)
+    clearDist: 6,                            // kalkınca bu mesafedeki gölgeler uzağa savrulur
+    eyeHeight: 0.1,                          // yerdeyken kamera yüksekliği
+  },
   // Lobi: kuzey duvarında yan yana oda kurma yerleri (kabinler), altında ortak salon
   lobby: {
     rooms: 4,                                // oda kurma yeri sayısı

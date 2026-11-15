@@ -61,6 +61,8 @@ export function hubMove(hub, id, m) {
   const num = (v, d) => (Number.isFinite(v) ? v : d);
   if (p.inGame) {                                              // oyundayken konum labirent koordinatıdır, sadece aktarılır
     Object.assign(p, { x: num(m.x, p.x), y: num(m.y, p.y), yaw: num(m.yaw, p.yaw), walk: num(m.walk, 0), moving: num(m.moving, 0) });
+    if (!m.d) p.down = false;
+    else if (!p.down && !(p.upT > 0)) p.down = true;          // yere düştü (az önce kaldırıldıysa eski mesajları yoksay)
     return {};
   }
   const x = Math.max(0.5, Math.min(lim, num(m.x, p.x))), y = Math.max(0.5, Math.min(lim, num(m.y, p.y)));
@@ -81,6 +83,7 @@ export function hubMove(hub, id, m) {
 // Zamanı ilerlet. Sayaç biten odalar başlar: [{ room, seed, members }]
 export function hubTick(hub, dt, seed = () => 1 + Math.floor(Math.random() * 1e6)) {
   const L = hub.R.lobby, started = [];
+  for (const p of hub.players.values()) if (p.upT > 0) p.upT = Math.max(0, p.upT - dt);
   for (const r of hub.rooms) {
     if (r.status !== "open") continue;
     if (r.t === null && r.members.length >= L.minPlayers) r.t = L.countdown;      // oyundan dönenler için yeniden başlar
@@ -88,7 +91,7 @@ export function hubTick(hub, dt, seed = () => 1 + Math.floor(Math.random() * 1e6
     r.t -= dt;
     if (r.t > 0) continue;
     r.t = null; r.status = "playing"; r.seed = seed();
-    for (const m of r.members) { const q = hub.players.get(m); q.inGame = true; q.x = 1.5; q.y = 1.5; }
+    for (const m of r.members) { const q = hub.players.get(m); q.inGame = true; q.down = false; q.upT = 0; q.x = 1.5; q.y = 1.5; }
     started.push({ room: r.i, seed: r.seed, members: r.members.slice() });
   }
   return started;
@@ -98,17 +101,28 @@ export function hubTick(hub, dt, seed = () => 1 + Math.floor(Math.random() * 1e6
 export function hubBack(hub, id) {
   const p = hub.players.get(id);
   if (!p || !p.inGame) return;
-  p.inGame = false;
+  p.inGame = false; p.down = false;
   const c = cabin(hub.R, p.room);
   p.x = c.cx; p.y = c.cy;
   const r = hub.rooms[p.room];
   if (!r.members.some((m) => hub.players.get(m).inGame)) r.status = "open";
 }
 
+// Canlandırma: `by` oyuncusu yerdeki `target`ı kaldırdı. Aynı odada, ikisi de oyunda, hedef yerde, kaldıran ayakta ve yakında olmalı.
+// { ok:true, name } döner (name = kaldıranın adı); sunucu bunu hedefe "revived" olarak iletir.
+export function hubRevive(hub, by, target) {
+  const a = hub.players.get(by), b = hub.players.get(target);
+  if (!a || !b || a === b || !a.inGame || !b.inGame || a.room !== b.room || a.down || !b.down) return { ok: false };
+  const V = hub.R.revive || { radius: 1.1 };
+  if (Math.hypot(a.x - b.x, a.y - b.y) > V.radius + 1) return { ok: false };   // ağ gecikmesi için biraz pay
+  b.down = false; b.upT = 1.5;
+  return { ok: true, name: a.name };
+}
+
 // İstemcilere gidecek anlık görüntü
 export function hubView(hub) {
   return {
-    players: [...hub.players.values()].map((p) => ({ id: p.id, name: p.name, x: +p.x.toFixed(2), y: +p.y.toFixed(2), yaw: +p.yaw.toFixed(2), walk: +p.walk.toFixed(1), moving: +p.moving.toFixed(2), room: p.room, g: p.inGame ? 1 : 0 })),
+    players: [...hub.players.values()].map((p) => ({ id: p.id, name: p.name, x: +p.x.toFixed(2), y: +p.y.toFixed(2), yaw: +p.yaw.toFixed(2), walk: +p.walk.toFixed(1), moving: +p.moving.toFixed(2), room: p.room, g: p.inGame ? 1 : 0, d: p.down ? 1 : 0 })),
     rooms: hub.rooms.map((r) => ({ n: r.members.length, st: r.status, t: r.t === null ? null : Math.ceil(r.t) })),
   };
 }

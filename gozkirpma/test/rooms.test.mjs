@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { RULES } from "../src/main/assets/js/rules.js";
-import { createHub, hubJoin, hubLeave, hubMove, hubTick, hubBack, hubView, cabin, roomAt } from "../src/main/assets/js/rooms.js";
+import { createHub, hubJoin, hubLeave, hubMove, hubTick, hubBack, hubRevive, hubView, cabin, roomAt } from "../src/main/assets/js/rooms.js";
 import { createLobby, stepLobby, applySnapshot } from "../src/main/assets/js/lobby.js";
 import { blocked } from "../src/main/assets/js/sim.js";
 
@@ -156,4 +156,26 @@ test("anlık görüntü diğer oyuncuları ekler, çıkanları siler, beni çizm
 test("bir lobi en fazla 20 kişi alır (varsayılan kural)", () => {
   const hub = createHub(R); joinN(hub, 20);
   assert.equal(hubJoin(hub, 99, "fazla").ok, false);
+});
+
+test("yere düşme anlık görüntüde görünür; yakındaki ayaktaki arkadaş kaldırabilir", () => {
+  const hub = createHub(R); joinN(hub, 3);
+  hubMove(hub, 0, inCabin(0)); hubMove(hub, 1, inCabin(0)); hubMove(hub, 2, inCabin(1)); hubTick(hub, 60);
+  hubMove(hub, 0, { x: 5.5, y: 5.5, d: 1 });
+  hubMove(hub, 1, { x: 9.5, y: 5.5 });
+  assert.equal(hubView(hub).players.find((p) => p.id === 0).d, 1);
+  assert.equal(hubRevive(hub, 1, 0).ok, false, "uzaktan kaldırılamaz");
+  assert.equal(hubRevive(hub, 2, 0).ok, false, "başka odadaki kaldıramaz");
+  hubMove(hub, 1, { x: 6.2, y: 5.5 });
+  const r = hubRevive(hub, 1, 0);
+  assert.ok(r.ok); assert.equal(r.name, "p1");
+  assert.equal(hubView(hub).players.find((p) => p.id === 0).d, 0);
+  hubMove(hub, 0, { x: 5.5, y: 5.5, d: 1 });                  // kaldırılmadan önce yollanmış eski mesaj yok sayılır
+  assert.equal(hub.players.get(0).down, false);
+  assert.equal(hubRevive(hub, 1, 0).ok, false, "ayaktakini kaldırmak olmaz");
+  hubTick(hub, 2);
+  hubMove(hub, 0, { x: 5.5, y: 5.5, d: 1 });                  // yeniden düştü
+  assert.equal(hub.players.get(0).down, true);
+  hubBack(hub, 0);
+  assert.equal(hub.players.get(0).down, false);
 });

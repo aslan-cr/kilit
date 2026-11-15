@@ -6,7 +6,7 @@ import http from "node:http";
 import { fileURLToPath } from "node:url";
 import { attachWebSocket } from "./ws.mjs";
 import { RULES } from "../src/main/assets/js/rules.js";
-import { createHub, hubJoin, hubLeave, hubMove, hubTick, hubBack, hubView } from "../src/main/assets/js/rooms.js";
+import { createHub, hubJoin, hubLeave, hubMove, hubTick, hubBack, hubRevive, hubView } from "../src/main/assets/js/rooms.js";
 
 export function createServer({ port = 8080, rules = RULES, log = () => {}, sendHz = 10 } = {}) {   // sayaç: rules.lobby.countdown
   const lobbies = new Map([[1, createHub(rules)]]);              // lobi no -> hub (1'den başlar)
@@ -54,6 +54,11 @@ export function createServer({ port = 8080, rules = RULES, log = () => {}, sendH
         const r = hubMove(lobbies.get(lobbyNo), id, m);
         if (r.deny) send(ws, { t: "deny", ...r.deny });
       } else if (m.t === "back") hubBack(lobbies.get(lobbyNo), id);
+      else if (m.t === "revive") {                                 // yerdeki arkadaşını kaldırdı: hedefe haber ver
+        const r = hubRevive(lobbies.get(lobbyNo), id, Number(m.id));
+        const c = r.ok && conns.get(Number(m.id));
+        if (c) send(c.ws, { t: "revived", by: r.name });
+      }
     };
     ws.onclose = () => {
       if (id === null) return;

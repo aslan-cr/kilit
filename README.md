@@ -160,7 +160,7 @@ Labirentte "DÜKKAN" tabelalı bir sunak var (başlangıçtan en az 8 karo uzakt
 ### v3.9: Sıska Canavar, boşluk tavan, her yöne bakış, daha az pikselli görüntü
 - **Sıska Canavar:** Cadının yerine geçti (aynı boy, aynı hız/can; `rules.enemies.types.monster`). Kaynak `siska-canavar` paketindeki three.js kodu; `node tools/bake-monster.mjs <canavar-model.js>` onu oyunun üçgen ağına pişirir (~7 bin üçgen, ince uzuvlar görünsün diye biraz kalınlaştırıldı: `Q.thick`). Kollar yaklaşırken öne uzanır. Debug: `?play&nolobby&mon=2.2`.
 - **Tavan yok:** Duvarlar yukarı doğru uzar ve karanlığa karışır; üstte sonsuz bir boşluk var (`rules.view.wallFade`, `voidHaze`).
-- **Her yöne bakış:** Sağ yarıda parmağı yukarı/aşağı sürükleyince yukarı/aşağı bakılır (sınır `player.pitchMax`). Klavye: Z yukarı, X aşağı. Ateş/hasar hâlâ yatay düzlemde. Debug: `?pitch=0.6`.
+- **Her yöne bakış:** Sağ yarıda parmağı yukarı/aşağı sürükleyince yukarı/aşağı bakılır (sınır `player.pitchMax`). (v4.6: artık ekran yalnızca kaydırılmıyor; geniş açıyla çizilip gerçek baş eğimine göre perspektifi düzeltiliyor, `pitchWarp`. Eskiden kenarlar gerilip büyüteç gibi görünüyordu. Sınır 0.95 → 0.75 rad.) Klavye: Z yukarı, X aşağı. Ateş/hasar hâlâ yatay düzlemde. Debug: `?pitch=0.6`.
 - **Görüntü:** iç çözünürlük ~1.7x (en çok 576 px geniş), doku 64→128, yumuşak ölçekleme (`image-rendering: auto`). Yavaş cihazda kalite otomatik düşer.
 
 ### v4.0: Dükkan lobide, para hesapta birikir
@@ -168,6 +168,10 @@ Dükkan artık labirentte değil **lobide** (salonun ortasındaki "DÜKKAN" suna
 
 ### v4.1: Kişiye göre göz eşiği
 Gözü doğal olarak yarı açık duran (düşük göz kapağı) oyuncuda kamera "açık göz"ü kısmen kapalı okuyabiliyor ve sabit eşik tutmuyordu. Artık her gözün açık hâli sürekli ölçülür (`eyeLimits`/`updateBase`, `js/eyes.js`): kapanış = taban + 0.28 (en az 0.45), açılış = taban + 0.14 (en az 0.3). Taban hemen düşer, yavaş yükselir, kapalı göz tabanı şişirmez. Ekrandaki göz değeri satırında artık "eşik" de görünür. Test: `test/eyes.test.mjs`. SINIR: gerçek tablette doğrulanmadı.
+
+### v4.6: Yere düşme ve canlandırma (çevrim içi)
+Çevrim içi bir odada oynarken yakalanınca korku sahnesinden sonra artık lobiye dönülmez: oyuncu **yere düşer**. Kamera yere iner, etrafa bakabilirsin ama yürüyemezsin; üstte kalan süre görünür. Odadaki ayaktaki bir arkadaşın yanına gelip 3 sn yanında durursa ayağa kalkarsın; yakındaki gölgeler uzağa savrulur ve 3 sn boyunca hepsi donar. Diğer oyuncular seni yerde yatarken (kırmızı yanıp sönen, "YERDE! Yanına git, kaldır" etiketli) görür; yanında dururken ekranda "kaldırılıyor… %" yazar.
+45 sn içinde kimse gelmezse, odada ayakta kimse kalmazsa, bağlantı koparsa ya da "Pes et" dersen oyun biter ve odanın kabinine dönersin. Tek başına (çevrimdışı) oynarken eskisi gibi doğrudan biter. Sayılar `rules.revive`. Sunucu canlandırmayı doğrular (aynı oda, ikisi de oyunda, yakın mesafe). Test: `node tools/revive-ui-test.mjs`. Xbox sürümüne (`gozkirpma-xbox`) de taşındı; orada yerdeyken **B** tuşu pes ettirir.
 
 ## Hacker Yardımcısı Şikru (hackeryardimcisi)
 Sayfa uygulaması: `hackeryardimcisi/src/main/assets/index.html`, internetsiz çalışır (terminal, notlar, saat, sızma animasyonları, hikaye modu, sohbet).
