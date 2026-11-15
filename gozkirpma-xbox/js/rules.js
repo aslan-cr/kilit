@@ -10,7 +10,7 @@ export const RULES = {
     scale: 0.27,                             // Hazmat boyu 2.43 birim -> duvar yüksekliğinin ~0.66'sı
     eyeHeight: 0.42,                         // kurbağa göz hizası (duvar yüksekliği = 1)
     lookSens: 0.0055,                        // rad/piksel (dokunmatik bakış)
-    pitchMax: 0.95,                          // yukarı/aşağı bakış sınırı (rad)
+    pitchMax: 0.75,                          // yukarı/aşağı bakış sınırı (rad, ≈43°); daha büyükse ekran kenarları kararır
     pitchKeys: 1.6,                          // rad/sn (klavye Z/X; sağ çubuk yukarı/aşağı bunun 1.6 katı)
     turnKeys: 2.0,                           // rad/sn (klavye ok tuşları)
   },

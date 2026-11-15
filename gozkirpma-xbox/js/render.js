@@ -376,7 +376,12 @@ export class Renderer {
     if (fx.lid >= 0.97) { ctx.fillStyle = "#070000"; ctx.fillRect(0, 0, RW, RH); return; }
     const down = g.state === "down";                  // yere düştü: kamera yerde
     const cam = { x: g.px, y: g.py, yaw: g.yaw, pitch: down ? 0.35 : g.pitch || 0, eye: down ? (R.revive ? R.revive.eyeHeight : 0.1) : R.player.eyeHeight, bob: down ? 0 : g.bob, time: fx.time };
+    // Yukarı/aşağı bakış: görüntü önce dik bir perde üzerine (daha geniş açıyla) çizilir, sonra gerçek baş eğimine göre
+    // perspektifi düzeltilerek ekrana yerleştirilir. Sadece ufku kaydırmak kenarları gerip "büyüteç" etkisi yapıyordu.
+    const SC0 = this.SC, warp = Math.abs(cam.pitch || 0) > 0.005;
+    if (warp) this.SC = SC0 * this.pitchFit(cam.pitch, SC0);
     this.world(g, cam, fx);
+    if (warp) { this.pitchWarp(cam, SC0); this.SC = SC0; }
     if (g.state === "play") this.drawGun(g, fx);
     ctx.putImageData(this.img, 0, 0);
     this.post(g, fx);
@@ -463,10 +468,43 @@ export class Renderer {
     if (left < 0.6) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.6).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
   }
 
+  // Eğik bakışta ekranın her köşesine düşen ışın dik perdede nereye gelir: perdenin tamamı ekrana sığsın diye ölçek (en az 0.36)
+  pitchFit(p, SC0) {
+    const a = Math.abs(p), vmax = this.RH / 2 / SC0 + 0.02, hmax = this.RW / 2 / SC0;
+    const dy = Math.tan(Math.min(1.5, a + Math.atan(vmax))) - Math.tan(a);
+    const k = Math.max(0.05, Math.cos(a) - vmax * Math.sin(a));
+    return Math.max(0.36, Math.min(1, vmax / dy, k) * 0.98);
+  }
+
+  // Dik perdeye çizilmiş görüntüyü (SC = geniş açı, ufuk = tan(p)) gerçek eğik kameraya (SC0) çevirir. En yakın piksel.
+  pitchWarp(cam, SC0) {
+    const RW = this.RW, RH = this.RH, SCs = this.SC, p = cam.pitch, cp = Math.cos(p), sp = Math.sin(p);
+    const n = RW * RH;
+    if (!this._wsrc || this._wsrc.length !== n) { this._wsrc = new Uint32Array(n); this._wx = new Int32Array(RW); }
+    const src = this._wsrc, dst = this.buf32, X = this._wx;
+    src.set(dst);
+    const c = RH / 2, hor = cam.horizon, cx = RW / 2;
+    for (let y = 0; y < RH; y++) {
+      const v = (c - y) / SC0, fwd = cp - v * sp, up = sp + v * cp, row = y * RW;
+      if (fwd < 0.02) { dst.fill(0xff000000, row, row + RW); continue; }
+      const ys = Math.round(hor - (up / fwd) * SCs);
+      if (ys < 0 || ys >= RH) { dst.fill(0xff000000, row, row + RW); continue; }   // perdenin dışı: karanlık (kenar zaten kararık)
+      const kx = SCs / (fwd * SC0), srow = ys * RW;
+      for (let x = 0; x < RW; x++) { const xs = Math.round(cx + (x - cx) * kx); X[x] = xs < 0 || xs >= RW ? -1 : xs; }
+      for (let x = 0; x < RW; x++) dst[row + x] = X[x] < 0 ? 0xff000000 : src[srow + X[x]];
+    }
+    if (this.labels) for (const L of this.labels) {         // isim etiketlerini de aynı dönüşümle taşı
+      const h = (L.x - cx) / SCs, t = (hor - L.y) / SCs, dep = cp + t * sp;
+      if (dep <= 0.02) { L.y = -999; continue; }
+      L.x = cx + (h / dep) * SC0; L.y = c - ((t * cp - sp) / dep) * SC0;
+    }
+  }
+
   setCam(cam) {
     this.cam = cam;
     cam.dirX = Math.cos(cam.yaw); cam.dirY = Math.sin(cam.yaw);
-    cam.plX = -cam.dirY * FOV_K; cam.plY = cam.dirX * FOV_K;
+    const fk = this.RW / (2 * this.SC);                // görüş genişliği SC'den: eğik bakışta geniş açıyla çizilir (pitchWarp)
+    cam.plX = -cam.dirY * fk; cam.plY = cam.dirX * fk;
     cam.horizon = this.RH / 2 + Math.sin(cam.bob || 0) * 1.6 * (this.RH / 220) + Math.tan(cam.pitch || 0) * this.SC;   // pitch: yukarı bakınca ufuk aşağı iner
   }
 

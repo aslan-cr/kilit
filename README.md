@@ -160,7 +160,7 @@ Labirentte "DÜKKAN" tabelalı bir sunak var (başlangıçtan en az 8 karo uzakt
 ### v3.9: Sıska Canavar, boşluk tavan, her yöne bakış, daha az pikselli görüntü
 - **Sıska Canavar:** Cadının yerine geçti (aynı boy, aynı hız/can; `rules.enemies.types.monster`). Kaynak `siska-canavar` paketindeki three.js kodu; `node tools/bake-monster.mjs <canavar-model.js>` onu oyunun üçgen ağına pişirir (~7 bin üçgen, ince uzuvlar görünsün diye biraz kalınlaştırıldı: `Q.thick`). Kollar yaklaşırken öne uzanır. Debug: `?play&nolobby&mon=2.2`.
 - **Tavan yok:** Duvarlar yukarı doğru uzar ve karanlığa karışır; üstte sonsuz bir boşluk var (`rules.view.wallFade`, `voidHaze`).
-- **Her yöne bakış:** Sağ yarıda parmağı yukarı/aşağı sürükleyince yukarı/aşağı bakılır (sınır `player.pitchMax`). Klavye: Z yukarı, X aşağı. Ateş/hasar hâlâ yatay düzlemde. Debug: `?pitch=0.6`.
+- **Her yöne bakış:** Sağ yarıda parmağı yukarı/aşağı sürükleyince yukarı/aşağı bakılır (sınır `player.pitchMax`). (v4.6: artık ekran yalnızca kaydırılmıyor; geniş açıyla çizilip gerçek baş eğimine göre perspektifi düzeltiliyor, `pitchWarp`. Eskiden kenarlar gerilip büyüteç gibi görünüyordu. Sınır 0.95 → 0.75 rad.) Klavye: Z yukarı, X aşağı. Ateş/hasar hâlâ yatay düzlemde. Debug: `?pitch=0.6`.
 - **Görüntü:** iç çözünürlük ~1.7x (en çok 576 px geniş), doku 64→128, yumuşak ölçekleme (`image-rendering: auto`). Yavaş cihazda kalite otomatik düşer.
 
 ### v4.0: Dükkan lobide, para hesapta birikir
