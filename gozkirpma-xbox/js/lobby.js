@@ -67,8 +67,8 @@ export function applySnapshot(g, snap, myId, keep = () => true) {
     if (p.id === myId || !keep(p)) continue;
     seen.add(p.id);
     const q = g.players.find((o) => o.id === p.id);
-    if (q) Object.assign(q, { tx: p.x, ty: p.y, tyaw: p.yaw, moving: p.moving, name: p.name, room: p.room, ig: p.g });
-    else g.players.push({ id: p.id, name: p.name, x: p.x, y: p.y, yaw: p.yaw, tx: p.x, ty: p.y, tyaw: p.yaw, walk: 0, moving: p.moving, room: p.room, ig: p.g });
+    if (q) Object.assign(q, { tx: p.x, ty: p.y, tyaw: p.yaw, moving: p.moving, name: p.name, room: p.room, ig: p.g, down: p.d || 0 });
+    else g.players.push({ id: p.id, name: p.name, x: p.x, y: p.y, yaw: p.yaw, tx: p.x, ty: p.y, tyaw: p.yaw, walk: 0, moving: p.moving, room: p.room, ig: p.g, down: p.d || 0 });
   }
   g.players = g.players.filter((p) => seen.has(p.id));
 }

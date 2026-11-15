@@ -99,6 +99,16 @@ export const RULES = {
   },
   danger: { range: 8 },                      // bu kadar yakında düşman varsa kalp atışı hızlanır
   scare: { seconds: 3.0 },                   // yakalanma sahnesi süresi (karanlık + saldırı + kararma)
+  // Çevrim içi: yakalanınca hemen lobiye dönülmez, yere düşülür. Odadaki bir arkadaş yanına gelip `seconds` sn yanında durursa kalkarsın.
+  // bleedSec dolarsa ya da odada ayakta kimse kalmazsa oyun biter. Kalkınca safeSec sn boyunca gölgeler yakalayamaz.
+  revive: {
+    bleedSec: 45,                            // yerde bu kadar bekleyebilirsin; dolunca ölürsün
+    seconds: 3,                              // canlandırmak için yanında bu kadar durmak gerekir
+    radius: 1.1,                             // canlandırma mesafesi (karo)
+    safeSec: 3,                              // kalkınca gölgeler bu kadar sn yakalayamaz (hepsi donar)
+    clearDist: 6,                            // kalkınca bu mesafedeki gölgeler uzağa savrulur
+    eyeHeight: 0.1,                          // yerdeyken kamera yüksekliği
+  },
   // Lobi: kuzey duvarında yan yana oda kurma yerleri (kabinler), altında ortak salon
   lobby: {
     rooms: 4,                                // oda kurma yeri sayısı

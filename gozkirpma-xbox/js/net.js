@@ -11,7 +11,7 @@ export function normalizeUrl(u) {
   return u;
 }
 
-// h: { onWelcome(m), onSnap(m), onDeny(m), onStart(m), onErr(text), onClose() }
+// h: { onWelcome(m), onSnap(m), onDeny(m), onStart(m), onRevived(m), onErr(text), onClose() }
 // Döner: Promise<{ send(obj), close(), id, name }>; bağlanamazsa reddeder.
 export function connectLobby(url, name, h, { timeout = 6000, WS = globalThis.WebSocket } = {}) {
   return new Promise((resolve, reject) => {
@@ -30,6 +30,7 @@ export function connectLobby(url, name, h, { timeout = 6000, WS = globalThis.Web
       else if (m.t === "snap") { if (h.onSnap) h.onSnap(m); }
       else if (m.t === "deny") { if (h.onDeny) h.onDeny(m); }
       else if (m.t === "start") { if (h.onStart) h.onStart(m); }
+      else if (m.t === "revived") { if (h.onRevived) h.onRevived(m); }
     };
   });
 }

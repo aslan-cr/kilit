@@ -374,7 +374,8 @@ export class Renderer {
     const R = g.rules, ctx = this.ctx, RW = this.RW, RH = this.RH;
     this.flick = fx.flick;
     if (fx.lid >= 0.97) { ctx.fillStyle = "#070000"; ctx.fillRect(0, 0, RW, RH); return; }
-    const cam = { x: g.px, y: g.py, yaw: g.yaw, eye: R.player.eyeHeight, bob: g.bob, time: fx.time };
+    const down = g.state === "down";                  // yere düştü: kamera yerde
+    const cam = { x: g.px, y: g.py, yaw: g.yaw, eye: down ? (R.revive ? R.revive.eyeHeight : 0.1) : R.player.eyeHeight, bob: down ? 0 : g.bob, time: fx.time };
     this.world(g, cam, fx);
     if (g.state === "play") this.drawGun(g, fx);
     ctx.putImageData(this.img, 0, 0);
@@ -595,14 +596,17 @@ export class Renderer {
 
   // ----- Dönüşüm + çizim yardımcıları -----
   // Parça köşelerini sahneye yerleştirir: ölçek s, yaw, konum, (kol için pivot etrafında dönüş)
-  placePart(p, s, yaw, ox, oy, oh, rot, out) {
+  // lie: modeli yan eksen etrafında yatırır (yere düşmüş oyuncu, -π/2 = sırtüstü)
+  placePart(p, s, yaw, ox, oy, oh, rot, out, lie = 0) {
     const P = p.P, n = P.length;
     const cy = Math.cos(yaw), sy = Math.sin(yaw);
     let c = 1, sn = 0, pvy = 0, pvz = 0;
     if (rot) { c = Math.cos(rot); sn = Math.sin(rot); pvy = p.pivot[1]; pvz = p.pivot[2]; }
+    const lc = Math.cos(lie), ls = Math.sin(lie);
     for (let k = 0; k < n; k += 3) {
       const mx = P[k]; let my = P[k + 1], mz = P[k + 2];
       if (rot) { const y = my - pvy, z = mz - pvz; my = pvy + y * c - z * sn; mz = pvz + y * sn + z * c; }
+      if (lie) { const y = my, z = mz; my = y * lc - z * ls; mz = y * ls + z * lc; }
       out[k] = ox + (mz * cy - mx * sy) * s;
       out[k + 1] = oy + (mz * sy + mx * cy) * s;
       out[k + 2] = oh + my * s;
@@ -748,7 +752,7 @@ export class Renderer {
   }
 
   // Bir modeli (parçalarıyla) çiz. anim: parça başına dönüş fonksiyonu
-  drawModel(model, s, yaw, ox, oy, oh, g, anim, tintRed) {
+  drawModel(model, s, yaw, ox, oy, oh, g, anim, tintRed, lie = 0) {
     const cam = this.cam;
     const rx = ox - cam.x, ry = oy - cam.y, dd = rx * cam.dirX + ry * cam.dirY;
     if (dd < -1.2 || dd > 9.5) return;
@@ -756,7 +760,7 @@ export class Renderer {
     const colorOf = this.matColor(model.name, model.mats, objL, tintRed || 0);
     for (const p of model.parts) {
       if (!p._W || p._W.length < p.P.length) p._W = new Float32Array(p.P.length);
-      this.placePart(p, s, yaw, ox, oy, oh, anim ? anim(p) : 0, p._W);
+      this.placePart(p, s, yaw, ox, oy, oh, anim ? anim(p) : 0, p._W, lie);
       if (model.texData && p.UV) {
         const amb = this.amb, k = this.flick;
         this.drawWorldMesh(p._W, p.I, (ti, d, facing) => {
@@ -806,12 +810,20 @@ export class Renderer {
     const model = this.M.chars[g.rules.player.model], sc = g.rules.player.scale;
     if (!model) return;
     for (const pl of P) {
-      const sw = Math.sin((pl.walk || 0) * 1.2) * 0.6 * Math.min(1, pl.moving ?? 1);
-      this.drawModel(model, sc, pl.yaw || 0, pl.x, pl.y, Math.abs(sw) * 0.02, g,
-        (p) => (p.swing === 1 ? -sw * p.side * 0.9 : p.swing === 2 ? sw * p.side : 0), 0);
+      if (pl.down) {                                  // yere düşmüş: sırtüstü yatar, gövdesi bulunduğu karonun ortasına gelir
+        const H = model.bb.max[1] * sc, yw = pl.yaw || 0;
+        const lift = Math.max(0, -(model.bb.min[2] || 0)) * sc + 0.01;
+        this.drawModel(model, sc, yw, pl.x + Math.cos(yw) * H / 2, pl.y + Math.sin(yw) * H / 2, lift, g, null, 0.25 + 0.15 * Math.sin((this.cam.time || 0) * 4), -Math.PI / 2);
+      } else {
+        const sw = Math.sin((pl.walk || 0) * 1.2) * 0.6 * Math.min(1, pl.moving ?? 1);
+        this.drawModel(model, sc, pl.yaw || 0, pl.x, pl.y, Math.abs(sw) * 0.02, g,
+          (p) => (p.swing === 1 ? -sw * p.side * 0.9 : p.swing === 2 ? sw * p.side : 0), 0);
+      }
       if (pl.name) {
         const rx = pl.x - cam.x, ry = pl.y - cam.y, d = rx * cam.dirX + ry * cam.dirY, l = -rx * cam.dirY + ry * cam.dirX;
-        if (d > 0.3 && d < 9 && d < (this.zbuf[Math.max(0, Math.min(this.RW - 1, Math.round(this.RW / 2 + (l / d) * this.SC)))] + 0.2)) (this.labels = this.labels || []).push({ t: pl.name, x: this.RW / 2 + (l / d) * this.SC, y: cam.horizon - ((model.bb.max[1] * sc + 0.06 - cam.eye) / d) * this.SC, d });
+        const top = pl.down ? 0.3 : model.bb.max[1] * sc + 0.06;
+        const t = pl.down ? `${pl.name} · YERDE! Yanına git, kaldır` : pl.name;
+        if (d > 0.3 && d < (pl.down ? 14 : 9) && d < (this.zbuf[Math.max(0, Math.min(this.RW - 1, Math.round(this.RW / 2 + (l / d) * this.SC)))] + 0.2)) (this.labels = this.labels || []).push({ t, c: pl.down ? "255,110,90" : undefined, x: this.RW / 2 + (l / d) * this.SC, y: cam.horizon - ((top - cam.eye) / d) * this.SC, d });
       }
     }
   }

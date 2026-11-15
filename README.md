@@ -171,7 +171,7 @@ Gözü doğal olarak yarı açık duran (düşük göz kapağı) oyuncuda kamera
 
 ### v4.6: Yere düşme ve canlandırma (çevrim içi)
 Çevrim içi bir odada oynarken yakalanınca korku sahnesinden sonra artık lobiye dönülmez: oyuncu **yere düşer**. Kamera yere iner, etrafa bakabilirsin ama yürüyemezsin; üstte kalan süre görünür. Odadaki ayaktaki bir arkadaşın yanına gelip 3 sn yanında durursa ayağa kalkarsın; yakındaki gölgeler uzağa savrulur ve 3 sn boyunca hepsi donar. Diğer oyuncular seni yerde yatarken (kırmızı yanıp sönen, "YERDE! Yanına git, kaldır" etiketli) görür; yanında dururken ekranda "kaldırılıyor… %" yazar.
-45 sn içinde kimse gelmezse, odada ayakta kimse kalmazsa, bağlantı koparsa ya da "Pes et" dersen oyun biter ve odanın kabinine dönersin. Tek başına (çevrimdışı) oynarken eskisi gibi doğrudan biter. Sayılar `rules.revive`. Sunucu canlandırmayı doğrular (aynı oda, ikisi de oyunda, yakın mesafe). Test: `node tools/revive-ui-test.mjs`. SINIR: Xbox sürümüne (`gozkirpma-xbox`) taşınmadı; sunucu onunla uyumlu kalır.
+45 sn içinde kimse gelmezse, odada ayakta kimse kalmazsa, bağlantı koparsa ya da "Pes et" dersen oyun biter ve odanın kabinine dönersin. Tek başına (çevrimdışı) oynarken eskisi gibi doğrudan biter. Sayılar `rules.revive`. Sunucu canlandırmayı doğrular (aynı oda, ikisi de oyunda, yakın mesafe). Test: `node tools/revive-ui-test.mjs`. Xbox sürümüne (`gozkirpma-xbox`) de taşındı; orada yerdeyken **B** tuşu pes ettirir.
 
 ## Hacker Yardımcısı Şikru (hackeryardimcisi)
 Sayfa uygulaması: `hackeryardimcisi/src/main/assets/index.html`, internetsiz çalışır (terminal, notlar, saat, sızma animasyonları, hikaye modu, sohbet).

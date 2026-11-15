@@ -12,6 +12,7 @@
 | LB | Sıradaki silah (birden fazla silah varsa) |
 | LT (basılı) | Gözünü kapat (kamerasız modda) |
 | A | Menüde başla (misafir girişi / kamerasız başlat) |
+| B | Yere düştüğünde: pes et, lobiye dön |
 
 Fenerde ışık her seferinde açık başlar; RB ile silaha dönüp tekrar fenere geçince yine açık olur.
 
@@ -25,3 +26,6 @@ Değişen dosyalar: `js/sim.js` (fener ışığı durumu), `js/main.js` (gamepad
 
 ## Düşmanlar
 Android sürümüyle aynı üç düşman: **Koşucu Canavar** (en hızlısı), **İblis** ve **Sıska Canavar**. Üçü de iskeletle canlandırılır; modeller `models/models.json` içindedir ve `gozkirpma/tools/bake-*.mjs` araçlarıyla üretilip buraya kopyalanır.
+
+## Yere düşme ve canlandırma (çevrim içi)
+Android sürümüyle aynı: çevrim içi odada yakalanınca lobiye dönülmez, yere düşülür. Odadaki bir arkadaş 3 sn yanında durursa kalkarsın (3 sn gölgeler donar). 45 sn içinde kimse gelmezse ya da odada ayakta kimse kalmazsa oyun biter. Yerdeyken sağ çubukla etrafa bakabilirsin, **B** ile pes edersin. Sayılar `js/rules.js` → `revive`.
