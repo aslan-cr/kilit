@@ -47,7 +47,7 @@ const ui = {
   phase: "menu",           // menu | play | scare
   scareT: 0, lid: 0, flick: 1, dip: 0, hurt: 0, puffs: [], time: 0,
   keys: { w: false, a: false, s: false, d: false, left: false, right: false, eye: false, fire: false },
-  btnEye: false, btnFire: false, tapFire: false, swap: false, light: false, lookAcc: 0,
+  btnEye: false, btnFire: false, tapFire: false, swap: false, light: false, lookAcc: 0, pitchAcc: 0,
   best: 0,
   speed: Math.max(1, Number(Q.get("speed") || 1)),
 };
@@ -70,6 +70,8 @@ function setKey(e, down) {
     case "KeyS": case "ArrowDown": k.s = down; e.preventDefault(); break;
     case "KeyA": k.a = down; break;
     case "KeyD": k.d = down; break;
+    case "KeyZ": k.up = down; break;
+    case "KeyX": k.dn = down; break;
     case "KeyQ": k.left = down; break;
     case "KeyE": k.right = down; break;
     case "ArrowLeft": k.left = down; e.preventDefault(); break;
@@ -111,7 +113,7 @@ touchLayer.addEventListener("pointermove", (e) => {
     knobEl.style.transform = `translate(${dx * k}px,${dy * k}px)`;   // topuz halkada kalır, hareket mesafesi sınırsızdır
   } else if (e.pointerId === look.id) {
     // yalnızca sağ yarıdayken döner; parmak sol yarıya geçerse dönmez
-    if (e.clientX >= half() && isLive()) ui.lookAcc += (e.clientX - look.x) * R.player.lookSens;
+    if (e.clientX >= half() && isLive()) { ui.lookAcc += (e.clientX - look.x) * R.player.lookSens; ui.pitchAcc -= (e.clientY - look.y) * R.player.lookSens; }
     look.moved = Math.max(look.moved, Math.hypot(e.clientX - look.x0, e.clientY - look.y0));
     look.x = e.clientX; look.y = e.clientY;
   }
@@ -139,7 +141,7 @@ holdButton(lightBtn, () => { ui.light = true; }, () => {});
 
 function resetTouch() {
   joy.id = null; look.id = null; joyEl.classList.remove("on");
-  ui.btnEye = ui.btnFire = ui.tapFire = ui.swap = ui.light = false; ui.lookAcc = 0;
+  ui.btnEye = ui.btnFire = ui.tapFire = ui.swap = ui.light = false; ui.lookAcc = 0; ui.pitchAcc = 0;
   padEdges.rt = padEdges.lb = padEdges.rb = false;   // menüde basılmış eski tuşlar oyuna taşınmasın
   for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.remove("down");
 }
@@ -169,7 +171,7 @@ function readPad() {
   if (!padState) return null;
   const { p, now } = padState;
   return {
-    fwd: -dz(p.axes[1] || 0), str: dz(p.axes[0] || 0), turn: dz(p.axes[2] || 0),
+    fwd: -dz(p.axes[1] || 0), str: dz(p.axes[0] || 0), turn: dz(p.axes[2] || 0), look: -dz(p.axes[3] || 0),   // look: sağ çubuk yukarı = yukarı bak
     rt: now.rt, rtEdge: padEdges.rt, lbEdge: padEdges.lb, rbEdge: padEdges.rb,
     lt: !!(p.buttons[6] && (p.buttons[6].pressed || p.buttons[6].value > 0.5)),
   };
@@ -193,6 +195,8 @@ function humanInput(first) {
     fwd, str,
     turn: ((k.right ? 1 : 0) - (k.left ? 1 : 0)) * R.player.turnKeys + (pad ? pad.turn * R.player.turnKeys * 1.6 : 0),
     yaw: first ? ui.lookAcc : 0,
+    pitch: first ? ui.pitchAcc : 0,
+    pitchRate: ((k.up ? 1 : 0) - (k.dn ? 1 : 0)) * R.player.pitchKeys + (pad ? pad.look * R.player.pitchKeys * 1.6 : 0),
     eyes: eyesT.closed(),
     // RT: silah elindeyken basılı tutunca ateş; fener elindeyken her basışta ışığı açar/kapatır
     fire: k.fire || ui.btnFire || ui.tapFire || !!(pad && pad.rt && !inLight),
@@ -200,7 +204,7 @@ function humanInput(first) {
     switchWeapon: ui.swap || !!(pad && pad.lbEdge),     // LB: sıradaki silaha geç
     light: ui.light || !!(pad && pad.rbEdge),           // RB: silah <-> el feneri
   };
-  if (first) { ui.lookAcc = 0; ui.tapFire = false; ui.swap = false; ui.light = false; if (pad) { pad.rtEdge = pad.lbEdge = pad.rbEdge = false; padEdges.rt = padEdges.lb = padEdges.rb = false; } }
+  if (first) { ui.lookAcc = 0; ui.pitchAcc = 0; ui.tapFire = false; ui.swap = false; ui.light = false; if (pad) { pad.rtEdge = pad.lbEdge = pad.rbEdge = false; padEdges.rt = padEdges.lb = padEdges.rb = false; } }
   return input;
 }
 

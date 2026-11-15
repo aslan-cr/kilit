@@ -6,7 +6,7 @@
 | Tuş | İşlev |
 |---|---|
 | Sol çubuk | Yürü |
-| Sağ çubuk | Bak |
+| Sağ çubuk | Bak (sağa/sola döner, yukarı/aşağı bakar) |
 | **RT** | Silah elindeyken: ateş (basılı tut) · Fener elindeyken: ışığı aç/kapat |
 | **RB** | Silah ↔ el feneri |
 | LB | Sıradaki silah (birden fazla silah varsa) |
@@ -29,3 +29,6 @@ Android sürümüyle aynı üç düşman: **Koşucu Canavar** (en hızlısı), *
 
 ## Yere düşme ve canlandırma (çevrim içi)
 Android sürümüyle aynı: çevrim içi odada yakalanınca lobiye dönülmez, yere düşülür. Odadaki bir arkadaş 3 sn yanında durursa kalkarsın (3 sn gölgeler donar). 45 sn içinde kimse gelmezse ya da odada ayakta kimse kalmazsa oyun biter. Yerdeyken sağ çubukla etrafa bakabilirsin, **B** ile pes edersin. Sayılar `js/rules.js` → `revive`.
+
+## Yukarı/aşağı bakış
+Sağ çubuğu yukarı/aşağı itince yukarı/aşağı bakılır (sınır `rules.player.pitchMax`, hız `pitchKeys`). Klavyede Z yukarı, X aşağı; dokunmatikte sağ yarıda parmağı yukarı/aşağı sürükle. Ateş ve vuruş hâlâ yatay düzlemde.

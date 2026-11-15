@@ -375,7 +375,7 @@ export class Renderer {
     this.flick = fx.flick;
     if (fx.lid >= 0.97) { ctx.fillStyle = "#070000"; ctx.fillRect(0, 0, RW, RH); return; }
     const down = g.state === "down";                  // yere düştü: kamera yerde
-    const cam = { x: g.px, y: g.py, yaw: g.yaw, eye: down ? (R.revive ? R.revive.eyeHeight : 0.1) : R.player.eyeHeight, bob: down ? 0 : g.bob, time: fx.time };
+    const cam = { x: g.px, y: g.py, yaw: g.yaw, pitch: down ? 0.35 : g.pitch || 0, eye: down ? (R.revive ? R.revive.eyeHeight : 0.1) : R.player.eyeHeight, bob: down ? 0 : g.bob, time: fx.time };
     this.world(g, cam, fx);
     if (g.state === "play") this.drawGun(g, fx);
     ctx.putImageData(this.img, 0, 0);
@@ -467,7 +467,7 @@ export class Renderer {
     this.cam = cam;
     cam.dirX = Math.cos(cam.yaw); cam.dirY = Math.sin(cam.yaw);
     cam.plX = -cam.dirY * FOV_K; cam.plY = cam.dirX * FOV_K;
-    cam.horizon = this.RH / 2 + Math.sin(cam.bob || 0) * 1.6 * (this.RH / 220);
+    cam.horizon = this.RH / 2 + Math.sin(cam.bob || 0) * 1.6 * (this.RH / 220) + Math.tan(cam.pitch || 0) * this.SC;   // pitch: yukarı bakınca ufuk aşağı iner
   }
 
   // En yakın birkaç ışık kaynağı (jack-o'-lantern, mum, lamba)
