@@ -7,8 +7,8 @@ export const RULES = {
     speed: 2.4,                              // karo/sn
     radius: 0.2,
     model: "hazmat",                         // oyuncu karakteri (diğer oyuncular bunu görür; birinci şahısta kendini görmezsin)
-    scale: 0.27,                             // Hazmat boyu 2.43 birim -> duvar yüksekliğinin ~0.66'sı
-    eyeHeight: 0.42,                         // kurbağa göz hizası (duvar yüksekliği = 1)
+    scale: 0.27,                             // Hazmat boyu 2.42 birim -> duvar yüksekliğinin ~0.66'sı
+    eyeHeight: 0.588,                        // kamera tam karakterin maske camı hizasında (model göz yüksekliği 2.179 x scale; duvar yüksekliği = 1)
     lookSens: 0.0055,
     pitchMax: 0.75,                          // yukarı/aşağı bakış sınırı (rad, ≈43°); daha büyükse ekran kenarları kararır
     pitchKeys: 1.6,                          // rad/sn (klavye Z/X)                        // rad/piksel (dokunmatik bakış)

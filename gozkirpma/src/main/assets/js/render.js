@@ -1141,7 +1141,8 @@ export class Renderer {
       const r = roll2(rot([P[k] - hand[0], P[k + 1] - hand[1], P[k + 2] - hand[2]]));
       V[k] = G[0] + r[0] * scale; V[k + 1] = G[1] + r[1] * scale; V[k + 2] = G[2] + r[2] * scale;
     }
-    this.drawViewMesh(V, part.I, col, { tex, uv: part.UV, gun: true });
+    if (tex && part.UV) this.drawViewMesh(V, part.I, col, { tex, uv: part.UV, gun: true });
+    else { const C = part.C; this.drawViewMesh(V, part.I, (ti, d, f) => { const c = col(ti, d, f), o = ti * 3; return [C[o] * c[0], C[o + 1] * c[1], C[o + 2] * c[2]]; }, { gun: true }); }   // dokusuz (renkli) Hazmat
   }
 
   // ----- Son işlemler (2B katman) -----
