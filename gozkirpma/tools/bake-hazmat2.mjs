@@ -2,13 +2,13 @@
 // chars.hazmat olarak yazılır. Parça adları, pivotlar ve "swing" değerleri eski Hazmat ile aynıdır; bu yüzden
 // yürüme (kol/bacak sallama), yere düşme, lobi önizlemesi ve birinci şahıs eller hiçbir kod değişmeden çalışır.
 // Doku yoktur: her üçgenin düz rengi vardır (col). Yazılım çizici için az üçgenlidir (~6 bin).
-//   node tools/bake-hazmat2.mjs
+//   node tools/bake-hazmat2.mjs [models.json yolu]
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const jsonPath = path.join(here, "../src/main/assets/models/models.json");
+const jsonPath = process.argv[2] ? path.resolve(process.argv[2]) : path.join(here, "../src/main/assets/models/models.json");   // Xbox kopyası için: node tools/bake-hazmat2.mjs ../gozkirpma-xbox/models/models.json
 const HEIGHT = 2.4232;                       // eski Hazmat ile aynı boy (model birimi); rules.player.scale değişmez
 const r4 = (v) => Math.round(v * 10000) / 10000;
 
