@@ -169,6 +169,10 @@ Dükkan artık labirentte değil **lobide** (salonun ortasındaki "DÜKKAN" suna
 ### v4.1: Kişiye göre göz eşiği
 Gözü doğal olarak yarı açık duran (düşük göz kapağı) oyuncuda kamera "açık göz"ü kısmen kapalı okuyabiliyor ve sabit eşik tutmuyordu. Artık her gözün açık hâli sürekli ölçülür (`eyeLimits`/`updateBase`, `js/eyes.js`): kapanış = taban + 0.28 (en az 0.45), açılış = taban + 0.14 (en az 0.3). Taban hemen düşer, yavaş yükselir, kapalı göz tabanı şişirmez. Ekrandaki göz değeri satırında artık "eşik" de görünür. Test: `test/eyes.test.mjs`. SINIR: gerçek tablette doğrulanmadı.
 
+### v4.6: Yere düşme ve canlandırma (çevrim içi)
+Çevrim içi bir odada oynarken yakalanınca korku sahnesinden sonra artık lobiye dönülmez: oyuncu **yere düşer**. Kamera yere iner, etrafa bakabilirsin ama yürüyemezsin; üstte kalan süre görünür. Odadaki ayaktaki bir arkadaşın yanına gelip 3 sn yanında durursa ayağa kalkarsın; yakındaki gölgeler uzağa savrulur ve 3 sn boyunca hepsi donar. Diğer oyuncular seni yerde yatarken (kırmızı yanıp sönen, "YERDE! Yanına git, kaldır" etiketli) görür; yanında dururken ekranda "kaldırılıyor… %" yazar.
+45 sn içinde kimse gelmezse, odada ayakta kimse kalmazsa, bağlantı koparsa ya da "Pes et" dersen oyun biter ve odanın kabinine dönersin. Tek başına (çevrimdışı) oynarken eskisi gibi doğrudan biter. Sayılar `rules.revive`. Sunucu canlandırmayı doğrular (aynı oda, ikisi de oyunda, yakın mesafe). Test: `node tools/revive-ui-test.mjs`. SINIR: Xbox sürümüne (`gozkirpma-xbox`) taşınmadı; sunucu onunla uyumlu kalır.
+
 ## Hacker Yardımcısı Şikru (hackeryardimcisi)
 Sayfa uygulaması: `hackeryardimcisi/src/main/assets/index.html`, internetsiz çalışır (terminal, notlar, saat, sızma animasyonları, hikaye modu, sohbet).
 GitHub derlemesi `hackeryardimcisi.apk` olarak Release'e koyar, Güncelleyici listeye kendiliğinden ekler.

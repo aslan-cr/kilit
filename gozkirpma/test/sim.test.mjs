@@ -243,3 +243,47 @@ test("para her oyunda biriken cüzdana eklenir (auth.wallet); kazanma/kaybetme f
   auth.saveWallet({ money: 15, guns: ["sawed", "sawed"], lights: ["fl1"] });
   assert.deepEqual(auth.wallet(), { money: 15, guns: ["sawed"], lights: ["fl1"] });
 });
+
+test("yere düşme: hareket yok, süre dolunca ölür", async () => {
+  const { goDown, stepDown } = await import("../src/main/assets/js/sim.js");
+  const g = createGame(3);
+  const x = g.px;
+  goDown(g);
+  assert.equal(g.state, "down");
+  for (let i = 0; i < 60; i++) stepDown(g, DT, { fwd: 1, yaw: 0.01 });
+  assert.equal(g.px, x, "yerdeyken yürünmez");
+  assert.ok(Math.abs(g.downT - (RULES.revive.bleedSec - 1)) < 1e-6);
+  for (let i = 0; i < RULES.revive.bleedSec * 60 + 5; i++) stepDown(g, DT, {});
+  assert.equal(g.state, "dead");
+  assert.ok(g.events.some((e) => e.t === "bleedOut"));
+});
+
+test("canlandırılınca ayağa kalkar, yakın gölgeler savrulur, kısa süre yakalanmaz", async () => {
+  const { goDown, revivePlayer } = await import("../src/main/assets/js/sim.js");
+  const g = createGame(4);
+  const e = g.enemies[0]; e.x = g.px + 0.3; e.y = g.py;
+  goDown(g);
+  assert.ok(revivePlayer(g));
+  assert.equal(g.state, "play");
+  assert.ok(Math.hypot(e.x - g.px, e.y - g.py) >= RULES.revive.clearDist, "yakındaki gölge uzağa gitti");
+  const e2 = g.enemies[1]; e2.x = g.px + 0.2; e2.y = g.py;     // koruma süresinde yanına gelse bile yakalamaz
+  run(g, RULES.revive.safeSec - 0.2, { eyes: true });
+  assert.equal(g.state, "play");
+  assert.equal(revivePlayer(g), false, "ayaktaki oyuncu tekrar kaldırılmaz");
+});
+
+test("yerdeki arkadaşın yanında durunca canlandırma olayı çıkar, uzaklaşınca sıfırlanır", () => {
+  const g = createGame(5);
+  g.enemies.length = 0;
+  g.players.push({ id: 9, name: "Ayşe", x: g.px + 0.5, y: g.py, down: 1 });
+  run(g, RULES.revive.seconds / 2, {});
+  assert.ok(g.reviving && g.reviving.id === 9);
+  g.players[0].x = g.px + 5;                                   // uzaklaştı
+  run(g, 0.1, {});
+  assert.equal(g.reviving, null);
+  g.players[0].x = g.px + 0.5; g.events.length = 0;
+  run(g, RULES.revive.seconds + 0.1, {});
+  const ev = g.events.find((x) => x.t === "revive");
+  assert.ok(ev && ev.id === 9);
+  assert.equal(g.players[0].down, 0);
+});

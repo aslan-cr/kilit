@@ -2,7 +2,7 @@
 // Hata ayıklama kancaları: ?seed=N  ?play  ?sim=N (bot N sn oynar, son kare çizilir)  ?autoplay&speed=4
 //                          ?scare  ?gallery=0..3  ?lobby&server=127.0.0.1:8080 (lobiye doğrudan gir)  ?r.enemies.count=3 (rules.js'teki sayıyı değiştir)
 import { RULES, applyOverrides } from "./rules.js";
-import { createGame, step, rng, setPlayer, buy, owns } from "./sim.js";
+import { createGame, step, rng, setPlayer, buy, owns, goDown, stepDown, revivePlayer } from "./sim.js";
 import { makeBot } from "./bot.js";
 import { Renderer, loadModels } from "./render.js";
 import * as A from "./audio.js";
@@ -20,6 +20,7 @@ const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
 const canvas = $("game"), video = $("cam"), touchLayer = $("touch"), joyEl = $("joy"), knobEl = $("knob");
 const hudEl = $("hud"), msgEl = $("msg"), eyeBtn = $("eyeBtn"), fireBtn = $("fireBtn"), swapBtn = $("swapBtn"), lightBtn = $("lightBtn");
+const downEl = $("down"), downText = $("downText"), downBar = $("downFill"), giveUpBtn = $("giveUp");
 const menuEl = $("menu"), resultEl = $("result"), startBtn = $("start"), keyBtn = $("keyboard"), statusEl = $("status");
 const el = { coins: $("coins"), flies: $("flies"), need: $("need"), time: $("time"), shells: $("shells"), gun: $("gun"), eyes: $("eyes"), dry: $("dryFill"), dryBox: $("dry") };
 el.need.textContent = R.goal.flies;
@@ -87,7 +88,7 @@ function setKey(e, down) {
 const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
 const look = { id: null, x: 0, y: 0, x0: 0, y0: 0, t0: 0, moved: 0 };
 const half = () => (window.innerWidth || 800) / 2;
-const isLive = () => ui.phase === "play" || ui.phase === "lobby";
+const isLive = () => ui.phase === "play" || ui.phase === "lobby" || ui.phase === "down";
 
 touchLayer.addEventListener("pointerdown", (e) => {
   e.preventDefault();
@@ -191,7 +192,7 @@ function startGame(seed = newSeed()) {
 }
 
 function endGame(win) {
-  ui.phase = "menu"; shopEl.classList.add("hidden");
+  ui.phase = "menu"; shopEl.classList.add("hidden"); downEl.classList.add("hidden"); ui.hurt = 0;
   hudEl.style.display = "none";
   for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
   msgEl.classList.remove("on");
@@ -209,7 +210,8 @@ function endGame(win) {
   } else {
     auth.recordGame({ win: false, time: g.time, kills: g.kills, coins: g.money });
     resultEl.style.color = "#ffb4a8";
-    resultEl.textContent = `Seni yakaladılar. ${g.collected}/${R.goal.flies} ışık böceği, ${g.money} para toplamıştın (cüzdana eklendi).`;
+    resultEl.textContent = `${ui.downWhy || "Seni yakaladılar."} ${g.collected}/${R.goal.flies} ışık böceği, ${g.money} para toplamıştın (cüzdana eklendi).`;
+    ui.downWhy = "";
   }
   showView();
   setStatus(ui.mode === "camera" ? "Tekrar denemek için butona bas." : "Tekrar denemek için bir mod seç.");
@@ -226,6 +228,47 @@ function enterScare() {
   hudEl.style.display = "none"; msgEl.classList.remove("on");
   for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
 }
+
+// ---------- Yere düşme / canlandırma (çevrim içi) ----------
+// Odada ayakta duran (oyunda, yerde olmayan) başka oyuncu var mı?
+function standingMates() {
+  if (!mp.snap) return [];
+  return mp.snap.players.filter((p) => p.id !== mp.id && p.g && p.room === mp.room && !p.d);
+}
+function canBeRevived() { return !!(mp.net && !mp.net.local && mp.inGame && g && standingMates().length); }
+function enterDown() {
+  goDown(g); onEvents();
+  ui.phase = "down"; ui.lid = 0; ui.downGrace = 1.5; resetTouch();
+  hudEl.style.display = "none";
+  for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
+  downEl.classList.remove("hidden");
+  showMsg("Yere düştün! Arkadaşların gelip seni kaldırabilir.", 3500);
+  updateDown();
+}
+function updateDown() {
+  if (g.state === "dead") { ui.downWhy = "Kimse yetişemedi, yerde kaldın."; return endGame(false); }
+  ui.downGrace = Math.max(0, (ui.downGrace || 0) - 1 / 60);
+  if (!mp.net || !mp.inGame) { ui.downWhy = "Bağlantı koptu."; return endGame(false); }
+  const mates = standingMates();
+  if (!mates.length && ui.downGrace <= 0) { ui.downWhy = "Odada ayakta kimse kalmadı."; return endGame(false); }
+  const secs = Math.ceil(g.downT), k = g.downT / R.revive.bleedSec;
+  const t = `YERE DÜŞTÜN · ${secs} sn · ayakta ${mates.length} arkadaşın var, yanına gelip ${R.revive.seconds} sn dururlarsa kalkarsın`;
+  if (downText.textContent !== t) downText.textContent = t;
+  downBar.style.width = (k * 100).toFixed(1) + "%";
+}
+function onRevived(m) {
+  if (ui.phase !== "down" || !g || !revivePlayer(g)) return;
+  onEvents();
+  ui.phase = "play"; ui.hurt = 0; acc = 0; resetTouch();
+  downEl.classList.add("hidden");
+  hudEl.style.display = "flex";
+  eyeBtn.classList.toggle("hidden", ui.mode !== "keyboard");
+  fireBtn.classList.remove("hidden"); lightBtn.classList.remove("hidden"); updateSwapBtn();
+  showMsg(`${m.by || "Bir arkadaşın"} seni kaldırdı! ${R.revive.safeSec} sn gölgeler donuk.`, 3000);
+  netTick(1);                                          // ayağa kalktığımı hemen bildir
+}
+giveUpBtn.addEventListener("click", () => { if (ui.phase === "down") { ui.downWhy = "Pes ettin."; endGame(false); } });
+function msgText(t) { if (msgEl.textContent !== t) msgEl.textContent = t; msgEl.classList.add("on"); clearTimeout(msgTimer); msgTimer = setTimeout(() => msgEl.classList.remove("on"), 400); }
 
 function onEvents() {
   for (const ev of g.events) {
@@ -247,6 +290,10 @@ function onEvents() {
       case "lightSlot": A.playGunPick(); showMsg("El feneri — ışığa koşan gölgelere dikkat. Fenerdeyken ateş edemezsin.", 2600); break;
       case "forcedBlink": A.playForcedBlink(); showMsg("Gözlerin yandı! Kırpmak zorundasın, gölgeler geliyor.", 2600); break;
       case "caught": enterScare(); A.playScareStart(); break;
+      case "reviveStart": showMsg(`${ev.name} kaldırılıyor… yanında kal`, 1500); break;
+      case "reviveStop": showMsg("Kaldırma yarıda kaldı.", 1200); break;
+      case "revive": if (mp.net && mp.inGame) mp.net.send({ t: "revive", id: ev.id }); A.playPickup(); showMsg(`${ev.name} ayağa kalktı!`, 2200); break;
+      case "revived": A.playPickup(); break;
       case "win": endGame(true); break;
     }
   }
@@ -335,6 +382,7 @@ function frame(now) {
       for (const p of ui.puffs) p.t += dt; ui.puffs = ui.puffs.filter((p) => p.t < 0.7);
       A.heartbeat(dt, g.danger);
       updateHud(); updateEyeDbg();
+      if (g.reviving) msgText(`${g.reviving.name} kaldırılıyor… %${Math.min(99, Math.floor(g.reviving.t / R.revive.seconds * 100))}`);
       if (ui.phase === "play") renderer.render(g, fx());
       else renderer.renderScare(g, fx());
     } else if (ui.phase === "lobby") {
@@ -348,7 +396,15 @@ function frame(now) {
       ui.scareT += dt;
       if (!ui.scareHit && ui.scareT >= 0.55) { ui.scareHit = true; A.playScream(); safeVibrate([150, 40, 200, 40, 400]); }   // göz kapakları açıldığı an
       renderer.renderScare(g, fx());
-      if (ui.scareT > R.scare.seconds) endGame(false);
+      if (ui.scareT > R.scare.seconds) { if (canBeRevived()) enterDown(); else endGame(false); }
+    } else if (ui.phase === "down") {
+      acc += dt; let n = 0, first = true;
+      while (acc >= STEP && n++ < 10 && g.state === "down") { stepDown(g, STEP, humanInput(first)); first = false; acc -= STEP; }
+      smoothPlayers(g, dt); netTick(dt);
+      ui.lid = 0; ui.flick = 0.75 + 0.08 * Math.sin(ui.time * 7);
+      ui.hurt = 0.22 + 0.1 * Math.sin(ui.time * 3);
+      updateDown();
+      if (ui.phase === "down") renderer.render(g, fx());
     } else {
       // menü: arka planda karanlık sahne
       ui.lid = 0; ui.flick = 0.85 + 0.1 * Math.sin(ui.time * 9);
@@ -481,7 +537,7 @@ function leaveLobby(statusText) {
 }
 function onNetClose() {
   if (!mp.net || mp.net.local) return;
-  if (mp.inGame) { mp.net = null; mp.inGame = false; if (g) g.players = []; showMsg("Sunucu bağlantısı koptu, tek başına devam ediyorsun.", 4000); return; }
+  if (mp.inGame) { mp.net = null; mp.inGame = false; if (g) g.players = []; if (ui.phase === "down") { ui.downWhy = "Sunucu bağlantısı koptu."; endGame(false); return; } showMsg("Sunucu bağlantısı koptu, tek başına devam ediyorsun.", 4000); return; }
   netState.textContent = "Sunucu bağlantısı koptu — çevrimdışı lobi.";
   showMsg("Sunucu bağlantısı koptu, çevrimdışı lobiye geçildi.", 3500);
   connectNet().then(() => { returnToLobby(); mp.lobby.myRoom = -1; });
@@ -493,7 +549,7 @@ async function connectNet() {
   const me = auth.current(), name = me ? me.name : "Misafir";
   const h = {
     onWelcome: (m) => { mp.id = m.id; mp.lobby = createLobby(R); mp.lobby.px = m.x; mp.lobby.py = m.y; },
-    onSnap, onStart: startNetGame, onClose: onNetClose,
+    onSnap, onStart: startNetGame, onClose: onNetClose, onRevived,
     onDeny: (m) => { if (ui.phase === "lobby" && g) { g.px = m.x; g.py = m.y; g.myRoom = -1; } showMsg(m.reason, 2200); },
     onErr: (t) => showMsg(t, 2600),
   };
@@ -533,10 +589,12 @@ function lobbyEvents() {
 }
 function netTick(dt) {
   if (!mp.net || !mp.net.open || !(ui.phase === "lobby" || mp.inGame)) return;
+  if (ui.phase === "scare") return;                   // korku sahnesindeyken (henüz yere düşmeden) konum yollama
   mp.sendT += dt;
   if (mp.sendT < 1 / R.lobby.sendHz) return;
   mp.sendT = 0;
-  mp.net.send({ t: "pos", x: +g.px.toFixed(2), y: +g.py.toFixed(2), yaw: +g.yaw.toFixed(2), walk: +(g.bob || 0).toFixed(1), moving: +(g.moving || 0).toFixed(2) });
+  const down = mp.inGame && g.state === "down";
+  mp.net.send({ t: "pos", x: +g.px.toFixed(2), y: +g.py.toFixed(2), yaw: +(down ? g.downYaw : g.yaw).toFixed(2), walk: +(g.bob || 0).toFixed(1), moving: down ? 0 : +(g.moving || 0).toFixed(2), d: down ? 1 : 0 });
 }
 lobbyBtn.addEventListener("click", enterLobby);
 lobbyExit.addEventListener("click", () => leaveLobby("Menüdesin."));
