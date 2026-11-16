@@ -125,7 +125,13 @@ export const RULES = {
   // Yakalanma sahnesi. seconds: eski sahnenin süresi (karanlık + saldırı + kararma). Sıska Canavar'ın saldırısı
   // (üstümüze atlayıp devirir, ağzını açıp ısırır) render.js'teki TACKLE zamanlarını kullanır. Sonra black sn kapkaranlık,
   // ardından karanlıkta "Buraya kadar mıydı?" yazısı çıkar, line2 sn sonra ikinci satır; yazı text sn ekranda kalır.
-  scare: { seconds: 3.0, black: 0.5, line2: 0.9, text: 3.2, tackle: ["runner"] },   // tackle: üstümüze atlayıp deviren, ağzını açıp ısıran saldırı sahnesi hangi canavarlarda
+  // scenes: canavara özel sahne ("tackle": üstümüze atlayıp devirir, ağzını açıp ısırır; "stab": elini saplayıp havaya kaldırır).
+  // texts: karanlıkta çıkan iki satır (canavar türüne göre, yoksa default)
+  scare: {
+    seconds: 3.0, black: 0.5, line2: 0.9, text: 3.2,
+    scenes: { runner: "tackle", monster: "stab" },
+    texts: { default: ["Buraya kadar mıydı?", "Cidden pes mi edeceksin?"], monster: ["Elini sana sapladı, geçti...", "Olsun."] },
+  },
   // Çevrim içi: yakalanınca hemen lobiye dönülmez, yere düşülür. Odadaki bir arkadaş yanına gelip `seconds` sn yanında durursa kalkarsın.
   // bleedSec dolarsa ya da odada ayakta kimse kalmazsa oyun biter. Kalkınca safeSec sn boyunca gölgeler yakalayamaz.
   revive: {

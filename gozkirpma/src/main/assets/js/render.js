@@ -18,6 +18,8 @@ const TINT = [1.0, 0.95, 0.72];
 // Sıska Canavar saldırı sahnesinin zamanları (sn): çarpma (devrilmeye başlarız), yere iniş, kükreme (ağız açılır), ısırık, son
 // Saldırı sahnesinde modele göre ağız noktası (model uzayı [y, z]) ve büyütme
 const TACKLE_MODELS = { monster: { mouth: [1.5, 0.86], scale: 1.3 }, runner: { mouth: [0.68, 0.42], scale: 1.25, lift: 0.16 } };
+// Sıska Canavar sahnesinin zamanları (sn): yaklaşır, kolunu geri çeker, saplar, bekler, havaya kaldırır, bekler, çeker, yere düşeriz, son
+export const STAB = { windup: 0.75, hit: 1.05, lift: 1.7, up: 2.5, pull: 3.7, floor: 4.1, end: 5.3 };
 export const TACKLE = { impact: 0.5, down: 0.95, roar: 1.25, bite: 2.15, end: 2.55 };
 
 // ---------- Modeller ----------
@@ -85,15 +87,19 @@ function loadTex(url) {
 
 // İskeletli model: animasyonun ph (0..1, döngü) anındaki pozunu parçaların P dizisine yazar (iki kare arasında doğrusal karışım)
 // jaw: (yalnızca çenesi olan modeller) çeneyi bu kadar radyan daha fazla açar (yakalanma sahnesi)
-export function skinPose(model, ph, jaw = 0) {
+// rot: { kemikAdı: açı } ek kemik dönüşleri (RIGS'te tanımlı kemikler; +açı: aşağı sarkan uzuv geriye, öndeki uç aşağı)
+export function skinPose(model, ph, jaw = 0, rot = null) {
   const S = model.skin, F = S.F, n = F.length;
   ph = ((ph % 1) + 1) % 1;
-  if (Math.abs(ph - S.at) < 1e-4 && (S.jaw || 0) === jaw) return;
-  S.at = ph; S.jaw = jaw;
+  const rk = rot ? JSON.stringify(rot) : "";
+  if (Math.abs(ph - S.at) < 1e-4 && (S.jaw || 0) === jaw && (S.rk || "") === rk) return;
+  S.at = ph; S.jaw = jaw; S.rk = rk;
   const f = ph * n, i0 = Math.floor(f) % n, i1 = (i0 + 1) % n, a = f - Math.floor(f), A = F[i0], B = F[i1], M = S.M;
   for (let k = 0; k < M.length; k++) M[k] = A[k] + (B[k] - A[k]) * a;
   const J = JAWS[model.name];
   if (jaw && J) openJaw(M, J, jaw);
+  const RG = RIGS[model.name];
+  if (rot && RG) for (const [b, a] of Object.entries(rot)) if (a && RG[b]) openJaw(M, RG[b], a);   // ebeveynden çocuğa sırayla
   const GJ = jaw && GEO_JAWS[model.name] ? geoJaw(model) : null;
   for (const p of model.parts) {
     if (!p.B) continue;
@@ -154,6 +160,18 @@ function geoJaw(model) {
 
 // Çene kemikleri (bake-monster2.mjs'teki iskelet): çene + ona bağlı dil kemikleri, çenenin menteşesi (bağ pozu uzayında)
 const JAWS = { monster: { bones: [6, 7, 8], pivot: [0, 1.6, 0.6] } };
+// Ek dönüş verilebilen kemikler: [kemik, ...alt kemikleri] ve eklem noktası. tipR: sağ elin parmak ucu (bağ pozu)
+const RIGS = { monster: {
+  armR: { bones: [14, 15, 16], pivot: [-0.16, 1.52, 0.18] }, foreR: { bones: [15, 16], pivot: [-0.25, 1.0, 0.08] }, handR: { bones: [16], pivot: [-0.22, 0.4, 0.39] },
+  head: { bones: [5, 6, 7, 8, 9, 10], pivot: [0, 1.75, 0.56] },
+  tipR: { bone: 16, at: [-0.23, 0.03, 0.57] },
+} };
+// Bir kemiğe bağlı model uzayındaki noktanın şu anki pozdaki yeri (skinPose'dan sonra)
+export function bonePoint(model, name) {
+  const T = RIGS[model.name] && RIGS[model.name][name]; if (!T) return null;
+  const M = model.skin.M, m = T.bone * 12, [x, y, z] = T.at;
+  return [M[m] * x + M[m + 1] * y + M[m + 2] * z + M[m + 3], M[m + 4] * x + M[m + 5] * y + M[m + 6] * z + M[m + 7], M[m + 8] * x + M[m + 9] * y + M[m + 10] * z + M[m + 11]];
+}
 // 3x4 satır düzenli afin matrisler: a * b
 function mul34(a, b) {
   const o = new Array(12);
@@ -485,12 +503,19 @@ export class Renderer {
   }
 
   // Yakalanma sahnesinin görüntülü kısmı kaç saniye (sonrası karanlık + yazı, main.js)
-  scareLen(g) { return this.isTackle(g) ? TACKLE.end : g.rules.scare.seconds; }
-  isTackle(g) { const k = g.enemies[g.killer]; return !!(k && (g.rules.scare.tackle || []).includes(k.type) && this.M.chars[k.type]); }
+  scareLen(g) { const sc = this.scene(g); return sc === "tackle" ? TACKLE.end : sc === "stab" ? STAB.end : g.rules.scare.seconds; }
+  // Yakalayan canavarın özel sahnesi: "tackle" (Koşucu), "stab" (Sıska), null = eski korku sahnesi
+  scene(g) {
+    const k = g.enemies[g.killer], sc = k && (g.rules.scare.scenes || {})[k.type];
+    if (!sc || !this.M.chars[k.type]) return null;
+    return sc === "stab" && !RIGS[k.type] ? null : sc;
+  }
 
   renderScare(g, fx) {
     if (fx.scareT >= this.scareLen(g)) { this.ctx.fillStyle = "#000"; this.ctx.fillRect(0, 0, this.RW, this.RH); return; }
-    if (this.isTackle(g)) return this.renderTackle(g, fx);
+    const sc = this.scene(g);
+    if (sc === "tackle") return this.renderTackle(g, fx);
+    if (sc === "stab") return this.renderStab(g, fx);
     const ctx = this.ctx, RW = this.RW, RH = this.RH, t = fx.scareT, total = g.rules.scare.seconds;
     const killer = g.enemies[g.killer], T_OPEN = 0.55;
     // 1) Göz kapalı karanlık: iki parlak göz yaklaşır
@@ -625,6 +650,98 @@ export class Renderer {
     // son: ani kararma (ısırık kapanırken)
     const left = T.end - t;
     if (left < 0.18) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.18).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+  }
+
+  // Sıska Canavar: yaklaşır, tek elini içimize saplar ve bekler, eli içimizdeyken bizi havaya kaldırır, bekler,
+  // elini çeker; yere düşeriz, yerden ona bakarız, ekran kararır. Kaldırırken kamera canavarın parmak ucuna bağlıdır.
+  renderStab(g, fx) {
+    const ctx = this.ctx, RW = this.RW, RH = this.RH, t = fx.scareT, R = g.rules, T = STAB;
+    const killer = g.enemies[g.killer], model = this.M.chars[killer.type], ET = R.enemies.types[killer.type];
+    const sm = (a, b, x) => sstep(a, b, x), rnd = () => Math.random() - 0.5;
+    const ang = Math.atan2(killer.y - g.py, killer.x - g.px), cx = Math.cos(ang), cy = Math.sin(ang);
+    const front = Math.max(0.5, rayWall(g, g.px, g.py, cx, cy, 3) - 0.1);
+    const scale = ET.scale * 1.3, myaw = ang + Math.PI, cyw = Math.cos(myaw), syw = Math.sin(myaw);
+    // --- kol pozu (yürüme döngüsünün kolların önde olduğu anına ek dönüşler) ---
+    const wind = sm(T.windup - 0.35, T.windup, t) * (1 - sm(T.windup, T.hit - 0.08, t));        // kolu geri çeker
+    const stab = sm(T.windup + 0.05, T.hit, t);                                                  // ileri saplar
+    const lift = sm(T.lift, T.up, t), pull = sm(T.pull, T.pull + 0.18, t);
+    const shake = 0.01 + 0.08 * Math.exp(-Math.abs(t - T.hit) * 10) + 0.012 * sm(T.lift, T.up, t) * (1 - pull) + 0.06 * Math.exp(-Math.abs(t - T.floor) * 10);
+    const armR = (0.6 * wind - 0.55 * stab - 0.7 * lift + 1.0 * pull) + rnd() * shake * 0.2;   // - : ileri/yukarı
+    const rot = { armR, foreR: 0.32 * stab * (1 - pull), handR: 0.3 * stab * (1 - pull), head: 0.25 * sm(T.hit, T.lift, t) - 0.2 * lift + 0.15 * sm(T.pull, T.floor, t) + (t > T.up && t < T.pull ? Math.sin(t * 3) * 0.06 : 0) };
+    const jaw = 0.25 * sm(T.hit, T.hit + 0.2, t) + 0.45 * sm(T.up, T.up + 0.6, t) * (1 - pull * 0.5) + (t > T.hit ? 0.05 * Math.sin(t * 31) : 0);
+    const walking = t < T.windup;
+    const ph = walking ? 0.5 - (T.windup - t) * 1.25 : 0.5 + 0.01 * Math.sin(t * 4);             // kollar yanda (döngünün ortası) donar
+    skinPose(model, ph, jaw, rot);
+    // saplama anında parmak ucu tam göğsümüze gelsin: canavarın durduğu uzaklık bu pozdan hesaplanır
+    if (!this._stabD || this._stabK !== g.killer + ":" + g.time) {
+      skinPose(model, 0.5, 0, { armR: -0.55, foreR: 0.32, handR: 0.3 });
+      const tp = bonePoint(model, "tipR"); this._stabD = tp[2] * scale; this._stabK = g.killer + ":" + g.time;
+      skinPose(model, ph, jaw, rot);
+    }
+    const D = Math.min(front, Math.max(0.35, this._stabD - 0.04));
+    const d0 = Math.min(front, 1.6), dist = D + (d0 - D) * (1 - sm(0, T.windup, t));
+    const mx = g.px + cx * dist, my = g.py + cy * dist;
+    const tip = bonePoint(model, "tipR"), toW = (p) => [mx + (p[2] * cyw - p[0] * syw) * scale, my + (p[2] * syw + p[0] * cyw) * scale, p[1] * scale];
+    const tw = toW(tip);
+    // --- kamera ---
+    const E0 = R.player.eyeHeight;
+    const onHand = sm(T.lift - 0.1, T.lift + 0.15, t) * (1 - pull);                              // bedenimiz parmak ucunda
+    const drop = Math.min(1, Math.max(0, (t - T.pull - 0.08) / (T.floor - T.pull - 0.08)));
+    const fallen = t >= T.pull + 0.08;
+    // eli içimizdeyken: göğsümüz parmak ucunda, başımız biraz yukarıda ve geride
+    const hx = tw[0] - cx * 0.1, hy = tw[1] - cy * 0.1, hh = tw[2] + 0.12;
+    const upX = g.px + (hx - g.px) * onHand, upY = g.py + (hy - g.py) * onHand;
+    const upH = E0 + (hh - E0) * onHand;
+    if (!fallen) this._stabUp = [upX, upY, upH];
+    const U = this._stabUp || [upX, upY, upH];
+    const groundX = U[0] - cx * 0.12, groundY = U[1] - cy * 0.12;
+    const camX = fallen ? U[0] + (groundX - U[0]) * drop : upX, camY = fallen ? U[1] + (groundY - U[1]) * drop : upY;
+    const bounce = t > T.floor ? Math.exp(-(t - T.floor) * 9) * Math.sin((t - T.floor) * 30) * 0.03 : 0;
+    const eye = fallen ? U[2] + (0.13 - U[2]) * drop * drop + bounce : upH - 0.06 * Math.exp(-Math.abs(t - T.hit) * 8) * (t > T.hit ? 1 : 0);
+    // bakış: canavarın yüzüne (saplanınca bir an göğsümüzdeki kola)
+    const headW = toW([0, 1.68, 0.62]);
+    const wArm = sm(T.windup + 0.1, T.hit, t) * (1 - sm(T.hit + 0.35, T.lift, t)) * 0.75;      // saplarken göğsümüze giren kola bakarız
+    const shW = wArm > 0 ? toW([-0.2, 1.2, 0.4]) : null;                                        // saplayan kolun dirseği
+    const hd = Math.max(0.15, Math.hypot(headW[0] - camX, headW[1] - camY));
+    let pitch = Math.atan2(headW[2] - eye, hd) * (1 - wArm) - 0.35 * wArm;
+    pitch += rnd() * shake * 0.6 + (t > T.up && t < T.pull ? Math.sin(t * 2.1) * 0.03 : 0);
+    const pitchMax = Math.min(1.1, this.pitchLimit());
+    pitch = Math.max(-0.7, Math.min(pitchMax, pitch));
+    const sway = t > T.lift && t < T.pull ? Math.sin(t * 2.6) * 0.05 * lift : 0;                 // havada sallanırız
+    const cam = { x: camX + rnd() * shake * 0.05, y: camY + rnd() * shake * 0.05, yaw: Math.atan2(headW[1] - camY, headW[0] - camX) + (shW ? (Math.atan2(shW[1] - camY, shW[0] - camX) - Math.atan2(headW[1] - camY, headW[0] - camX)) * wArm : 0) + sway + rnd() * shake * 0.4, eye: eye + rnd() * shake * 0.03, pitch, bob: 0, time: fx.time };
+    const roll = sway * 2 + 0.28 * sm(T.pull, T.floor, t) - 0.1 * sm(T.floor, T.floor + 0.5, t) + rnd() * shake * 0.5;
+    // --- çizim ---
+    this.flick = 0.95 + Math.random() * 0.3 + 0.7 * Math.exp(-Math.abs(t - T.hit) * 12);
+    const g2 = { ...g, enemies: [], bob: 0, danger: 0, dry: 0 };
+    const SC0 = this.SC, warp = Math.abs(cam.pitch) > 0.005;
+    if (warp) this.SC = SC0 * this.pitchFit(cam.pitch, SC0);
+    this.world(g2, cam, { ...fx, flick: this.flick });
+    this.drawModel(model, scale, myaw, mx, my, walking ? Math.abs(Math.sin(t * 9)) * 0.02 : 0, g2, null, 0.1 + 0.15 * sm(T.hit, T.lift, t));
+    if (warp) { this.pitchWarp(cam, SC0); this.SC = SC0; }
+    model.skin.at = -1;
+    if (!this._tk) this._tk = document.createElement("canvas");
+    const tk = this._tk; if (tk.width !== RW || tk.height !== RH) { tk.width = RW; tk.height = RH; }
+    tk.getContext("2d").putImageData(this.img, 0, 0);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, RW, RH);
+    ctx.save(); ctx.translate(RW / 2, RH / 2); ctx.rotate(roll); ctx.scale(1.12, 1.12); ctx.drawImage(tk, -RW / 2, -RH / 2); ctx.restore();
+    // saplama: kırmızı parlama, şeritler; içimizdeyken nabız gibi atan kırmızı kenar
+    const hit = t >= T.hit ? Math.exp(-(t - T.hit) * 7) : 0, fl = t >= T.floor ? Math.exp(-(t - T.floor) * 10) : 0;
+    if (hit > 0.02) { ctx.fillStyle = `rgba(200,0,0,${(0.7 * hit).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+    if (fl > 0.02) { ctx.fillStyle = `rgba(255,230,220,${(0.5 * fl).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+    const glitch = hit + fl * 0.6;
+    for (let i = 0, n = Math.floor(glitch * 8); i < n; i++) {
+      const sy = Math.random() * RH, h = 2 + Math.random() * RH * 0.08, off = rnd() * RW * 0.15 * glitch;
+      ctx.drawImage(this.canvas, 0, sy, RW, h, off, sy, RW, h);
+    }
+    const inside = sm(T.hit, T.hit + 0.3, t);
+    const pulse = inside * (0.35 + 0.15 * Math.sin(t * 7)) + 0.25 * sm(T.pull, T.floor, t);
+    const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * (0.55 - 0.25 * inside), RW / 2, RH / 2, RH * 0.95);
+    gr.addColorStop(0, "rgba(120,0,0,0)"); gr.addColorStop(1, `rgba(110,0,0,${Math.min(0.95, 0.2 + pulse).toFixed(3)})`);
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, RW, RH);
+    this.noiseOverlay(0.05 + 0.1 * glitch);
+    // son: yavaş kararma
+    const left = T.end - t;
+    if (left < 0.6) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.6).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
   }
 
   // Eğik bakışta ekranın her köşesine düşen ışın dik perdede nereye gelir: perdenin tamamı ekrana sığsın diye ölçek (en az 0.36)

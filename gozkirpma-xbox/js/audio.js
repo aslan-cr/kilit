@@ -176,3 +176,10 @@ export function playBite() {
   thump(1.0, 0.02, 140, 28, 0.45);
   noiseBurst(0.8, 0.5, 400, "lowpass", 0.05);
 }
+// Saplama / elini çekme: ıslak, boğuk delinme
+export function playStab() {
+  if (!AC) return;
+  thump(1.0, 0, 160, 40, 0.3);
+  noiseBurst(0.9, 0.25, 900, "bandpass", 0, 1.2);
+  noiseBurst(0.6, 0.4, 250, "lowpass", 0.04);
+}

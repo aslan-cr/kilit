@@ -4,7 +4,7 @@
 import { RULES, applyOverrides } from "./rules.js";
 import { createGame, step, rng, setPlayer, buy, owns, goDown, stepDown, revivePlayer, rayWall } from "./sim.js";
 import { makeBot } from "./bot.js";
-import { Renderer, loadModels, TACKLE } from "./render.js";
+import { Renderer, loadModels, TACKLE, STAB } from "./render.js";
 import * as A from "./audio.js";
 import { makeEyeTracker, loadLandmarker, openCamera, landmarkerSource } from "./eyes.js";
 import { ruleLines, HINT_FIRST } from "./texts.js";
@@ -226,14 +226,24 @@ function endGame(win) {
 
 function enterScare() {
   ui.phase = "scare"; ui.scareT = 0; ui.scareHit = false; ui.scareCue = 0; resetTouch();
+  const k = g && g.enemies[g.killer], TX = R.scare.texts, lines = (k && TX[k.type]) || TX.default;   // karanlıkta çıkacak yazı
+  dieEl.children[0].textContent = lines[0]; dieEl.children[1].textContent = lines[1] || "";
   hudEl.style.display = "none"; msgEl.classList.remove("on");
   for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
 }
 
-// Yakalanma sesleri. Sıska Canavar: atılış nefesi, çarpma (devrilme), kükreme (ağız açılınca), ısırık. Diğerleri: eski çığlık.
+// Yakalanma sesleri. Koşucu: çarpma (devrilme), kükreme (ağız açılınca), ısırık. Sıska: saplama, kaldırılırken gerilim,
+// elini çekip yere düşme. Diğerleri: eski çığlık.
+function cue(n, at, fn) { if (ui.scareCue < n && ui.scareT >= at) { ui.scareCue = n; fn(); } }
 function scareSounds() {
-  const t = ui.scareT;
-  if (renderer.isTackle(g)) {
+  const t = ui.scareT, sc = renderer.scene(g);
+  if (sc === "stab") {
+    cue(1, STAB.hit, () => { A.playStab(); safeVibrate([250, 40, 120]); });
+    cue(2, STAB.lift, () => A.playScareStart());
+    cue(3, STAB.up + 0.3, () => A.playScream());
+    cue(4, STAB.pull, () => { A.playStab(); safeVibrate(150); });
+    cue(5, STAB.floor, () => { A.playTackle(); safeVibrate(300); });
+  } else if (sc === "tackle") {
     if (ui.scareCue < 1 && t >= TACKLE.impact) { ui.scareCue = 1; A.playTackle(); safeVibrate([120, 30, 60]); }
     if (ui.scareCue < 2 && t >= TACKLE.roar) { ui.scareCue = 2; A.playScream(); safeVibrate([200, 40, 300]); }
     if (ui.scareCue < 3 && t >= TACKLE.bite) { ui.scareCue = 3; A.playBite(); safeVibrate(400); }
