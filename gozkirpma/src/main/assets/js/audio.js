@@ -159,3 +159,20 @@ export function playScream() {
   // ikinci vuruş: sahne kararırken
   thump(0.8, 1.3, 70, 22, 0.5);
 }
+
+// Sıska Canavar üstümüze atlayıp bizi devirir: gövdeye çarpma + yere sırtüstü düşüş
+export function playTackle() {
+  if (!AC) return;
+  thump(1.0, 0, 110, 30, 0.35);                         // çarpma
+  noiseBurst(0.9, 0.3, 300, "lowpass");
+  noiseBurst(0.35, 0.25, 1800, "bandpass", 0.02, 1.5);  // hırıltılı nefes
+  thump(0.9, 0.42, 80, 26, 0.4);                        // sırtüstü yere çarpma
+  noiseBurst(0.6, 0.35, 220, "lowpass", 0.42);
+}
+// Isırık: kemik çatırtısı + boğuk darbe
+export function playBite() {
+  if (!AC) return;
+  for (let i = 0; i < 4; i++) noiseBurst(0.7, 0.06, 2600 + i * 500, "bandpass", i * 0.045, 3);
+  thump(1.0, 0.02, 140, 28, 0.45);
+  noiseBurst(0.8, 0.5, 400, "lowpass", 0.05);
+}

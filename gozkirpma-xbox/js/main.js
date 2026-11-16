@@ -2,9 +2,9 @@
 // Hata ayıklama kancaları: ?seed=N  ?play  ?sim=N (bot N sn oynar, son kare çizilir)  ?autoplay&speed=4
 //                          ?scare  ?gallery=0..3  ?lobby&server=127.0.0.1:8080 (lobiye doğrudan gir)  ?r.enemies.count=3 (rules.js'teki sayıyı değiştir)
 import { RULES, applyOverrides } from "./rules.js";
-import { createGame, step, rng, setPlayer, goDown, stepDown, revivePlayer } from "./sim.js";
+import { createGame, step, rng, setPlayer, goDown, stepDown, revivePlayer, rayWall } from "./sim.js";
 import { makeBot } from "./bot.js";
-import { Renderer, loadModels } from "./render.js";
+import { Renderer, loadModels, TACKLE } from "./render.js";
 import * as A from "./audio.js";
 import { makeEyeTracker, loadLandmarker, openCamera, landmarkerSource } from "./eyes.js";
 import { ruleLines, HINT_FIRST } from "./texts.js";
@@ -20,7 +20,7 @@ const STEP = 1 / 60;
 const $ = (id) => document.getElementById(id);
 const canvas = $("game"), video = $("cam"), touchLayer = $("touch"), joyEl = $("joy"), knobEl = $("knob");
 const hudEl = $("hud"), msgEl = $("msg"), eyeBtn = $("eyeBtn"), fireBtn = $("fireBtn"), swapBtn = $("swapBtn"), lightBtn = $("lightBtn");
-const downEl = $("down"), downText = $("downText"), downBar = $("downFill"), giveUpBtn = $("giveUp");
+const dieEl = $("dieText"), downEl = $("down"), downText = $("downText"), downBar = $("downFill"), giveUpBtn = $("giveUp");
 const menuEl = $("menu"), resultEl = $("result"), startBtn = $("start"), keyBtn = $("keyboard"), statusEl = $("status");
 const guestBtn = $("guestBtn");
 const el = { coins: $("coins"), flies: $("flies"), need: $("need"), time: $("time"), shells: $("shells"), gun: $("gun"), eyes: $("eyes"), dry: $("dryFill"), dryBox: $("dry") };
@@ -216,6 +216,7 @@ function startGame(seed = newSeed()) {
   g = createGame(seed, R);
   bot = Q.has("autoplay") ? makeBot(g, { rand: rng(seed * 7919 + 1) }) : null;
   ui.phase = "play"; ui.scareT = 0; ui.lid = 0; ui.hurt = 0; ui.puffs = []; acc = 0;
+  dieEl.classList.remove("on", "two");
   eyesT.closedL = eyesT.closedR = false;
   resetTouch();
   menuEl.classList.add("off");
@@ -231,7 +232,7 @@ function startGame(seed = newSeed()) {
 }
 
 function endGame(win) {
-  ui.phase = "menu"; downEl.classList.add("hidden"); ui.hurt = 0;
+  ui.phase = "menu"; downEl.classList.add("hidden"); dieEl.classList.remove("on", "two"); ui.hurt = 0;
   hudEl.style.display = "none";
   for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
   msgEl.classList.remove("on");
@@ -262,9 +263,19 @@ function endGame(win) {
 }
 
 function enterScare() {
-  ui.phase = "scare"; ui.scareT = 0; ui.scareHit = false; resetTouch();
+  ui.phase = "scare"; ui.scareT = 0; ui.scareHit = false; ui.scareCue = 0; resetTouch();
   hudEl.style.display = "none"; msgEl.classList.remove("on");
   for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
+}
+
+// Yakalanma sesleri. Sıska Canavar: atılış nefesi, çarpma (devrilme), kükreme (ağız açılınca), ısırık. Diğerleri: eski çığlık.
+function scareSounds() {
+  const t = ui.scareT;
+  if (renderer.isTackle(g)) {
+    if (ui.scareCue < 1 && t >= TACKLE.impact) { ui.scareCue = 1; A.playTackle(); safeVibrate([120, 30, 60]); }
+    if (ui.scareCue < 2 && t >= TACKLE.roar) { ui.scareCue = 2; A.playScream(); safeVibrate([200, 40, 300]); }
+    if (ui.scareCue < 3 && t >= TACKLE.bite) { ui.scareCue = 3; A.playBite(); safeVibrate(400); }
+  } else if (!ui.scareHit && t >= 0.55) { ui.scareHit = true; A.playScream(); safeVibrate([150, 40, 200, 40, 400]); }   // göz kapakları açıldığı an
 }
 
 // ---------- Yere düşme / canlandırma (çevrim içi) ----------
@@ -405,9 +416,13 @@ function frame(now) {
       renderer.render(g, fx());
     } else if (ui.phase === "scare") {
       ui.scareT += dt;
-      if (!ui.scareHit && ui.scareT >= 0.55) { ui.scareHit = true; A.playScream(); safeVibrate([150, 40, 200, 40, 400]); }   // göz kapakları açıldığı an
+      scareSounds();
       renderer.renderScare(g, fx());
-      if (ui.scareT > R.scare.seconds) { if (canBeRevived()) enterDown(); else endGame(false); }
+      // görüntü bitince: 0.5 sn kapkaranlık, sonra karanlıkta yazı
+      const vis = renderer.scareLen(g), txt = vis + R.scare.black;
+      dieEl.classList.toggle("on", ui.scareT >= txt);
+      dieEl.classList.toggle("two", ui.scareT >= txt + R.scare.line2);
+      if (ui.scareT > txt + R.scare.text) { dieEl.classList.remove("on", "two"); if (canBeRevived()) enterDown(); else endGame(false); }
     } else if (ui.phase === "down") {
       if (padState && padEdges.b) { padEdges.b = false; ui.downWhy = "Pes ettin."; endGame(false); requestAnimationFrame(frame); return; }
       acc += dt; let n = 0, first = true;
@@ -706,12 +721,15 @@ async function boot() {
   if (Q.has("scare")) {
     // en yakın gölgeyi yanımıza getir, yakalansın, sahnenin ortasını çiz
     ui.mode = "keyboard";
-    const e = g.enemies[0];
-    e.x = g.px + 0.3; e.y = g.py; g.yaw = 0;
+    const e = g.enemies.find((q) => q.type === (Q.get("type") || "monster")) || g.enemies[0];
+    let best = 0, dir = 0;                              // en uzun açık koridor yönünden gelsin
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2, d = rayWall(g, g.px, g.py, Math.cos(a), Math.sin(a), 6); if (d > best) { best = d; dir = a; } }
+    e.x = g.px + Math.cos(dir) * 0.3; e.y = g.py + Math.sin(dir) * 0.3; g.yaw = dir;
     step(g, STEP, { eyes: true });
     enterScare(); ui.scareT = Number(Q.get("scare")) || 0.5;
     menuEl.classList.add("off");
     renderer.renderScare(g, fx());
+    if (Q.has("anim")) { ui.scareT = 0; last = performance.now(); requestAnimationFrame(frame); }   // sahneyi baştan oynat
     $("debuglog").textContent = `scare state=${g.state}`;
     window.__ready = true;
     return;

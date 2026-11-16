@@ -14,6 +14,10 @@ const FOV_K = 0.66;
 const NEAR = 0.1;
 const AMB = 0.018;
 const TINT = [1.0, 0.95, 0.72];
+// Sıska Canavar saldırı sahnesinin zamanları (sn): çarpma (devrilmeye başlarız), yere iniş, kükreme (ağız açılır), ısırık, son
+// Saldırı sahnesinde modele göre ağız noktası (model uzayı [y, z]) ve büyütme
+const TACKLE_MODELS = { monster: { mouth: [1.5, 0.86], scale: 1.3 }, runner: { mouth: [0.68, 0.42], scale: 1.25, lift: 0.16 } };
+export const TACKLE = { impact: 0.5, down: 0.95, roar: 1.25, bite: 2.15, end: 2.55 };
 
 // ---------- Modeller ----------
 export async function loadModels(base = "models/") {
@@ -79,13 +83,17 @@ function loadTex(url) {
 }
 
 // İskeletli model: animasyonun ph (0..1, döngü) anındaki pozunu parçaların P dizisine yazar (iki kare arasında doğrusal karışım)
-export function skinPose(model, ph) {
+// jaw: (yalnızca çenesi olan modeller) çeneyi bu kadar radyan daha fazla açar (yakalanma sahnesi)
+export function skinPose(model, ph, jaw = 0) {
   const S = model.skin, F = S.F, n = F.length;
   ph = ((ph % 1) + 1) % 1;
-  if (Math.abs(ph - S.at) < 1e-4) return;
-  S.at = ph;
+  if (Math.abs(ph - S.at) < 1e-4 && (S.jaw || 0) === jaw) return;
+  S.at = ph; S.jaw = jaw;
   const f = ph * n, i0 = Math.floor(f) % n, i1 = (i0 + 1) % n, a = f - Math.floor(f), A = F[i0], B = F[i1], M = S.M;
   for (let k = 0; k < M.length; k++) M[k] = A[k] + (B[k] - A[k]) * a;
+  const J = JAWS[model.name];
+  if (jaw && J) openJaw(M, J, jaw);
+  const GJ = jaw && GEO_JAWS[model.name] ? geoJaw(model) : null;
   for (const p of model.parts) {
     if (!p.B) continue;
     const Bp = p.B, P = p.P, J = p.J, W = p.Wt;
@@ -101,7 +109,73 @@ export function skinPose(model, ph) {
       }
       P[q] = ox; P[q + 1] = oy; P[q + 2] = oz;
     }
+    if (GJ && GJ.part === p) {                        // kemiksiz çene: alt çene köşelerini menteşe etrafında döndür
+      const m = GJ.joint * 12, [ax, ay, az] = GJ.axis, [hx, hy, hz] = GJ.pivot, c = Math.cos(jaw), s = Math.sin(jaw), V = GJ.idx;
+      for (let i = 0; i < V.length; i++) {
+        const q = V[i] * 3, k = GJ.k[i], x = Bp[q] - hx, y = Bp[q + 1] - hy, z = Bp[q + 2] - hz;
+        const dt = ax * x + ay * y + az * z, cx = ay * z - az * y, cy = az * x - ax * z, cz = ax * y - ay * x;   // Rodrigues
+        const dx = (x * c + cx * s + ax * dt * (1 - c) - x) * k, dy = (y * c + cy * s + ay * dt * (1 - c) - y) * k, dz = (z * c + cz * s + az * dt * (1 - c) - z) * k;
+        P[q] += M[m] * dx + M[m + 1] * dy + M[m + 2] * dz;
+        P[q + 1] += M[m + 4] * dx + M[m + 5] * dy + M[m + 6] * dz;
+        P[q + 2] += M[m + 8] * dx + M[m + 9] * dy + M[m + 10] * dz;
+      }
+    }
   }
+}
+// Çene kemiği olmayan model (Koşucu: kafa tek kemik): ilk karede kafa kemiğine bağlı, ağız çizgisinin altındaki ve
+// menteşenin önündeki köşeler alt çene sayılır. Menteşe ve eksen kafa kemiğinin bağ pozu uzayına çevrilir.
+const GEO_JAWS = { runner: { joint: 4, hinge: [0.71, 0.27], below: 0.705, front: 0.29, soft: 0.04 } };
+function geoJaw(model) {
+  if (model._gj !== undefined) return model._gj;
+  const G = GEO_JAWS[model.name], F0 = model.skin.F[0], m = G.joint * 12;
+  const part = model.parts.find((p) => p.B);
+  const inv = inv34(Array.from(F0.subarray(m, m + 12)));
+  const Bp = part.B, J = part.J, W = part.Wt, idx = [], kk = [];
+  for (let v = 0, q = 0; q < Bp.length; v++, q += 3) {
+    let bw = 0, bj = -1;
+    for (let c = 0; c < 4; c++) if (W[v * 4 + c] > bw) { bw = W[v * 4 + c]; bj = J[v * 4 + c]; }
+    if (bj !== G.joint) continue;
+    let ox = 0, oy = 0, oz = 0;                       // ilk karedeki konum
+    for (let c = 0; c < 4; c++) {
+      const w = W[v * 4 + c]; if (!w) continue; const k = J[v * 4 + c] * 12;
+      ox += w * (F0[k] * Bp[q] + F0[k + 1] * Bp[q + 1] + F0[k + 2] * Bp[q + 2] + F0[k + 3]);
+      oy += w * (F0[k + 4] * Bp[q] + F0[k + 5] * Bp[q + 1] + F0[k + 6] * Bp[q + 2] + F0[k + 7]);
+      oz += w * (F0[k + 8] * Bp[q] + F0[k + 9] * Bp[q + 1] + F0[k + 10] * Bp[q + 2] + F0[k + 11]);
+    }
+    if (oz < G.front || oy > G.below) continue;
+    idx.push(v); kk.push(Math.min(1, (G.below - oy) / G.soft, (oz - G.front) / G.soft));   // kenarda yumuşak geçiş
+  }
+  const tp = (x, y, z) => [inv[0] * x + inv[1] * y + inv[2] * z + inv[3], inv[4] * x + inv[5] * y + inv[6] * z + inv[7], inv[8] * x + inv[9] * y + inv[10] * z + inv[11]];
+  const pivot = tp(0, G.hinge[0], G.hinge[1]);
+  let axis = [inv[0], inv[4], inv[8]]; const L = Math.hypot(...axis); axis = axis.map((a) => a / L);
+  return (model._gj = { part, joint: G.joint, idx: Int32Array.from(idx), k: Float32Array.from(kk), pivot, axis });
+}
+
+// Çene kemikleri (bake-monster2.mjs'teki iskelet): çene + ona bağlı dil kemikleri, çenenin menteşesi (bağ pozu uzayında)
+const JAWS = { monster: { bones: [6, 7, 8], pivot: [0, 1.6, 0.6] } };
+// 3x4 satır düzenli afin matrisler: a * b
+function mul34(a, b) {
+  const o = new Array(12);
+  for (let r = 0; r < 3; r++) {
+    const a0 = a[r * 4], a1 = a[r * 4 + 1], a2 = a[r * 4 + 2];
+    for (let c = 0; c < 4; c++) o[r * 4 + c] = a0 * b[c] + a1 * b[4 + c] + a2 * b[8 + c] + (c === 3 ? a[r * 4 + 3] : 0);
+  }
+  return o;
+}
+function inv34(m) {
+  const [a, b, c, tx, d, e, f, ty, g, h, i, tz] = m;
+  const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, det = a * A + b * B + c * C, k = 1 / det;
+  const r = [A * k, -(b * i - c * h) * k, (b * f - c * e) * k, 0, B * k, (a * i - c * g) * k, -(a * f - c * d) * k, 0, C * k, -(a * h - b * g) * k, (a * e - b * d) * k, 0];
+  r[3] = -(r[0] * tx + r[1] * ty + r[2] * tz); r[7] = -(r[4] * tx + r[5] * ty + r[6] * tz); r[11] = -(r[8] * tx + r[9] * ty + r[10] * tz);
+  return r;
+}
+// Çeneyi menteşesi etrafında aç: M_jaw' = M_jaw · R ; alt kemikler (dil) de aynı dönüşü alır: M_i' = (M_jaw R M_jaw⁻¹) M_i
+function openJaw(M, J, ang) {
+  const j = J.bones[0] * 12, Mj = Array.from(M.subarray(j, j + 12)), [px, py, pz] = J.pivot;
+  const c = Math.cos(ang), s = Math.sin(ang);       // +ang: çenenin ucu aşağı iner (ağız açılır)
+  const R = [1, 0, 0, 0, 0, c, -s, py - (c * py - s * pz), 0, s, c, pz - (s * py + c * pz)];
+  const E = mul34(mul34(Mj, R), inv34(Mj));
+  for (const b of J.bones) { const o = b * 12, m2 = mul34(E, Array.from(M.subarray(o, o + 12))); for (let k = 0; k < 12; k++) M[o + k] = m2[k]; }
 }
 
 // Işık yayan malzemeler: 0..1 (1 = tam parlak)
@@ -409,7 +483,13 @@ export class Renderer {
     }
   }
 
+  // Yakalanma sahnesinin görüntülü kısmı kaç saniye (sonrası karanlık + yazı, main.js)
+  scareLen(g) { return this.isTackle(g) ? TACKLE.end : g.rules.scare.seconds; }
+  isTackle(g) { const k = g.enemies[g.killer]; return !!(k && (g.rules.scare.tackle || []).includes(k.type) && this.M.chars[k.type]); }
+
   renderScare(g, fx) {
+    if (fx.scareT >= this.scareLen(g)) { this.ctx.fillStyle = "#000"; this.ctx.fillRect(0, 0, this.RW, this.RH); return; }
+    if (this.isTackle(g)) return this.renderTackle(g, fx);
     const ctx = this.ctx, RW = this.RW, RH = this.RH, t = fx.scareT, total = g.rules.scare.seconds;
     const killer = g.enemies[g.killer], T_OPEN = 0.55;
     // 1) Göz kapalı karanlık: iki parlak göz yaklaşır
@@ -468,6 +548,82 @@ export class Renderer {
     // 4) Son: ani kararma (son 0.6 sn), sonra tam siyah
     const left = total - t;
     if (left < 0.6) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.6).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+  }
+
+  // Sıska Canavar'ın saldırısı (kısa film gibi): ayaktayken üstümüze atlar, bizi sırtüstü devirir (kamera geriye düşüp
+  // yukarı bakar), üstümüzde durup ağzını kocaman açar, kükrer ve kameraya doğru ısırır; ekran kararır.
+  renderTackle(g, fx) {
+    const ctx = this.ctx, RW = this.RW, RH = this.RH, t = fx.scareT, R = g.rules, T = TACKLE;
+    const killer = g.enemies[g.killer], model = this.M.chars[killer.type], ET = R.enemies.types[killer.type];
+    const TM = TACKLE_MODELS[killer.type] || {}, bb = model.bb;
+    const sm = (a, b, x) => sstep(a, b, x), rnd = () => Math.random() - 0.5;
+    const ang = Math.atan2(killer.y - g.py, killer.x - g.px), cx = Math.cos(ang), cy = Math.sin(ang);
+    const front = Math.max(0.5, rayWall(g, g.px, g.py, cx, cy, 3) - 0.15);       // canavarın geldiği yön (duvara girmesin)
+    const back = Math.max(0, Math.min(0.3, rayWall(g, g.px, g.py, -cx, -cy, 2) - 0.15));
+    // --- canavar ---
+    // 1) Atılış: uzaktan sıçrar (yay çizerek), burnumuzun dibine 2) devrilirken üstümüze çöker 3) üstümüzde eğilip durur,
+    //    ağzını kocaman açar, kükrer 4) ağzıyla kameraya dalar (ısırık). Konum, AĞZIN kameraya uzaklığından hesaplanır.
+    const kLeap = sm(0, T.impact, t), kOn = sm(T.impact, T.down + 0.1, t), kBite = sm(T.bite, T.end - 0.05, t);
+    const breathe = Math.sin(t * 9) * 0.03 * sm(T.down, T.roar, t);
+    const lie = 0.15 + 0.35 * kLeap + 0.05 * kOn + 0.1 * sm(T.roar, T.bite, t) + 0.55 * kBite + breathe;   // öne, üstümüze eğilir
+    const scale = ET.scale * (TM.scale || 1.3), MO = TM.mouth || [bb.max[1] * 0.75, bb.max[2] * 0.85];   // ağız (model uzayı y, z)
+    const mouthZ = scale * (MO[0] * Math.sin(lie) + MO[1] * Math.cos(lie)), mouthY = scale * (MO[0] * Math.cos(lie) - MO[1] * Math.sin(lie));
+    const d0 = Math.min(front, 1.6);
+    let headD = d0 + (0.3 - d0) * kLeap;                                            // ağız çarpışma anında burnumuzun dibinde
+    headD += (0.26 - 0.3) * kOn - 0.06 * sm(T.roar, T.bite, t);                     // yerdeyken biraz uzakta, yavaşça yaklaşır
+    headD += (0.0 - headD) * kBite;                                                 // ısırık: kameraya dalar
+    const hop = Math.sin(Math.PI * Math.min(1, t / T.impact)) * 0.18 * (1 - kOn) + (TM.lift || 0) * kOn;   // alçak canavar göğsümüze çıkar
+    const dist = headD + mouthZ;
+    const jaw = 0.15 * kLeap + 1.1 * sm(T.roar - 0.15, T.roar + 0.35, t) + 0.2 * sm(T.bite, T.bite + 0.15, t) + (t > T.roar ? 0.06 * Math.sin(t * 40) : 0);
+    const ph = t < T.impact ? t * 1.6 : 0.05 + 0.02 * Math.sin(t * 5);              // atılırken bacaklar savrulur, sonra donar
+    const yawJ = (t > T.roar ? Math.sin(t * 23) * 0.06 : 0) + rnd() * 0.04 * kBite;
+    // --- kamera: ayakta -> geriye düşüş -> yerde; hep canavarın ağzına bakar ---
+    const fall = sm(T.impact - 0.05, T.down, t);                                 // 0 ayakta, 1 yerde
+    const drop = Math.min(1, Math.max(0, (t - (T.impact - 0.05)) / (T.down - T.impact + 0.05)));
+    const bounce = t > T.down ? Math.exp(-(t - T.down) * 9) * Math.sin((t - T.down) * 30) * 0.03 : 0;
+    const eye = R.player.eyeHeight + (0.13 - R.player.eyeHeight) * drop * drop + bounce;   // yerçekimiyle hızlanarak düşer
+    const pb = back * fall;
+    const mh = hop + mouthY, aim = Math.atan2(mh - eye, Math.max(0.12, headD + pb));
+    const pitchMax = Math.min(1.1, this.pitchLimit());
+    // sarsıntı: çarpma anında büyük, kükrerken titrek, ısırırken en büyük
+    const shake = 0.012 + 0.09 * Math.exp(-Math.abs(t - T.impact) * 9) + 0.03 * sm(T.roar, T.roar + 0.3, t) + 0.08 * kBite;
+    const pitch = Math.max(-0.3, Math.min(pitchMax, aim * (1 - 0.5 * kBite) + 0.25 * Math.exp(-Math.abs(t - T.impact - 0.12) * 10) + rnd() * shake * 0.5));
+    const cam = { x: g.px - cx * pb + rnd() * shake * 0.08, y: g.py - cy * pb + rnd() * shake * 0.08, yaw: ang + rnd() * shake * 0.5, eye: eye + rnd() * shake * 0.04, pitch, bob: 0, time: fx.time };
+    const roll = 0.3 * sm(T.impact, T.down + 0.1, t) - 0.14 * sm(T.down + 0.1, T.down + 0.6, t) + rnd() * shake * 0.6;
+    const mx = g.px + cx * dist, my = g.py + cy * dist;
+    // --- çizim ---
+    this.flick = 0.95 + Math.random() * 0.35 + 0.6 * Math.exp(-Math.abs(t - T.impact) * 12);
+    const g2 = { ...g, enemies: [], bob: 0, danger: 0, dry: 0 };
+    const SC0 = this.SC, warp = Math.abs(cam.pitch) > 0.005;
+    if (warp) this.SC = SC0 * this.pitchFit(cam.pitch, SC0);
+    this.world(g2, cam, { ...fx, flick: this.flick });
+    skinPose(model, ph, jaw);
+    this.drawModel(model, scale, ang + Math.PI + yawJ, mx, my, hop, g2, null, 0.12 + 0.2 * kBite, lie);
+    if (warp) { this.pitchWarp(cam, SC0); this.SC = SC0; }
+    model.skin.at = -1;                                                            // oyundaki normal poz yeniden hesaplansın
+    if (!this._tk) this._tk = document.createElement("canvas");
+    const tk = this._tk; if (tk.width !== RW || tk.height !== RH) { tk.width = RW; tk.height = RH; }
+    tk.getContext("2d").putImageData(this.img, 0, 0);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, RW, RH);
+    ctx.save(); ctx.translate(RW / 2, RH / 2); ctx.rotate(roll); const zs = 1.12 + 0.25 * kBite; ctx.scale(zs, zs);
+    ctx.drawImage(tk, -RW / 2, -RH / 2); ctx.restore();
+    // çarpma: kırmızı-beyaz parlama ve kayan şeritler
+    const hit = Math.exp(-Math.max(0, t - T.impact) * 10) * (t >= T.impact ? 1 : 0);
+    if (hit > 0.02) { ctx.fillStyle = `rgba(255,${(200 * hit) | 0},${(180 * hit) | 0},${(0.75 * hit).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+    const glitch = hit + 0.6 * kBite;
+    for (let i = 0, n = Math.floor(glitch * 8); i < n; i++) {
+      const sy = Math.random() * RH, h = 2 + Math.random() * RH * 0.08, off = rnd() * RW * 0.15 * glitch;
+      ctx.drawImage(this.canvas, 0, sy, RW, h, off, sy, RW, h);
+    }
+    // kenarlardan sızan kan kırmızısı (ısırırken içeri dolar)
+    const bl = Math.min(1, 0.25 + 0.4 * fall + 0.5 * kBite);
+    const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * (0.55 - 0.45 * kBite), RW / 2, RH / 2, RH * 0.95);
+    gr.addColorStop(0, "rgba(120,0,0,0)"); gr.addColorStop(1, `rgba(100,0,0,${bl.toFixed(3)})`);
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, RW, RH);
+    this.noiseOverlay(0.05 + 0.1 * glitch);
+    // son: ani kararma (ısırık kapanırken)
+    const left = T.end - t;
+    if (left < 0.18) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.18).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
   }
 
   // Eğik bakışta ekranın her köşesine düşen ışın dik perdede nereye gelir: perdenin tamamı ekrana sığsın diye ölçek (en az 0.36)

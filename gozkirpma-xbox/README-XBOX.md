@@ -35,3 +35,6 @@ Sağ çubuğu yukarı/aşağı itince yukarı/aşağı bakılır (sınır `rules
 
 ## Tavan yok
 Android sürümündeki gibi tavan kaldırıldı: duvarlar yukarı doğru uzayıp karanlığa karışır, üstte sonsuz karanlık bir boşluk var (`rules.view.wallFade`, `voidHaze`). Yukarı bakınca bu boşluk görünür.
+
+## Koşucu Canavar'ın saldırısı
+Android sürümüyle aynı: Koşucu Canavar yakalayınca üstümüze atlayıp bizi devirir, ağzını açıp ısırır, ekran kararır; 0.5 sn karanlıktan sonra "Buraya kadar mıydı? / Cidden pes mi edeceksin?" yazar. Ayarlar `js/rules.js` → `scare`.
