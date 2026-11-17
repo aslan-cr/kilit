@@ -183,3 +183,12 @@ export function playStab() {
   noiseBurst(0.9, 0.25, 900, "bandpass", 0, 1.2);
   noiseBurst(0.6, 0.4, 250, "lowpass", 0.04);
 }
+// Boyun kırılması: art arda kuru çatırtılar + boğuk darbe
+export function playNeckSnap() {
+  if (!AC) return;
+  for (let i = 0; i < 5; i++) noiseBurst(0.9 - i * 0.12, 0.03, 3200 + i * 700, "highpass", i * 0.022, 1);
+  noiseBurst(0.7, 0.08, 1500, "bandpass", 0.01, 4);
+  thump(0.9, 0.0, 180, 60, 0.18);
+}
+// Bedenin yere yığılması
+export function playFall() { thump(0.9, 0, 80, 26, 0.4); noiseBurst(0.5, 0.35, 220, "lowpass"); }

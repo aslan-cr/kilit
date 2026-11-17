@@ -4,7 +4,7 @@
 import { RULES, applyOverrides } from "./rules.js";
 import { createGame, step, rng, setPlayer, buy, owns, goDown, stepDown, revivePlayer, rayWall } from "./sim.js";
 import { makeBot } from "./bot.js";
-import { Renderer, loadModels, TACKLE, STAB } from "./render.js";
+import { Renderer, loadModels, TACKLE, STAB, SNAP } from "./render.js";
 import * as A from "./audio.js";
 import { makeEyeTracker, loadLandmarker, openCamera, landmarkerSource } from "./eyes.js";
 import { ruleLines, HINT_FIRST } from "./texts.js";
@@ -237,7 +237,11 @@ function enterScare() {
 function cue(n, at, fn) { if (ui.scareCue < n && ui.scareT >= at) { ui.scareCue = n; fn(); } }
 function scareSounds() {
   const t = ui.scareT, sc = renderer.scene(g);
-  if (sc === "stab") {
+  if (sc === "snap") {
+    cue(1, SNAP.grab - 0.3, () => A.playScareStart());
+    cue(2, SNAP.snap, () => { A.playNeckSnap(); safeVibrate([60, 20, 200]); });
+    cue(3, SNAP.floor, () => { A.playFall(); safeVibrate(200); });
+  } else if (sc === "stab") {
     cue(1, STAB.hit, () => { A.playStab(); safeVibrate([250, 40, 120]); });
     cue(2, STAB.lift, () => A.playScareStart());
     cue(3, STAB.up + 0.3, () => A.playScream());
