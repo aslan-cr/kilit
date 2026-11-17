@@ -225,32 +225,30 @@ function endGame(win) {
 }
 
 function enterScare() {
-  ui.phase = "scare"; ui.scareT = 0; ui.scareHit = false; ui.scareCue = 0; resetTouch();
+  ui.phase = "scare"; ui.scareT = 0; ui.scareHit = false; ui.scareCue = 0; ui.textCue = 0; resetTouch();
+  const sc = renderer && g ? renderer.scene(g) : null;                 // sahnenin bütün sesleri baştan zamanlanır
+  if (!(sc && A.playScene(sc, { tackle: TACKLE, stab: STAB, snap: SNAP }[sc]))) A.playScareStart();
   const k = g && g.enemies[g.killer], TX = R.scare.texts, lines = (k && TX[k.type]) || TX.default;   // karanlıkta çıkacak yazı
   dieEl.children[0].textContent = lines[0]; dieEl.children[1].textContent = lines[1] || "";
   hudEl.style.display = "none"; msgEl.classList.remove("on");
   for (const b of [eyeBtn, fireBtn, swapBtn, lightBtn]) b.classList.add("hidden");
 }
 
-// Yakalanma sesleri. Koşucu: çarpma (devrilme), kükreme (ağız açılınca), ısırık. Sıska: saplama, kaldırılırken gerilim,
-// elini çekip yere düşme. Diğerleri: eski çığlık.
+// Yakalanma titreşimleri (sesler sahne başında sfx.js'te zamanlanır). Sahnesi olmayan canavarda eski çığlık.
 function cue(n, at, fn) { if (ui.scareCue < n && ui.scareT >= at) { ui.scareCue = n; fn(); } }
 function scareSounds() {
   const t = ui.scareT, sc = renderer.scene(g);
   if (sc === "snap") {
-    cue(1, SNAP.grab - 0.3, () => A.playScareStart());
-    cue(2, SNAP.snap, () => { A.playNeckSnap(); safeVibrate([60, 20, 200]); });
-    cue(3, SNAP.floor, () => { A.playFall(); safeVibrate(200); });
+    cue(1, SNAP.snap, () => safeVibrate([60, 20, 200]));
+    cue(2, SNAP.floor, () => safeVibrate(200));
   } else if (sc === "stab") {
-    cue(1, STAB.hit, () => { A.playStab(); safeVibrate([250, 40, 120]); });
-    cue(2, STAB.lift, () => A.playScareStart());
-    cue(3, STAB.up + 0.3, () => A.playScream());
-    cue(4, STAB.pull, () => { A.playStab(); safeVibrate(150); });
-    cue(5, STAB.floor, () => { A.playTackle(); safeVibrate(300); });
+    cue(1, STAB.hit, () => safeVibrate([250, 40, 120]));
+    cue(2, STAB.pull, () => safeVibrate(150));
+    cue(3, STAB.floor, () => safeVibrate(300));
   } else if (sc === "tackle") {
-    if (ui.scareCue < 1 && t >= TACKLE.impact) { ui.scareCue = 1; A.playTackle(); safeVibrate([120, 30, 60]); }
-    if (ui.scareCue < 2 && t >= TACKLE.roar) { ui.scareCue = 2; A.playScream(); safeVibrate([200, 40, 300]); }
-    if (ui.scareCue < 3 && t >= TACKLE.bite) { ui.scareCue = 3; A.playBite(); safeVibrate(400); }
+    cue(1, TACKLE.impact, () => safeVibrate([120, 30, 60]));
+    cue(2, TACKLE.roar, () => safeVibrate([200, 40, 300]));
+    cue(3, TACKLE.bite, () => safeVibrate(400));
   } else if (!ui.scareHit && t >= 0.55) { ui.scareHit = true; A.playScream(); safeVibrate([150, 40, 200, 40, 400]); }   // göz kapakları açıldığı an
 }
 
@@ -314,7 +312,7 @@ function onEvents() {
       case "switch": A.playGunPick(); showMsg(R.weapons[ev.weapon].name, 1200); break;
       case "lightSlot": A.playGunPick(); showMsg("El feneri — ışığa koşan gölgelere dikkat. Fenerdeyken ateş edemezsin.", 2600); break;
       case "forcedBlink": A.playForcedBlink(); showMsg("Gözlerin yandı! Kırpmak zorundasın, gölgeler geliyor.", 2600); break;
-      case "caught": enterScare(); A.playScareStart(); break;
+      case "caught": enterScare(); break;
       case "reviveStart": showMsg(`${ev.name} kaldırılıyor… yanında kal`, 1500); break;
       case "reviveStop": showMsg("Kaldırma yarıda kaldı.", 1200); break;
       case "revive": if (mp.net && mp.inGame) mp.net.send({ t: "revive", id: ev.id }); A.playPickup(); showMsg(`${ev.name} ayağa kalktı!`, 2200); break;
@@ -425,6 +423,8 @@ function frame(now) {
       const vis = renderer.scareLen(g), txt = vis + R.scare.black;
       dieEl.classList.toggle("on", ui.scareT >= txt);
       dieEl.classList.toggle("two", ui.scareT >= txt + R.scare.line2);
+      if (ui.textCue < 1 && ui.scareT >= txt) { ui.textCue = 1; A.playText(1); }
+      if (ui.textCue < 2 && ui.scareT >= txt + R.scare.line2 && dieEl.children[1].textContent) { ui.textCue = 2; A.playText(2); }
       if (ui.scareT > txt + R.scare.text) { dieEl.classList.remove("on", "two"); if (canBeRevived()) enterDown(); else endGame(false); }
     } else if (ui.phase === "down") {
       acc += dt; let n = 0, first = true;
