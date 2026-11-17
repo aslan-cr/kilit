@@ -624,6 +624,15 @@ export class Renderer {
     this.world(g2, cam, { ...fx, flick: this.flick });
     skinPose(model, ph, jaw);
     this.drawModel(model, scale, ang + Math.PI + yawJ, mx, my, hop, g2, null, 0.12 + 0.2 * kBite, lie);
+    // kan: pençeler çarpınca göğsümüzden, kükrerken ağzından salya-kan damlar, ısırınca her yere fışkırır
+    this.bloodBegin(t);
+    this.bloodTrack("mouth", t, [g.px + cx * headD, g.py + cy * headD, mh]);
+    this.bloodTrack("chest", t, [cam.x + cx * 0.15, cam.y + cy * 0.15, Math.max(0.05, eye - 0.25)]);
+    this.drawBlood(t, [
+      { t0: T.impact, t1: T.impact + 0.1, n: 35, from: "chest", dir: [cx, cy], fwd: [0.2, 1.0], up: [0.4, 1.5], side: 0.9, size: [0.008, 0.02] },
+      { t0: T.roar, t1: T.bite, n: 45, from: "mouth", dir: [-cx, -cy], fwd: [-0.05, 0.25], up: [-0.4, 0.2], side: 0.15, size: [0.006, 0.014] },
+      { t0: T.bite + 0.05, t1: T.end, n: 90, from: "mouth", dir: [-cx, -cy], fwd: [-0.6, 0.6], up: [0.2, 1.6], side: 1.4, size: [0.01, 0.026] },
+    ]);
     if (warp) { this.pitchWarp(cam, SC0); this.SC = SC0; }
     model.skin.at = -1;                                                            // oyundaki normal poz yeniden hesaplansın
     if (!this._tk) this._tk = document.createElement("canvas");
@@ -645,10 +654,96 @@ export class Renderer {
     const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * (0.55 - 0.45 * kBite), RW / 2, RH / 2, RH * 0.95);
     gr.addColorStop(0, "rgba(120,0,0,0)"); gr.addColorStop(1, `rgba(100,0,0,${bl.toFixed(3)})`);
     ctx.fillStyle = gr; ctx.fillRect(0, 0, RW, RH);
+    this.drawLensBlood(t, [{ t0: T.impact, n: 3, big: 0.8 }, { t0: T.bite + 0.08, n: 9, big: 1.5, seed: 4 }]);
     this.noiseOverlay(0.05 + 0.1 * glitch);
     // son: ani kararma (ısırık kapanırken)
     const left = T.end - t;
     if (left < 0.18) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.18).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+  }
+
+  // ----- Kan -----
+  // Damlalar tohumlu rastgeledir ve t anındaki yerleri çıkış anlarından hesaplanır: tek kare çizim de oynatma da aynı görünür.
+  // Çıkış noktası (yara, ağız) her karede kaydedilir (iz); damla çıktığı andaki noktadan fırlar.
+  bloodBegin(t) { if (!this._blood || t < this._blood.t - 1e-6) this._blood = { t, tr: {} }; this._blood.t = t; }
+  bloodTrack(name, t, p) {
+    const tr = this._blood.tr[name] || (this._blood.tr[name] = []);
+    if (!tr.length || t > tr[tr.length - 1][0]) tr.push([t, p[0], p[1], p[2]]);
+  }
+  trailAt(name, ts) {
+    const tr = this._blood.tr[name]; if (!tr || !tr.length) return null;
+    let best = tr[0];
+    for (const e of tr) { if (e[0] > ts) break; best = e; }
+    return best;
+  }
+  // emitters: [{ t0, t1, n, from, fwd:[a,b], up:[a,b], side, size:[a,b], dir:[x,y], pulse? }]
+  drawBlood(t, emitters) {
+    const cam = this.cam, RW = this.RW, RH = this.RH, SC = this.SC, hor = cam.horizon, G = 3.9;
+    const buf32 = this.buf32, dbuf = this.dbuf, zbuf = this.zbuf;
+    const plot = (x, y, h, size, rgb, flat) => {
+      const rx = x - cam.x, ry = y - cam.y, d = rx * cam.dirX + ry * cam.dirY;
+      if (d < 0.22) return;
+      const l = -rx * cam.dirY + ry * cam.dirX, sx = RW / 2 + (l * SC) / d, sy = hor - ((h - cam.eye) * SC) / d;
+      const r = Math.min(RW * 0.014, Math.max(0.6, (size * SC) / d)), rw = flat ? r * 1.8 : r, rh = flat ? Math.max(0.6, r * 0.45) : r;
+      const x0 = Math.max(0, Math.floor(sx - rw)), x1 = Math.min(RW - 1, Math.ceil(sx + rw)), y0 = Math.max(0, Math.floor(sy - rh)), y1 = Math.min(RH - 1, Math.ceil(sy + rh));
+      if (x0 > x1 || y0 > y1) return;
+      const k = Math.max(0.45, Math.min(1, this.light(d) * 1.3)), c = px32(rgb[0] * k, rgb[1] * k, rgb[2] * k);
+      for (let yy = y0; yy <= y1; yy++) {
+        const ny = (yy + 0.5 - sy) / rh;
+        for (let xx = x0; xx <= x1; xx++) {
+          const nx = (xx + 0.5 - sx) / rw; if (nx * nx + ny * ny > 1) continue;
+          const i = yy * RW + xx;
+          if (d >= dbuf[i] || d >= zbuf[xx]) continue;
+          dbuf[i] = d; buf32[i] = c;
+        }
+      }
+    };
+    emitters.forEach((E, ei) => {
+      const [fx, fy] = E.dir, sxv = -fy, syv = fx;
+      for (let i = 0; i < E.n; i++) {
+        const R = (k) => hash(i * 7.13 + k * 1.37 + ei * 31.7, ei * 3.1 + k * 0.71 + (E.seed || 0));
+        let ts = E.t0 + (E.t1 - E.t0) * R(1);
+        if (E.pulse) ts = E.t0 + Math.floor((ts - E.t0) / E.pulse) * E.pulse + R(9) * 0.07;   // nabız gibi fışkırma
+        const dt = t - ts; if (dt < 0 || ts > E.t1) continue;
+        const o = this.trailAt(E.from, ts); if (!o) continue;
+        const vf = E.fwd[0] + (E.fwd[1] - E.fwd[0]) * R(2), vu = E.up[0] + (E.up[1] - E.up[0]) * R(3), vs = (R(4) - 0.5) * 2 * E.side;
+        const vx = fx * vf + sxv * vs, vy = fy * vf + syv * vs, size = E.size[0] + (E.size[1] - E.size[0]) * R(5);
+        const land = (vu + Math.sqrt(vu * vu + 2 * G * Math.max(0, o[3]))) / G;      // yere değme anı
+        if (dt >= land) { plot(o[1] + vx * land, o[2] + vy * land, 0.002, size * 1.6, [70, 2, 4], true); continue; }   // yerde iz
+        for (let q = 0; q < 3; q++) {                                                   // kısa kuyruklu damla
+          const u = dt - q * 0.018; if (u < 0) break;
+          plot(o[1] + vx * u, o[2] + vy * u, o[3] + vu * u - 0.5 * G * u * u, size * (1 - q * 0.25), [125, 4, 8], false);
+        }
+      }
+    });
+  }
+  // Kameraya sıçrayan kan: lekeler belirir, yavaşça aşağı akar. splats: [{ t0, n, big, seed }]
+  drawLensBlood(t, splats) {
+    const ctx = this.ctx, RW = this.RW, RH = this.RH;
+    ctx.save(); ctx.globalCompositeOperation = "multiply";                              // görüntüyü kan rengine koyulaştırır (ıslak leke)
+    splats.forEach((S, si) => {
+      for (let i = 0; i < S.n; i++) {
+        const R = (k) => hash(i * 5.31 + k * 2.17 + si * 13.3, si * 7.7 + k * 1.9 + (S.seed || 0));
+        const ts = S.t0 + R(1) * 0.08, u = t - ts; if (u < 0) continue;
+        const grow = Math.min(1, u / 0.05), x = R(2) * RW, y = R(3) * RH * 0.8, r = RH * (0.012 + 0.035 * R(4)) * S.big * grow;
+        const blob = (bx, by, br, a) => {
+          const gr = ctx.createRadialGradient(bx, by, br * 0.2, bx, by, br);
+          gr.addColorStop(0, `rgba(105,0,0,${a})`); gr.addColorStop(0.75, `rgba(130,8,8,${a * 0.9})`); gr.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+        };
+        blob(x, y, r, 1);
+        for (let k = 0; k < 5; k++) {                                                   // çevresine sıçrayan küçük damlalar
+          const an = R(10 + k) * Math.PI * 2, dd = r * (1.0 + 1.3 * R(20 + k));
+          blob(x + Math.cos(an) * dd, y + Math.sin(an) * dd * 0.8, r * (0.12 + 0.22 * R(30 + k)), 0.9);
+        }
+        const drip = Math.min(RH * (0.08 + 0.25 * R(5)), u * RH * (0.03 + 0.08 * R(6)));   // aşağı akan iz
+        if (drip > 1) {
+          const w = Math.max(1, r * (0.12 + 0.1 * R(7)));
+          ctx.fillStyle = "rgba(115,4,4,0.9)"; ctx.fillRect(x - w / 2, y, w, drip);
+          blob(x, y + drip, w * 0.9, 0.9);
+        }
+      }
+    });
+    ctx.restore();
   }
 
   // Sıska Canavar: yaklaşır, tek elini içimize saplar ve bekler, eli içimizdeyken bizi havaya kaldırır, bekler,
@@ -716,6 +811,16 @@ export class Renderer {
     if (warp) this.SC = SC0 * this.pitchFit(cam.pitch, SC0);
     this.world(g2, cam, { ...fx, flick: this.flick });
     this.drawModel(model, scale, myaw, mx, my, walking ? Math.abs(Math.sin(t * 9)) * 0.02 : 0, g2, null, 0.1 + 0.15 * sm(T.hit, T.lift, t));
+    // kan: yara = parmak ucunun girdiği yer (göğsümüz). Saplanınca fışkırır, içerideyken nabızla atar, havadayken damlar, çekince boşalır
+    this.bloodBegin(t);
+    if (t >= T.hit - 0.02) this.bloodTrack("wound", t, [tw[0] + cx * 0.04, tw[1] + cy * 0.04, Math.max(0.25, tw[2])]);
+    const toM = [cx, cy], toMe = [-cx, -cy];
+    this.drawBlood(t, [
+      { t0: T.hit, t1: T.hit + 0.12, n: 70, from: "wound", dir: toM, fwd: [0.2, 1.4], up: [0.3, 1.8], side: 0.9, size: [0.01, 0.026] },
+      { t0: T.hit + 0.12, t1: T.pull, n: 90, from: "wound", dir: toM, fwd: [0.3, 1.1], up: [0.4, 1.4], side: 0.5, size: [0.008, 0.02], pulse: 0.5 },
+      { t0: T.lift, t1: T.pull, n: 40, from: "wound", dir: toMe, fwd: [-0.1, 0.2], up: [-0.3, 0.1], side: 0.1, size: [0.008, 0.016] },
+      { t0: T.pull, t1: T.pull + 0.22, n: 90, from: "wound", dir: toM, fwd: [0.2, 1.6], up: [-0.2, 1.6], side: 1.0, size: [0.012, 0.03] },
+    ]);
     if (warp) { this.pitchWarp(cam, SC0); this.SC = SC0; }
     model.skin.at = -1;
     if (!this._tk) this._tk = document.createElement("canvas");
@@ -737,6 +842,7 @@ export class Renderer {
     const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * (0.55 - 0.25 * inside), RW / 2, RH / 2, RH * 0.95);
     gr.addColorStop(0, "rgba(120,0,0,0)"); gr.addColorStop(1, `rgba(110,0,0,${Math.min(0.95, 0.2 + pulse).toFixed(3)})`);
     ctx.fillStyle = gr; ctx.fillRect(0, 0, RW, RH);
+    this.drawLensBlood(t, [{ t0: T.hit, n: 6, big: 1.2 }, { t0: T.hit + 0.6, n: 2, big: 0.7, seed: 3 }, { t0: T.pull, n: 7, big: 1.1, seed: 5 }, { t0: T.floor, n: 3, big: 0.8, seed: 9 }]);
     this.noiseOverlay(0.05 + 0.1 * glitch);
     // son: yavaş kararma
     const left = T.end - t;
