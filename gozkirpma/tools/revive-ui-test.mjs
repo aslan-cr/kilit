@@ -46,7 +46,7 @@ try {
   await A.evaluate(() => { const g = GAME.g, e = g.enemies[0]; e.x = g.px + 0.3; e.y = g.py; e.stun = 0; GAME.ui.keys.eye = true; });
   await A.waitForFunction(() => GAME.ui.phase === "scare", null, { timeout: 3000 });
   await A.evaluate(() => { GAME.ui.keys.eye = false; });
-  await A.waitForFunction(() => GAME.ui.phase === "down", null, { timeout: 6000 });
+  await A.waitForFunction(() => GAME.ui.phase === "down", null, { timeout: 12000 });
   check("A yakalanınca lobiye dönmedi, yere düştü", (await A.evaluate(() => GAME.g.state)) === "down");
   check("A hâlâ oyunda (lobi değil)", await A.evaluate(() => GAME.mp.inGame === true));
   check("yere düşme kutusu görünür", await A.evaluate(() => !document.getElementById("down").classList.contains("hidden") && /YERE DÜŞTÜN/.test(document.getElementById("downText").textContent)));
@@ -71,7 +71,7 @@ try {
   // A tekrar düşer, bu sefer pes eder -> lobiye döner
   await A.waitForTimeout(3200);
   await A.evaluate(() => { const g = GAME.g, e = g.enemies.find((q) => q.alive); e.x = g.px + 0.3; e.y = g.py; e.stun = 0; GAME.ui.keys.eye = true; });
-  await A.waitForFunction(() => GAME.ui.phase === "down", null, { timeout: 8000 });
+  await A.waitForFunction(() => GAME.ui.phase === "down", null, { timeout: 12000 });
   await A.evaluate(() => { GAME.ui.keys.eye = false; });
   await A.click("#giveUp");
   await A.waitForFunction(() => GAME.ui.phase === "lobby", null, { timeout: 4000 });

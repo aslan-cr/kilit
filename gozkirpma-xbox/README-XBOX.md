@@ -35,3 +35,6 @@ Sağ çubuğu yukarı/aşağı itince yukarı/aşağı bakılır (sınır `rules
 
 ## Tavan yok
 Android sürümündeki gibi tavan kaldırıldı: duvarlar yukarı doğru uzayıp karanlığa karışır, üstte sonsuz karanlık bir boşluk var (`rules.view.wallFade`, `voidHaze`). Yukarı bakınca bu boşluk görünür.
+
+## Yakalanma sahneleri
+Android sürümüyle aynı. Koşucu Canavar yakalayınca üstümüze atlayıp bizi devirir, ağzını açıp ısırır; 0.5 sn karanlıktan sonra "Buraya kadar mıydı? / Cidden pes mi edeceksin?" yazar. Sıska Canavar elini içimize saplar, bizi havaya kaldırır, elini çekince yere düşeriz; karanlıkta "Elini sana sapladı, geçti... / Olsun." yazar. İblis kafamızı kavrayıp boynumuzu kırar, görüntü yana savrulup kalır, yere yığılırız; karanlıkta "Boynun ağrıyor mu?" yazar. Ayarlar `js/rules.js` → `scare`.

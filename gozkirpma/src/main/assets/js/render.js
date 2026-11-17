@@ -15,6 +15,14 @@ const RES_DIV = 1.7, RES_MAX = 576;                // iç çözünürlük (eskid
 const NEAR = 0.1;
 const AMB = 0.018;
 const TINT = [1.0, 0.95, 0.72];
+// Sıska Canavar saldırı sahnesinin zamanları (sn): çarpma (devrilmeye başlarız), yere iniş, kükreme (ağız açılır), ısırık, son
+// Saldırı sahnesinde modele göre ağız noktası (model uzayı [y, z]) ve büyütme
+const TACKLE_MODELS = { monster: { mouth: [1.5, 0.86], scale: 1.3 }, runner: { mouth: [0.68, 0.42], scale: 1.25, lift: 0.16 } };
+// Sıska Canavar sahnesinin zamanları (sn): yaklaşır, kolunu geri çeker, saplar, bekler, havaya kaldırır, bekler, çeker, yere düşeriz, son
+// İblis sahnesinin zamanları (sn): yaklaşır, kafamızı kavrar, boynumuzu kırar, donarız, yere yığılırız, son
+export const SNAP = { grab: 0.95, snap: 1.3, fall: 2.1, floor: 2.6, end: 3.5 };
+export const STAB = { windup: 0.75, hit: 1.05, lift: 1.7, up: 2.5, pull: 3.7, floor: 4.1, end: 5.3 };
+export const TACKLE = { impact: 0.5, down: 0.95, roar: 1.25, bite: 2.15, end: 2.55 };
 
 // ---------- Modeller ----------
 export async function loadModels(base = "models/") {
@@ -80,13 +88,21 @@ function loadTex(url) {
 }
 
 // İskeletli model: animasyonun ph (0..1, döngü) anındaki pozunu parçaların P dizisine yazar (iki kare arasında doğrusal karışım)
-export function skinPose(model, ph) {
+// jaw: (yalnızca çenesi olan modeller) çeneyi bu kadar radyan daha fazla açar (yakalanma sahnesi)
+// rot: { kemikAdı: açı } ek kemik dönüşleri (RIGS'te tanımlı kemikler; +açı: aşağı sarkan uzuv geriye, öndeki uç aşağı)
+export function skinPose(model, ph, jaw = 0, rot = null) {
   const S = model.skin, F = S.F, n = F.length;
   ph = ((ph % 1) + 1) % 1;
-  if (Math.abs(ph - S.at) < 1e-4) return;
-  S.at = ph;
+  const rk = rot ? JSON.stringify(rot) : "";
+  if (Math.abs(ph - S.at) < 1e-4 && (S.jaw || 0) === jaw && (S.rk || "") === rk) return;
+  S.at = ph; S.jaw = jaw; S.rk = rk;
   const f = ph * n, i0 = Math.floor(f) % n, i1 = (i0 + 1) % n, a = f - Math.floor(f), A = F[i0], B = F[i1], M = S.M;
   for (let k = 0; k < M.length; k++) M[k] = A[k] + (B[k] - A[k]) * a;
+  const J = JAWS[model.name];
+  if (jaw && J) openJaw(M, J, jaw);
+  const RG = RIGS[model.name];
+  if (rot && RG) for (const [b, a] of Object.entries(rot)) if (a && RG[b] && RG[b].bones) openJaw(M, RG[b], a);   // ebeveynden çocuğa sırayla
+  const GJ = jaw && GEO_JAWS[model.name] ? geoJaw(model) : null;
   for (const p of model.parts) {
     if (!p.B) continue;
     const Bp = p.B, P = p.P, J = p.J, W = p.Wt;
@@ -102,7 +118,94 @@ export function skinPose(model, ph) {
       }
       P[q] = ox; P[q + 1] = oy; P[q + 2] = oz;
     }
+    if (GJ && GJ.part === p) {                        // kemiksiz çene: alt çene köşelerini menteşe etrafında döndür
+      const m = GJ.joint * 12, [ax, ay, az] = GJ.axis, [hx, hy, hz] = GJ.pivot, c = Math.cos(jaw), s = Math.sin(jaw), V = GJ.idx;
+      for (let i = 0; i < V.length; i++) {
+        const q = V[i] * 3, k = GJ.k[i], x = Bp[q] - hx, y = Bp[q + 1] - hy, z = Bp[q + 2] - hz;
+        const dt = ax * x + ay * y + az * z, cx = ay * z - az * y, cy = az * x - ax * z, cz = ax * y - ay * x;   // Rodrigues
+        const dx = (x * c + cx * s + ax * dt * (1 - c) - x) * k, dy = (y * c + cy * s + ay * dt * (1 - c) - y) * k, dz = (z * c + cz * s + az * dt * (1 - c) - z) * k;
+        P[q] += M[m] * dx + M[m + 1] * dy + M[m + 2] * dz;
+        P[q + 1] += M[m + 4] * dx + M[m + 5] * dy + M[m + 6] * dz;
+        P[q + 2] += M[m + 8] * dx + M[m + 9] * dy + M[m + 10] * dz;
+      }
+    }
   }
+}
+// Çene kemiği olmayan model (Koşucu: kafa tek kemik): ilk karede kafa kemiğine bağlı, ağız çizgisinin altındaki ve
+// menteşenin önündeki köşeler alt çene sayılır. Menteşe ve eksen kafa kemiğinin bağ pozu uzayına çevrilir.
+const GEO_JAWS = { runner: { joint: 4, hinge: [0.71, 0.27], below: 0.705, front: 0.29, soft: 0.04 } };
+function geoJaw(model) {
+  if (model._gj !== undefined) return model._gj;
+  const G = GEO_JAWS[model.name], F0 = model.skin.F[0], m = G.joint * 12;
+  const part = model.parts.find((p) => p.B);
+  const inv = inv34(Array.from(F0.subarray(m, m + 12)));
+  const Bp = part.B, J = part.J, W = part.Wt, idx = [], kk = [];
+  for (let v = 0, q = 0; q < Bp.length; v++, q += 3) {
+    let bw = 0, bj = -1;
+    for (let c = 0; c < 4; c++) if (W[v * 4 + c] > bw) { bw = W[v * 4 + c]; bj = J[v * 4 + c]; }
+    if (bj !== G.joint) continue;
+    let ox = 0, oy = 0, oz = 0;                       // ilk karedeki konum
+    for (let c = 0; c < 4; c++) {
+      const w = W[v * 4 + c]; if (!w) continue; const k = J[v * 4 + c] * 12;
+      ox += w * (F0[k] * Bp[q] + F0[k + 1] * Bp[q + 1] + F0[k + 2] * Bp[q + 2] + F0[k + 3]);
+      oy += w * (F0[k + 4] * Bp[q] + F0[k + 5] * Bp[q + 1] + F0[k + 6] * Bp[q + 2] + F0[k + 7]);
+      oz += w * (F0[k + 8] * Bp[q] + F0[k + 9] * Bp[q + 1] + F0[k + 10] * Bp[q + 2] + F0[k + 11]);
+    }
+    if (oz < G.front || oy > G.below) continue;
+    idx.push(v); kk.push(Math.min(1, (G.below - oy) / G.soft, (oz - G.front) / G.soft));   // kenarda yumuşak geçiş
+  }
+  const tp = (x, y, z) => [inv[0] * x + inv[1] * y + inv[2] * z + inv[3], inv[4] * x + inv[5] * y + inv[6] * z + inv[7], inv[8] * x + inv[9] * y + inv[10] * z + inv[11]];
+  const pivot = tp(0, G.hinge[0], G.hinge[1]);
+  let axis = [inv[0], inv[4], inv[8]]; const L = Math.hypot(...axis); axis = axis.map((a) => a / L);
+  return (model._gj = { part, joint: G.joint, idx: Int32Array.from(idx), k: Float32Array.from(kk), pivot, axis });
+}
+
+// Çene kemikleri (bake-monster2.mjs'teki iskelet): çene + ona bağlı dil kemikleri, çenenin menteşesi (bağ pozu uzayında)
+const JAWS = { monster: { bones: [6, 7, 8], pivot: [0, 1.6, 0.6] } };
+// Ek dönüş verilebilen kemikler: [kemik, ...alt kemikleri] ve eklem noktası. tipR: sağ elin parmak ucu (bağ pozu)
+const RIGS = { monster: {
+  armR: { bones: [14, 15, 16], pivot: [-0.16, 1.52, 0.18] }, foreR: { bones: [15, 16], pivot: [-0.25, 1.0, 0.08] }, handR: { bones: [16], pivot: [-0.22, 0.4, 0.39] },
+  head: { bones: [5, 6, 7, 8, 9, 10], pivot: [0, 1.75, 0.56] },
+  tipR: { bone: 16, at: [-0.23, 0.03, 0.57] },
+}, demon: {                                         // bake-demon.mjs iskeleti
+  armL: { bones: [4, 5, 6], pivot: [-0.24, 0.68, 0.0] }, foreL: { bones: [5, 6], pivot: [-0.35, 0.47, -0.02] },
+  armR: { bones: [7, 8, 9], pivot: [0.24, 0.66, 0.0] }, foreR: { bones: [8, 9], pivot: [0.31, 0.47, -0.03] },
+  head: { bones: [3], pivot: [-0.03, 0.73, 0.14] },
+  tipL: { bone: 6, at: [-0.37, 0.07, 0.1] }, tipR: { bone: 9, at: [0.36, 0.08, 0.12] },
+} };
+// Bir kemiğe bağlı model uzayındaki noktanın şu anki pozdaki yeri (skinPose'dan sonra)
+export function bonePoint(model, name) {
+  const T = RIGS[model.name] && RIGS[model.name][name]; if (!T) return null;
+  const M = model.skin.M, m = T.bone * 12, [x, y, z] = T.at;
+  return [M[m] * x + M[m + 1] * y + M[m + 2] * z + M[m + 3], M[m + 4] * x + M[m + 5] * y + M[m + 6] * z + M[m + 7], M[m + 8] * x + M[m + 9] * y + M[m + 10] * z + M[m + 11]];
+}
+// 3x4 satır düzenli afin matrisler: a * b
+function mul34(a, b) {
+  const o = new Array(12);
+  for (let r = 0; r < 3; r++) {
+    const a0 = a[r * 4], a1 = a[r * 4 + 1], a2 = a[r * 4 + 2];
+    for (let c = 0; c < 4; c++) o[r * 4 + c] = a0 * b[c] + a1 * b[4 + c] + a2 * b[8 + c] + (c === 3 ? a[r * 4 + 3] : 0);
+  }
+  return o;
+}
+function inv34(m) {
+  const [a, b, c, tx, d, e, f, ty, g, h, i, tz] = m;
+  const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, det = a * A + b * B + c * C, k = 1 / det;
+  const r = [A * k, -(b * i - c * h) * k, (b * f - c * e) * k, 0, B * k, (a * i - c * g) * k, -(a * f - c * d) * k, 0, C * k, -(a * h - b * g) * k, (a * e - b * d) * k, 0];
+  r[3] = -(r[0] * tx + r[1] * ty + r[2] * tz); r[7] = -(r[4] * tx + r[5] * ty + r[6] * tz); r[11] = -(r[8] * tx + r[9] * ty + r[10] * tz);
+  return r;
+}
+// Çeneyi menteşesi etrafında aç: M_jaw' = M_jaw · R ; alt kemikler (dil) de aynı dönüşü alır: M_i' = (M_jaw R M_jaw⁻¹) M_i
+// ang: sayı (yalnızca X ekseni) ya da [x, y, z] (bake araçlarındaki R3 sırası: önce X, sonra Y, sonra Z)
+function openJaw(M, J, ang) {
+  const j = J.bones[0] * 12, Mj = Array.from(M.subarray(j, j + 12)), [px, py, pz] = J.pivot;
+  const [ax, ay, az] = typeof ang === "number" ? [ang, 0, 0] : ang;
+  const cx = Math.cos(ax), sx = Math.sin(ax), cy = Math.cos(ay), sy = Math.sin(ay), cz = Math.cos(az), sz = Math.sin(az);
+  // +x: aşağı sarkan uzuv geriye, öndeki uç aşağı (çene açılır) · +y: öne bakan uç +x'e döner · +z: aşağı sarkan uç +x'e döner
+  const L = mul34([cz, -sz, 0, 0, sz, cz, 0, 0, 0, 0, 1, 0], mul34([cy, 0, sy, 0, 0, 1, 0, 0, -sy, 0, cy, 0], [1, 0, 0, 0, 0, cx, -sx, 0, 0, sx, cx, 0]));
+  const R = [L[0], L[1], L[2], px - (L[0] * px + L[1] * py + L[2] * pz), L[4], L[5], L[6], py - (L[4] * px + L[5] * py + L[6] * pz), L[8], L[9], L[10], pz - (L[8] * px + L[9] * py + L[10] * pz)];
+  const E = mul34(mul34(Mj, R), inv34(Mj));
+  for (const b of J.bones) { const o = b * 12, m2 = mul34(E, Array.from(M.subarray(o, o + 12))); for (let k = 0; k < 12; k++) M[o + k] = m2[k]; }
 }
 
 // Işık yayan malzemeler: 0..1 (1 = tam parlak)
@@ -410,7 +513,21 @@ export class Renderer {
     }
   }
 
+  // Yakalanma sahnesinin görüntülü kısmı kaç saniye (sonrası karanlık + yazı, main.js)
+  scareLen(g) { const sc = this.scene(g); return sc === "tackle" ? TACKLE.end : sc === "stab" ? STAB.end : sc === "snap" ? SNAP.end : g.rules.scare.seconds; }
+  // Yakalayan canavarın özel sahnesi: "tackle" (Koşucu), "stab" (Sıska), null = eski korku sahnesi
+  scene(g) {
+    const k = g.enemies[g.killer], sc = k && (g.rules.scare.scenes || {})[k.type];
+    if (!sc || !this.M.chars[k.type]) return null;
+    return (sc === "stab" || sc === "snap") && !RIGS[k.type] ? null : sc;
+  }
+
   renderScare(g, fx) {
+    if (fx.scareT >= this.scareLen(g)) { this.ctx.fillStyle = "#000"; this.ctx.fillRect(0, 0, this.RW, this.RH); return; }
+    const sc = this.scene(g);
+    if (sc === "tackle") return this.renderTackle(g, fx);
+    if (sc === "stab") return this.renderStab(g, fx);
+    if (sc === "snap") return this.renderSnap(g, fx);
     const ctx = this.ctx, RW = this.RW, RH = this.RH, t = fx.scareT, total = g.rules.scare.seconds;
     const killer = g.enemies[g.killer], T_OPEN = 0.55;
     // 1) Göz kapalı karanlık: iki parlak göz yaklaşır
@@ -468,6 +585,353 @@ export class Renderer {
     this.noiseOverlay(0.08 + 0.08 * ease);
     // 4) Son: ani kararma (son 0.6 sn), sonra tam siyah
     const left = total - t;
+    if (left < 0.6) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.6).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+  }
+
+  // Sıska Canavar'ın saldırısı (kısa film gibi): ayaktayken üstümüze atlar, bizi sırtüstü devirir (kamera geriye düşüp
+  // yukarı bakar), üstümüzde durup ağzını kocaman açar, kükrer ve kameraya doğru ısırır; ekran kararır.
+  renderTackle(g, fx) {
+    const ctx = this.ctx, RW = this.RW, RH = this.RH, t = fx.scareT, R = g.rules, T = TACKLE;
+    const killer = g.enemies[g.killer], model = this.M.chars[killer.type], ET = R.enemies.types[killer.type];
+    const TM = TACKLE_MODELS[killer.type] || {}, bb = model.bb;
+    const sm = (a, b, x) => sstep(a, b, x), rnd = () => Math.random() - 0.5;
+    const ang = Math.atan2(killer.y - g.py, killer.x - g.px), cx = Math.cos(ang), cy = Math.sin(ang);
+    const front = Math.max(0.5, rayWall(g, g.px, g.py, cx, cy, 3) - 0.15);       // canavarın geldiği yön (duvara girmesin)
+    const back = Math.max(0, Math.min(0.3, rayWall(g, g.px, g.py, -cx, -cy, 2) - 0.15));
+    // --- canavar ---
+    // 1) Atılış: uzaktan sıçrar (yay çizerek), burnumuzun dibine 2) devrilirken üstümüze çöker 3) üstümüzde eğilip durur,
+    //    ağzını kocaman açar, kükrer 4) ağzıyla kameraya dalar (ısırık). Konum, AĞZIN kameraya uzaklığından hesaplanır.
+    const kLeap = sm(0, T.impact, t), kOn = sm(T.impact, T.down + 0.1, t), kBite = sm(T.bite, T.end - 0.05, t);
+    const breathe = Math.sin(t * 9) * 0.03 * sm(T.down, T.roar, t);
+    const lie = 0.15 + 0.35 * kLeap + 0.05 * kOn + 0.1 * sm(T.roar, T.bite, t) + 0.55 * kBite + breathe;   // öne, üstümüze eğilir
+    const scale = ET.scale * (TM.scale || 1.3), MO = TM.mouth || [bb.max[1] * 0.75, bb.max[2] * 0.85];   // ağız (model uzayı y, z)
+    const mouthZ = scale * (MO[0] * Math.sin(lie) + MO[1] * Math.cos(lie)), mouthY = scale * (MO[0] * Math.cos(lie) - MO[1] * Math.sin(lie));
+    const d0 = Math.min(front, 1.6);
+    let headD = d0 + (0.3 - d0) * kLeap;                                            // ağız çarpışma anında burnumuzun dibinde
+    headD += (0.26 - 0.3) * kOn - 0.06 * sm(T.roar, T.bite, t);                     // yerdeyken biraz uzakta, yavaşça yaklaşır
+    headD += (0.0 - headD) * kBite;                                                 // ısırık: kameraya dalar
+    const hop = Math.sin(Math.PI * Math.min(1, t / T.impact)) * 0.18 * (1 - kOn) + (TM.lift || 0) * kOn;   // alçak canavar göğsümüze çıkar
+    const dist = headD + mouthZ;
+    const jaw = 0.15 * kLeap + 1.1 * sm(T.roar - 0.15, T.roar + 0.35, t) + 0.2 * sm(T.bite, T.bite + 0.15, t) + (t > T.roar ? 0.06 * Math.sin(t * 40) : 0);
+    const ph = t < T.impact ? t * 1.6 : 0.05 + 0.02 * Math.sin(t * 5);              // atılırken bacaklar savrulur, sonra donar
+    const yawJ = (t > T.roar ? Math.sin(t * 23) * 0.06 : 0) + rnd() * 0.04 * kBite;
+    // --- kamera: ayakta -> geriye düşüş -> yerde; hep canavarın ağzına bakar ---
+    const fall = sm(T.impact - 0.05, T.down, t);                                 // 0 ayakta, 1 yerde
+    const drop = Math.min(1, Math.max(0, (t - (T.impact - 0.05)) / (T.down - T.impact + 0.05)));
+    const bounce = t > T.down ? Math.exp(-(t - T.down) * 9) * Math.sin((t - T.down) * 30) * 0.03 : 0;
+    const eye = R.player.eyeHeight + (0.13 - R.player.eyeHeight) * drop * drop + bounce;   // yerçekimiyle hızlanarak düşer
+    const pb = back * fall;
+    const mh = hop + mouthY, aim = Math.atan2(mh - eye, Math.max(0.12, headD + pb));
+    const pitchMax = Math.min(1.1, this.pitchLimit());
+    // sarsıntı: çarpma anında büyük, kükrerken titrek, ısırırken en büyük
+    const shake = 0.012 + 0.09 * Math.exp(-Math.abs(t - T.impact) * 9) + 0.03 * sm(T.roar, T.roar + 0.3, t) + 0.08 * kBite;
+    const pitch = Math.max(-0.3, Math.min(pitchMax, aim * (1 - 0.5 * kBite) + 0.25 * Math.exp(-Math.abs(t - T.impact - 0.12) * 10) + rnd() * shake * 0.5));
+    const cam = { x: g.px - cx * pb + rnd() * shake * 0.08, y: g.py - cy * pb + rnd() * shake * 0.08, yaw: ang + rnd() * shake * 0.5, eye: eye + rnd() * shake * 0.04, pitch, bob: 0, time: fx.time };
+    const roll = 0.3 * sm(T.impact, T.down + 0.1, t) - 0.14 * sm(T.down + 0.1, T.down + 0.6, t) + rnd() * shake * 0.6;
+    const mx = g.px + cx * dist, my = g.py + cy * dist;
+    // --- çizim ---
+    this.flick = 0.95 + Math.random() * 0.35 + 0.6 * Math.exp(-Math.abs(t - T.impact) * 12);
+    const g2 = { ...g, enemies: [], bob: 0, danger: 0, dry: 0 };
+    const SC0 = this.SC, warp = Math.abs(cam.pitch) > 0.005;
+    if (warp) this.SC = SC0 * this.pitchFit(cam.pitch, SC0);
+    this.world(g2, cam, { ...fx, flick: this.flick });
+    skinPose(model, ph, jaw);
+    this.drawModel(model, scale, ang + Math.PI + yawJ, mx, my, hop, g2, null, 0.12 + 0.2 * kBite, lie);
+    // kan: pençeler çarpınca göğsümüzden, kükrerken ağzından salya-kan damlar, ısırınca her yere fışkırır
+    this.bloodBegin(t);
+    this.bloodTrack("mouth", t, [g.px + cx * headD, g.py + cy * headD, mh]);
+    this.bloodTrack("chest", t, [cam.x + cx * 0.15, cam.y + cy * 0.15, Math.max(0.05, eye - 0.25)]);
+    this.drawBlood(t, [
+      { t0: T.impact, t1: T.impact + 0.1, n: 35, from: "chest", dir: [cx, cy], fwd: [0.2, 1.0], up: [0.4, 1.5], side: 0.9, size: [0.008, 0.02] },
+      { t0: T.roar, t1: T.bite, n: 45, from: "mouth", dir: [-cx, -cy], fwd: [-0.05, 0.25], up: [-0.4, 0.2], side: 0.15, size: [0.006, 0.014] },
+      { t0: T.bite + 0.05, t1: T.end, n: 90, from: "mouth", dir: [-cx, -cy], fwd: [-0.6, 0.6], up: [0.2, 1.6], side: 1.4, size: [0.01, 0.026] },
+    ]);
+    if (warp) { this.pitchWarp(cam, SC0); this.SC = SC0; }
+    model.skin.at = -1;                                                            // oyundaki normal poz yeniden hesaplansın
+    if (!this._tk) this._tk = document.createElement("canvas");
+    const tk = this._tk; if (tk.width !== RW || tk.height !== RH) { tk.width = RW; tk.height = RH; }
+    tk.getContext("2d").putImageData(this.img, 0, 0);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, RW, RH);
+    ctx.save(); ctx.translate(RW / 2, RH / 2); ctx.rotate(roll); const zs = 1.12 + 0.25 * kBite; ctx.scale(zs, zs);
+    ctx.drawImage(tk, -RW / 2, -RH / 2); ctx.restore();
+    // çarpma: kırmızı-beyaz parlama ve kayan şeritler
+    const hit = Math.exp(-Math.max(0, t - T.impact) * 10) * (t >= T.impact ? 1 : 0);
+    if (hit > 0.02) { ctx.fillStyle = `rgba(255,${(200 * hit) | 0},${(180 * hit) | 0},${(0.75 * hit).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+    const glitch = hit + 0.6 * kBite;
+    for (let i = 0, n = Math.floor(glitch * 8); i < n; i++) {
+      const sy = Math.random() * RH, h = 2 + Math.random() * RH * 0.08, off = rnd() * RW * 0.15 * glitch;
+      ctx.drawImage(this.canvas, 0, sy, RW, h, off, sy, RW, h);
+    }
+    // kenarlardan sızan kan kırmızısı (ısırırken içeri dolar)
+    const bl = Math.min(1, 0.25 + 0.4 * fall + 0.5 * kBite);
+    const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * (0.55 - 0.45 * kBite), RW / 2, RH / 2, RH * 0.95);
+    gr.addColorStop(0, "rgba(120,0,0,0)"); gr.addColorStop(1, `rgba(100,0,0,${bl.toFixed(3)})`);
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, RW, RH);
+    this.drawLensBlood(t, [{ t0: T.impact, n: 3, big: 0.8 }, { t0: T.bite + 0.08, n: 9, big: 1.5, seed: 4 }]);
+    this.noiseOverlay(0.05 + 0.1 * glitch);
+    // son: ani kararma (ısırık kapanırken)
+    const left = T.end - t;
+    if (left < 0.18) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.18).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+  }
+
+  // ----- Kan -----
+  // Damlalar tohumlu rastgeledir ve t anındaki yerleri çıkış anlarından hesaplanır: tek kare çizim de oynatma da aynı görünür.
+  // Çıkış noktası (yara, ağız) her karede kaydedilir (iz); damla çıktığı andaki noktadan fırlar.
+  bloodBegin(t) { if (!this._blood || t < this._blood.t - 1e-6) this._blood = { t, tr: {} }; this._blood.t = t; }
+  bloodTrack(name, t, p) {
+    const tr = this._blood.tr[name] || (this._blood.tr[name] = []);
+    if (!tr.length || t > tr[tr.length - 1][0]) tr.push([t, p[0], p[1], p[2]]);
+  }
+  trailAt(name, ts) {
+    const tr = this._blood.tr[name]; if (!tr || !tr.length) return null;
+    let best = tr[0];
+    for (const e of tr) { if (e[0] > ts) break; best = e; }
+    return best;
+  }
+  // emitters: [{ t0, t1, n, from, fwd:[a,b], up:[a,b], side, size:[a,b], dir:[x,y], pulse? }]
+  drawBlood(t, emitters) {
+    const cam = this.cam, RW = this.RW, RH = this.RH, SC = this.SC, hor = cam.horizon, G = 3.9;
+    const buf32 = this.buf32, dbuf = this.dbuf, zbuf = this.zbuf;
+    const plot = (x, y, h, size, rgb, flat) => {
+      const rx = x - cam.x, ry = y - cam.y, d = rx * cam.dirX + ry * cam.dirY;
+      if (d < 0.22) return;
+      const l = -rx * cam.dirY + ry * cam.dirX, sx = RW / 2 + (l * SC) / d, sy = hor - ((h - cam.eye) * SC) / d;
+      const r = Math.min(RW * 0.014, Math.max(0.6, (size * SC) / d)), rw = flat ? r * 1.8 : r, rh = flat ? Math.max(0.6, r * 0.45) : r;
+      const x0 = Math.max(0, Math.floor(sx - rw)), x1 = Math.min(RW - 1, Math.ceil(sx + rw)), y0 = Math.max(0, Math.floor(sy - rh)), y1 = Math.min(RH - 1, Math.ceil(sy + rh));
+      if (x0 > x1 || y0 > y1) return;
+      const k = Math.max(0.45, Math.min(1, this.light(d) * 1.3)), c = px32(rgb[0] * k, rgb[1] * k, rgb[2] * k);
+      for (let yy = y0; yy <= y1; yy++) {
+        const ny = (yy + 0.5 - sy) / rh;
+        for (let xx = x0; xx <= x1; xx++) {
+          const nx = (xx + 0.5 - sx) / rw; if (nx * nx + ny * ny > 1) continue;
+          const i = yy * RW + xx;
+          if (d >= dbuf[i] || d >= zbuf[xx]) continue;
+          dbuf[i] = d; buf32[i] = c;
+        }
+      }
+    };
+    emitters.forEach((E, ei) => {
+      const [fx, fy] = E.dir, sxv = -fy, syv = fx;
+      for (let i = 0; i < E.n; i++) {
+        const R = (k) => hash(i * 7.13 + k * 1.37 + ei * 31.7, ei * 3.1 + k * 0.71 + (E.seed || 0));
+        let ts = E.t0 + (E.t1 - E.t0) * R(1);
+        if (E.pulse) ts = E.t0 + Math.floor((ts - E.t0) / E.pulse) * E.pulse + R(9) * 0.07;   // nabız gibi fışkırma
+        const dt = t - ts; if (dt < 0 || ts > E.t1) continue;
+        const o = this.trailAt(E.from, ts); if (!o) continue;
+        const vf = E.fwd[0] + (E.fwd[1] - E.fwd[0]) * R(2), vu = E.up[0] + (E.up[1] - E.up[0]) * R(3), vs = (R(4) - 0.5) * 2 * E.side;
+        const vx = fx * vf + sxv * vs, vy = fy * vf + syv * vs, size = E.size[0] + (E.size[1] - E.size[0]) * R(5);
+        const land = (vu + Math.sqrt(vu * vu + 2 * G * Math.max(0, o[3]))) / G;      // yere değme anı
+        if (dt >= land) { plot(o[1] + vx * land, o[2] + vy * land, 0.002, size * 1.6, [70, 2, 4], true); continue; }   // yerde iz
+        for (let q = 0; q < 3; q++) {                                                   // kısa kuyruklu damla
+          const u = dt - q * 0.018; if (u < 0) break;
+          plot(o[1] + vx * u, o[2] + vy * u, o[3] + vu * u - 0.5 * G * u * u, size * (1 - q * 0.25), [125, 4, 8], false);
+        }
+      }
+    });
+  }
+  // Kameraya sıçrayan kan: lekeler belirir, yavaşça aşağı akar. splats: [{ t0, n, big, seed }]
+  drawLensBlood(t, splats) {
+    const ctx = this.ctx, RW = this.RW, RH = this.RH;
+    ctx.save(); ctx.globalCompositeOperation = "multiply";                              // görüntüyü kan rengine koyulaştırır (ıslak leke)
+    splats.forEach((S, si) => {
+      for (let i = 0; i < S.n; i++) {
+        const R = (k) => hash(i * 5.31 + k * 2.17 + si * 13.3, si * 7.7 + k * 1.9 + (S.seed || 0));
+        const ts = S.t0 + R(1) * 0.08, u = t - ts; if (u < 0) continue;
+        const grow = Math.min(1, u / 0.05), x = R(2) * RW, y = R(3) * RH * 0.8, r = RH * (0.012 + 0.035 * R(4)) * S.big * grow;
+        const blob = (bx, by, br, a) => {
+          const gr = ctx.createRadialGradient(bx, by, br * 0.2, bx, by, br);
+          gr.addColorStop(0, `rgba(105,0,0,${a})`); gr.addColorStop(0.75, `rgba(130,8,8,${a * 0.9})`); gr.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+        };
+        blob(x, y, r, 1);
+        for (let k = 0; k < 5; k++) {                                                   // çevresine sıçrayan küçük damlalar
+          const an = R(10 + k) * Math.PI * 2, dd = r * (1.0 + 1.3 * R(20 + k));
+          blob(x + Math.cos(an) * dd, y + Math.sin(an) * dd * 0.8, r * (0.12 + 0.22 * R(30 + k)), 0.9);
+        }
+        const drip = Math.min(RH * (0.08 + 0.25 * R(5)), u * RH * (0.03 + 0.08 * R(6)));   // aşağı akan iz
+        if (drip > 1) {
+          const w = Math.max(1, r * (0.12 + 0.1 * R(7)));
+          ctx.fillStyle = "rgba(115,4,4,0.9)"; ctx.fillRect(x - w / 2, y, w, drip);
+          blob(x, y + drip, w * 0.9, 0.9);
+        }
+      }
+    });
+    ctx.restore();
+  }
+
+  // İblis: hızla yaklaşır, iki eliyle kafamızı kavrar, bir anda boynumuzu kırar (görüntü yana savrulur ve öyle donar),
+  // sonra bedenimiz yere yığılır, ekran kararır.
+  renderSnap(g, fx) {
+    const ctx = this.ctx, RW = this.RW, RH = this.RH, t = fx.scareT, R = g.rules, T = SNAP;
+    const killer = g.enemies[g.killer], model = this.M.chars[killer.type], ET = R.enemies.types[killer.type];
+    const sm = (a, b, x) => sstep(a, b, x), rnd = () => Math.random() - 0.5;
+    const ang = Math.atan2(killer.y - g.py, killer.x - g.px), cx = Math.cos(ang), cy = Math.sin(ang);
+    const front = Math.max(0.5, rayWall(g, g.px, g.py, cx, cy, 3) - 0.1);
+    const scale = ET.scale * 1.3, myaw = ang + Math.PI;
+    // --- kollar: öne uzanıp kafamızı iki yandan kavrar, kırarken bükülür ---
+    const reach = sm(T.grab - 0.45, T.grab, t), twist = sm(T.snap - 0.03, T.snap + 0.09, t), drop = sm(T.fall, T.floor, t);
+    const arm = (side) => [-1.25 * reach + 0.5 * drop, side * 0.42 * reach * (1 - drop), side * twist * 0.5 * (1 - drop)];
+    const rot = { armL: arm(1), foreL: [0.25 * reach, 0, 0], armR: arm(-1), foreR: [0.25 * reach, 0, 0], head: [0.25 * reach - 0.1 * twist, 0.15 * twist, 0] };
+    const walking = t < T.grab;
+    const stride = ET.stride || 1.1, ph = walking ? t * 2.2 / stride : T.grab * 2.2 / stride;
+    skinPose(model, ph, 0, rot);
+    // kavrama anında elleri başımızın iki yanına gelsin: durduğu uzaklık bu pozdan
+    if (this._snapK !== g.killer + ":" + g.time) {
+      skinPose(model, T.grab * 2.2 / stride, 0, { armL: arm(1).map((v, i) => i === 2 ? 0 : v / (reach || 1)), armR: arm(-1).map((v, i) => i === 2 ? 0 : v / (reach || 1)), foreL: [0.25, 0, 0], foreR: [0.25, 0, 0] });
+      const a = bonePoint(model, "tipL"), b = bonePoint(model, "tipR");
+      this._snapD = ((a[2] + b[2]) / 2) * scale; this._snapK = g.killer + ":" + g.time;
+      skinPose(model, ph, 0, rot);
+    }
+    const D = Math.min(front, Math.max(0.3, this._snapD + 0.02));
+    const d0 = Math.min(front, 1.8), dist = D + (d0 - D) * (1 - sm(0, T.grab, t));
+    const mx = g.px + cx * dist, my = g.py + cy * dist;
+    // --- kamera: yüzüne bakar; kırılınca ~110° yana savrulur ve öyle kalır; sonra yere yığılır ---
+    const E0 = R.player.eyeHeight, side = (g.killer % 2) ? 1 : -1;               // hangi yana kırılacağı
+    const snapK = sm(T.snap, T.snap + 0.11, t);
+    const overshoot = t > T.snap + 0.11 ? Math.exp(-(t - T.snap - 0.11) * 12) * Math.sin((t - T.snap - 0.11) * 40) * 0.06 : 0;
+    const fallK = Math.min(1, Math.max(0, (t - T.fall) / (T.floor - T.fall)));
+    const bounce = t > T.floor ? Math.exp(-(t - T.floor) * 9) * Math.sin((t - T.floor) * 30) * 0.02 : 0;
+    const eye = E0 + (0.12 - E0) * fallK * fallK + bounce - 0.03 * reach * (1 - snapK);   // kavrayınca hafif kaldırılır/sıkışır
+    const headH = 0.82 * scale / 0.95 * 0.95;                                    // iblisin yüz yüksekliği (model boyu 1)
+    const look = Math.atan2(headH - eye, Math.max(0.2, dist - 0.1));
+    const shake = 0.008 + 0.025 * reach * (1 - snapK) + 0.08 * Math.exp(-Math.abs(t - T.snap) * 14) + 0.05 * Math.exp(-Math.abs(t - T.floor) * 10);
+    const yaw = ang + side * (1.95 * snapK + overshoot) + rnd() * shake * 0.4;
+    let pitch = look * (1 - snapK) - 0.12 * snapK + 0.3 * sm(T.fall, T.floor + 0.2, t) + rnd() * shake * 0.5;
+    pitch = Math.max(-0.6, Math.min(Math.min(1.1, this.pitchLimit()), pitch));
+    const roll = side * (0.45 * snapK + 0.35 * sm(T.fall, T.floor, t)) + rnd() * shake * 0.4;
+    const back = Math.max(0, Math.min(0.25, rayWall(g, g.px, g.py, -cx, -cy, 2) - 0.15)) * fallK;
+    const cam = { x: g.px - cx * back, y: g.py - cy * back, yaw, eye, pitch, bob: 0, time: fx.time };
+    // --- çizim ---
+    this.flick = 0.95 + Math.random() * 0.25 + 0.6 * Math.exp(-Math.abs(t - T.snap) * 14);
+    const g2 = { ...g, enemies: [], bob: 0, danger: 0, dry: 0 };
+    const SC0 = this.SC, warp = Math.abs(cam.pitch) > 0.005;
+    if (warp) this.SC = SC0 * this.pitchFit(cam.pitch, SC0);
+    this.world(g2, cam, { ...fx, flick: this.flick });
+    this.drawModel(model, scale, myaw, mx, my, walking ? Math.abs(Math.sin(t * 10)) * 0.02 : 0, g2, null, 0.08);
+    if (warp) { this.pitchWarp(cam, SC0); this.SC = SC0; }
+    model.skin.at = -1;
+    if (!this._tk) this._tk = document.createElement("canvas");
+    const tk = this._tk; if (tk.width !== RW || tk.height !== RH) { tk.width = RW; tk.height = RH; }
+    tk.getContext("2d").putImageData(this.img, 0, 0);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, RW, RH);
+    ctx.save(); ctx.translate(RW / 2, RH / 2); ctx.rotate(roll); ctx.scale(1.12, 1.12); ctx.drawImage(tk, -RW / 2, -RH / 2);
+    // savrulurken yatay hareket bulanıklığı
+    const whip = sm(T.snap - 0.01, T.snap + 0.04, t) * (1 - sm(T.snap + 0.09, T.snap + 0.2, t));
+    if (whip > 0.02) { ctx.globalAlpha = 0.35; for (let k = 1; k <= 4; k++) ctx.drawImage(tk, -RW / 2 - side * k * RW * 0.05 * whip, -RH / 2); }
+    ctx.restore();
+    // kırılma anı: beyaz çakma; sonra görüş kararır, kenarlar morarır (bilinç gider)
+    const crack = t >= T.snap ? Math.exp(-(t - T.snap) * 14) : 0;
+    if (crack > 0.02) { ctx.fillStyle = `rgba(255,255,255,${(0.6 * crack).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+    const fade = sm(T.snap + 0.1, T.end, t);
+    const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * (0.6 - 0.4 * fade), RW / 2, RH / 2, RH * 0.95);
+    gr.addColorStop(0, "rgba(20,0,10,0)"); gr.addColorStop(1, `rgba(25,0,12,${Math.min(0.95, 0.25 + 0.7 * fade).toFixed(3)})`);
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, RW, RH);
+    if (t > T.snap) { ctx.fillStyle = `rgba(30,30,40,${(0.35 * sm(T.snap, T.fall, t)).toFixed(3)})`; ctx.globalCompositeOperation = "saturation"; ctx.fillRect(0, 0, RW, RH); ctx.globalCompositeOperation = "source-over"; }   // renkler solar
+    this.noiseOverlay(0.05 + 0.12 * crack);
+    const left = T.end - t;
+    if (left < 0.6) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.6).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+  }
+
+  // Sıska Canavar: yaklaşır, tek elini içimize saplar ve bekler, eli içimizdeyken bizi havaya kaldırır, bekler,
+  // elini çeker; yere düşeriz, yerden ona bakarız, ekran kararır. Kaldırırken kamera canavarın parmak ucuna bağlıdır.
+  renderStab(g, fx) {
+    const ctx = this.ctx, RW = this.RW, RH = this.RH, t = fx.scareT, R = g.rules, T = STAB;
+    const killer = g.enemies[g.killer], model = this.M.chars[killer.type], ET = R.enemies.types[killer.type];
+    const sm = (a, b, x) => sstep(a, b, x), rnd = () => Math.random() - 0.5;
+    const ang = Math.atan2(killer.y - g.py, killer.x - g.px), cx = Math.cos(ang), cy = Math.sin(ang);
+    const front = Math.max(0.5, rayWall(g, g.px, g.py, cx, cy, 3) - 0.1);
+    const scale = ET.scale * 1.3, myaw = ang + Math.PI, cyw = Math.cos(myaw), syw = Math.sin(myaw);
+    // --- kol pozu (yürüme döngüsünün kolların önde olduğu anına ek dönüşler) ---
+    const wind = sm(T.windup - 0.35, T.windup, t) * (1 - sm(T.windup, T.hit - 0.08, t));        // kolu geri çeker
+    const stab = sm(T.windup + 0.05, T.hit, t);                                                  // ileri saplar
+    const lift = sm(T.lift, T.up, t), pull = sm(T.pull, T.pull + 0.18, t);
+    const shake = 0.01 + 0.08 * Math.exp(-Math.abs(t - T.hit) * 10) + 0.012 * sm(T.lift, T.up, t) * (1 - pull) + 0.06 * Math.exp(-Math.abs(t - T.floor) * 10);
+    const armR = (0.6 * wind - 0.55 * stab - 0.7 * lift + 1.0 * pull) + rnd() * shake * 0.2;   // - : ileri/yukarı
+    const rot = { armR, foreR: 0.32 * stab * (1 - pull), handR: 0.3 * stab * (1 - pull), head: 0.25 * sm(T.hit, T.lift, t) - 0.2 * lift + 0.15 * sm(T.pull, T.floor, t) + (t > T.up && t < T.pull ? Math.sin(t * 3) * 0.06 : 0) };
+    const jaw = 0.25 * sm(T.hit, T.hit + 0.2, t) + 0.45 * sm(T.up, T.up + 0.6, t) * (1 - pull * 0.5) + (t > T.hit ? 0.05 * Math.sin(t * 31) : 0);
+    const walking = t < T.windup;
+    const ph = walking ? 0.5 - (T.windup - t) * 1.25 : 0.5 + 0.01 * Math.sin(t * 4);             // kollar yanda (döngünün ortası) donar
+    skinPose(model, ph, jaw, rot);
+    // saplama anında parmak ucu tam göğsümüze gelsin: canavarın durduğu uzaklık bu pozdan hesaplanır
+    if (!this._stabD || this._stabK !== g.killer + ":" + g.time) {
+      skinPose(model, 0.5, 0, { armR: -0.55, foreR: 0.32, handR: 0.3 });
+      const tp = bonePoint(model, "tipR"); this._stabD = tp[2] * scale; this._stabK = g.killer + ":" + g.time;
+      skinPose(model, ph, jaw, rot);
+    }
+    const D = Math.min(front, Math.max(0.35, this._stabD - 0.04));
+    const d0 = Math.min(front, 1.6), dist = D + (d0 - D) * (1 - sm(0, T.windup, t));
+    const mx = g.px + cx * dist, my = g.py + cy * dist;
+    const tip = bonePoint(model, "tipR"), toW = (p) => [mx + (p[2] * cyw - p[0] * syw) * scale, my + (p[2] * syw + p[0] * cyw) * scale, p[1] * scale];
+    const tw = toW(tip);
+    // --- kamera ---
+    const E0 = R.player.eyeHeight;
+    const onHand = sm(T.lift - 0.1, T.lift + 0.15, t) * (1 - pull);                              // bedenimiz parmak ucunda
+    const drop = Math.min(1, Math.max(0, (t - T.pull - 0.08) / (T.floor - T.pull - 0.08)));
+    const fallen = t >= T.pull + 0.08;
+    // eli içimizdeyken: göğsümüz parmak ucunda, başımız biraz yukarıda ve geride
+    const hx = tw[0] - cx * 0.1, hy = tw[1] - cy * 0.1, hh = tw[2] + 0.12;
+    const upX = g.px + (hx - g.px) * onHand, upY = g.py + (hy - g.py) * onHand;
+    const upH = E0 + (hh - E0) * onHand;
+    if (!fallen) this._stabUp = [upX, upY, upH];
+    const U = this._stabUp || [upX, upY, upH];
+    const groundX = U[0] - cx * 0.12, groundY = U[1] - cy * 0.12;
+    const camX = fallen ? U[0] + (groundX - U[0]) * drop : upX, camY = fallen ? U[1] + (groundY - U[1]) * drop : upY;
+    const bounce = t > T.floor ? Math.exp(-(t - T.floor) * 9) * Math.sin((t - T.floor) * 30) * 0.03 : 0;
+    const eye = fallen ? U[2] + (0.13 - U[2]) * drop * drop + bounce : upH - 0.06 * Math.exp(-Math.abs(t - T.hit) * 8) * (t > T.hit ? 1 : 0);
+    // bakış: canavarın yüzüne (saplanınca bir an göğsümüzdeki kola)
+    const headW = toW([0, 1.68, 0.62]);
+    const wArm = sm(T.windup + 0.1, T.hit, t) * (1 - sm(T.hit + 0.35, T.lift, t)) * 0.75;      // saplarken göğsümüze giren kola bakarız
+    const shW = wArm > 0 ? toW([-0.2, 1.2, 0.4]) : null;                                        // saplayan kolun dirseği
+    const hd = Math.max(0.15, Math.hypot(headW[0] - camX, headW[1] - camY));
+    let pitch = Math.atan2(headW[2] - eye, hd) * (1 - wArm) - 0.35 * wArm;
+    pitch += rnd() * shake * 0.6 + (t > T.up && t < T.pull ? Math.sin(t * 2.1) * 0.03 : 0);
+    const pitchMax = Math.min(1.1, this.pitchLimit());
+    pitch = Math.max(-0.7, Math.min(pitchMax, pitch));
+    const sway = t > T.lift && t < T.pull ? Math.sin(t * 2.6) * 0.05 * lift : 0;                 // havada sallanırız
+    const cam = { x: camX + rnd() * shake * 0.05, y: camY + rnd() * shake * 0.05, yaw: Math.atan2(headW[1] - camY, headW[0] - camX) + (shW ? (Math.atan2(shW[1] - camY, shW[0] - camX) - Math.atan2(headW[1] - camY, headW[0] - camX)) * wArm : 0) + sway + rnd() * shake * 0.4, eye: eye + rnd() * shake * 0.03, pitch, bob: 0, time: fx.time };
+    const roll = sway * 2 + 0.28 * sm(T.pull, T.floor, t) - 0.1 * sm(T.floor, T.floor + 0.5, t) + rnd() * shake * 0.5;
+    // --- çizim ---
+    this.flick = 0.95 + Math.random() * 0.3 + 0.7 * Math.exp(-Math.abs(t - T.hit) * 12);
+    const g2 = { ...g, enemies: [], bob: 0, danger: 0, dry: 0 };
+    const SC0 = this.SC, warp = Math.abs(cam.pitch) > 0.005;
+    if (warp) this.SC = SC0 * this.pitchFit(cam.pitch, SC0);
+    this.world(g2, cam, { ...fx, flick: this.flick });
+    this.drawModel(model, scale, myaw, mx, my, walking ? Math.abs(Math.sin(t * 9)) * 0.02 : 0, g2, null, 0.1 + 0.15 * sm(T.hit, T.lift, t));
+    // kan: yara = parmak ucunun girdiği yer (göğsümüz). Saplanınca fışkırır, içerideyken nabızla atar, havadayken damlar, çekince boşalır
+    this.bloodBegin(t);
+    if (t >= T.hit - 0.02) this.bloodTrack("wound", t, [tw[0] + cx * 0.04, tw[1] + cy * 0.04, Math.max(0.25, tw[2])]);
+    const toM = [cx, cy], toMe = [-cx, -cy];
+    this.drawBlood(t, [
+      { t0: T.hit, t1: T.hit + 0.12, n: 70, from: "wound", dir: toM, fwd: [0.2, 1.4], up: [0.3, 1.8], side: 0.9, size: [0.01, 0.026] },
+      { t0: T.hit + 0.12, t1: T.pull, n: 90, from: "wound", dir: toM, fwd: [0.3, 1.1], up: [0.4, 1.4], side: 0.5, size: [0.008, 0.02], pulse: 0.5 },
+      { t0: T.lift, t1: T.pull, n: 40, from: "wound", dir: toMe, fwd: [-0.1, 0.2], up: [-0.3, 0.1], side: 0.1, size: [0.008, 0.016] },
+      { t0: T.pull, t1: T.pull + 0.22, n: 90, from: "wound", dir: toM, fwd: [0.2, 1.6], up: [-0.2, 1.6], side: 1.0, size: [0.012, 0.03] },
+    ]);
+    if (warp) { this.pitchWarp(cam, SC0); this.SC = SC0; }
+    model.skin.at = -1;
+    if (!this._tk) this._tk = document.createElement("canvas");
+    const tk = this._tk; if (tk.width !== RW || tk.height !== RH) { tk.width = RW; tk.height = RH; }
+    tk.getContext("2d").putImageData(this.img, 0, 0);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, RW, RH);
+    ctx.save(); ctx.translate(RW / 2, RH / 2); ctx.rotate(roll); ctx.scale(1.12, 1.12); ctx.drawImage(tk, -RW / 2, -RH / 2); ctx.restore();
+    // saplama: kırmızı parlama, şeritler; içimizdeyken nabız gibi atan kırmızı kenar
+    const hit = t >= T.hit ? Math.exp(-(t - T.hit) * 7) : 0, fl = t >= T.floor ? Math.exp(-(t - T.floor) * 10) : 0;
+    if (hit > 0.02) { ctx.fillStyle = `rgba(200,0,0,${(0.7 * hit).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+    if (fl > 0.02) { ctx.fillStyle = `rgba(255,230,220,${(0.5 * fl).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
+    const glitch = hit + fl * 0.6;
+    for (let i = 0, n = Math.floor(glitch * 8); i < n; i++) {
+      const sy = Math.random() * RH, h = 2 + Math.random() * RH * 0.08, off = rnd() * RW * 0.15 * glitch;
+      ctx.drawImage(this.canvas, 0, sy, RW, h, off, sy, RW, h);
+    }
+    const inside = sm(T.hit, T.hit + 0.3, t);
+    const pulse = inside * (0.35 + 0.15 * Math.sin(t * 7)) + 0.25 * sm(T.pull, T.floor, t);
+    const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * (0.55 - 0.25 * inside), RW / 2, RH / 2, RH * 0.95);
+    gr.addColorStop(0, "rgba(120,0,0,0)"); gr.addColorStop(1, `rgba(110,0,0,${Math.min(0.95, 0.2 + pulse).toFixed(3)})`);
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, RW, RH);
+    this.drawLensBlood(t, [{ t0: T.hit, n: 6, big: 1.2 }, { t0: T.hit + 0.6, n: 2, big: 0.7, seed: 3 }, { t0: T.pull, n: 7, big: 1.1, seed: 5 }, { t0: T.floor, n: 3, big: 0.8, seed: 9 }]);
+    this.noiseOverlay(0.05 + 0.1 * glitch);
+    // son: yavaş kararma
+    const left = T.end - t;
     if (left < 0.6) { ctx.fillStyle = `rgba(0,0,0,${Math.min(1, 1 - left / 0.6).toFixed(3)})`; ctx.fillRect(0, 0, RW, RH); }
   }
 
