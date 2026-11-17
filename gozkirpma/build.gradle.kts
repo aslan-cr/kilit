@@ -11,8 +11,8 @@ android {
         applicationId = "com.beranmeva.gozkirpma"
         minSdk = 26
         targetSdk = 34
-        versionCode = 24
-        versionName = "4.9"
+        versionCode = 25
+        versionName = "4.10"
     }
 
     // Kilit ve Güncelleyici ile aynı sabit imza (yeni sürüm eskisinin üstüne kurulur).

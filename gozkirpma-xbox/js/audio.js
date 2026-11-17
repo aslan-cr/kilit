@@ -1,15 +1,18 @@
 // Prosedürel ses (WebAudio): uğultu, rüzgâr, kalp atışı, adımlar, silah sesleri, çığlık.
 // Yakalanma sahnelerinin katmanlı ses tasarımı sfx.js'tedir.
 import { makeSfx } from "./sfx.js";
-let AC = null, master = null, beatT = 0, noiseBuf = null, ambLP = null, sfx = null;
+let AC = null, master = null, beatT = 0, noiseBuf = null, ambLP = null, sfx = null, sfxTimer = 0;
 
 export function initAudio() {
   if (AC) { if (AC.state === "suspended") AC.resume(); return; }
   try {
-    AC = new (window.AudioContext || window.webkitAudioContext)();
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    try { AC = new Ctx({ latencyHint: "balanced" }); } catch { AC = new Ctx(); }   // biraz büyük tampon: yavaş cihazda ses kesilip cızırdamasın
     master = AC.createGain();
     master.gain.value = 0.9;
-    master.connect(AC.destination);
+    const lim = AC.createDynamicsCompressor();         // son sınırlayıcı: sesler üst üste binince kırpılıp cızırdamasın
+    lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.15;
+    master.connect(lim); lim.connect(AC.destination);
     ambLP = AC.createBiquadFilter(); ambLP.type = "lowpass"; ambLP.frequency.value = 20000;   // ortam sesi (sahnelerde boğuklaşır)
     ambLP.connect(master);
     for (const [f, type, g] of [[38, "sawtooth", 0.035], [41.5, "sine", 0.06], [57, "triangle", 0.02]]) {
@@ -29,7 +32,6 @@ export function initAudio() {
     const lg = AC.createGain(); lg.gain.value = 0.015;
     lfo.connect(lg); lg.connect(wg.gain); lfo.start();
     src.connect(bp); bp.connect(wg); wg.connect(ambLP); src.start();
-    sfx = makeSfx(AC, master, ambLP);
   } catch { AC = null; }
 }
 
@@ -166,6 +168,15 @@ export function playScream() {
 }
 
 // Yakalanma sahnesinin bütün sesleri (T: render.js'teki zamanlar). Sahne yoksa false döner.
-export function playScene(name, T) { return !!(AC && sfx && sfx.scene(name, T)); }
+// Her sahne kendi ses zincirini kurar; sahne ve yazılar bitince zincir tamamen sökülür (arkada işlem kalmaz).
+function freshSfx(sec) {
+  if (sfx) sfx.dispose();
+  sfx = makeSfx(AC, master, ambLP);
+  clearTimeout(sfxTimer);
+  const mine = sfx;
+  sfxTimer = setTimeout(() => { mine.dispose(); if (sfx === mine) sfx = null; }, sec * 1000);
+  return sfx;
+}
+export function playScene(name, T) { return !!(AC && freshSfx(T.end + 10).scene(name, T)); }
 // Karanlıkta yazı belirirken: 1 = ilk satır, 2 = ikinci satır
-export function playText(line) { if (AC && sfx) sfx.text(line); }
+export function playText(line) { if (!AC) return; (sfx || freshSfx(6)).text(line); }

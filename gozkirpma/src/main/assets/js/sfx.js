@@ -2,41 +2,64 @@
 // Katmanlar: et/kemik darbeleri, ıslak gurultular, kan fışkırması, damlalar, canavar kükremeleri (gırtlak filtreleriyle),
 // nefes, kalp atışı, kulak çınlaması, sinematik vuruşlar; hepsi ortak bir yankı ve kompresörden geçer.
 // makeSfx(ac, out, ambLP): ac canlı ya da OfflineAudioContext olabilir (tools/sfx-render.mjs sahneleri dosyaya kaydeder).
-export function makeSfx(ac, out, ambLP = null) {
+// MOBİL İÇİN: ağır ConvolverNode yok (yankı birkaç gecikme hattıyla), gürültü dokuları bir kez üretilip saklanır,
+// her sahne kendi zincirini kurar ve dispose() ile tamamen söker (arkada hiçbir şey çalışmaya devam etmez).
+const BUFS = new Map();                          // örnekleme hızına göre saklanan gürültü dokuları
+function buffers(ac) {
   const sr = ac.sampleRate;
+  if (BUFS.has(sr)) return BUFS.get(sr);
+  let seed = 777;
+  const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) | 0; return (seed >>> 8) / 16777216; };
+  const mk = (sec, fill) => { const b = ac.createBuffer(1, Math.floor(sr * sec), sr); fill(b.getChannelData(0)); return b; };
+  const white = mk(3, (d) => { for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1; });
+  const brown = mk(3, (d) => { let v = 0; for (let i = 0; i < d.length; i++) { v = (v + 0.02 * (rnd() * 2 - 1)) / 1.02; d[i] = v * 3.5; } });
+  // ıslak doku: genliği damlacıklar halinde oynayan gürültü
+  const grain = mk(3, (d) => {
+    let p = 0;
+    while (p < d.length) {
+      const L = Math.floor(sr * (0.012 + 0.038 * rnd())), amp = 0.2 + 0.8 * rnd();
+      for (let i = 0; i < L && p + i < d.length; i++) { const w = Math.sin(Math.PI * i / L); d[p + i] = (rnd() * 2 - 1) * amp * w * w; }
+      p += Math.floor(L * (0.5 + 0.6 * rnd()));
+    }
+  });
+  // çıtırtı dokuları: seyrek / orta / sık kırılma darbeleri
+  const crk = (rate) => mk(2, (d) => {
+    for (let k = 0, n = rate * 2; k < n; k++) {
+      const p = Math.floor(rnd() * d.length), amp = (0.3 + 0.7 * rnd()) * (rnd() < 0.5 ? -1 : 1), L = Math.floor(sr * (0.0006 + 0.0024 * rnd()));
+      for (let i = 0; i < L && p + i < d.length; i++) d[p + i] += amp * (rnd() * 2 - 1) * (1 - i / L) * (1 - i / L);
+    }
+  });
+  const B = { white, brown, grain, crkLo: crk(40), crkMid: crk(600), crkHi: crk(2200) };
+  BUFS.set(sr, B);
+  return B;
+}
+
+export function makeSfx(ac, out, ambLP = null) {
   let seed = 12345;
   const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) | 0; return (seed >>> 8) / 16777216; };
   const R = (a, b) => a + (b - a) * rnd();
+  const { white, brown, grain, crkLo, crkMid, crkHi } = buffers(ac);
 
   // ---------- zincir: ses -> (boğuklaştırma) -> kompresör -> çıkış; yankı gönderimi ----------
   const comp = ac.createDynamicsCompressor();
-  comp.threshold.value = -18; comp.knee.value = 10; comp.ratio.value = 4.5; comp.attack.value = 0.003; comp.release.value = 0.22;
-  const outG = ac.createGain(); outG.gain.value = 1.0;
-  const lim = ac.createDynamicsCompressor();                         // son sınırlayıcı: kırpılma (cızırtı) olmasın
-  lim.threshold.value = -4; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.1;
-  comp.connect(outG); outG.connect(lim); lim.connect(out);
+  comp.threshold.value = -18; comp.knee.value = 10; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.22;
+  const outG = ac.createGain(); outG.gain.value = 0.7;                // oyunun diğer sesleriyle toplanınca da kırpılmasın
+  comp.connect(outG); outG.connect(out);
   const muffLP = ac.createBiquadFilter(); muffLP.type = "lowpass"; muffLP.frequency.value = 20000; muffLP.Q.value = 0.5;
   muffLP.connect(comp);
   const bus = ac.createGain(); bus.connect(muffLP);
-  // yankı: taş koridor (erken yansımalar + 2.6 sn sönümlenen, yükseği yutulmuş kuyruk)
-  const irLen = Math.floor(sr * 2.6), ir = ac.createBuffer(2, irLen, sr);
-  for (let ch = 0; ch < 2; ch++) {
-    const d = ir.getChannelData(ch); let lp = 0;
-    for (let i = 0; i < irLen; i++) {
-      const x = i / irLen, damp = 0.35 + 0.55 * x;                 // zamanla daha boğuk
-      lp = lp * damp + (rnd() * 2 - 1) * (1 - damp);
-      d[i] = lp * Math.pow(1 - x, 3.4) * 1.6;
-    }
-    for (let k = 0; k < 9; k++) { const at = Math.floor(sr * R(0.008, 0.07)); d[at] += R(-0.6, 0.6); }
+  // yankı: üç geri beslemeli gecikme hattı (taş koridor, ~1.3 sn kuyruk), sağa-sola dağıtılmış. Convolver'a göre çok ucuz.
+  const send = ac.createGain(), vret = ac.createGain(); vret.gain.value = 0.5; vret.connect(muffLP);
+  const loops = [];
+  for (const [dt, pan] of [[0.071, -0.6], [0.113, 0.6]]) {
+    const d = ac.createDelay(0.2); d.delayTime.value = dt;
+    const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2600;
+    const fb = ac.createGain(); fb.gain.value = 0.68;
+    send.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d);
+    let o = lp;
+    if (ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = pan; lp.connect(p); o = p; loops.push(p); }
+    o.connect(vret); loops.push(d, lp, fb);
   }
-  const verb = ac.createConvolver(); verb.buffer = ir;
-  const vret = ac.createGain(); vret.gain.value = 0.55; verb.connect(vret); vret.connect(muffLP);
-  const send = ac.createGain(); send.connect(verb);
-
-  const white = ac.createBuffer(1, sr * 3, sr);
-  { const d = white.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1; }
-  const brown = ac.createBuffer(1, sr * 3, sr);
-  { const d = brown.getChannelData(0); let b = 0; for (let i = 0; i < d.length; i++) { b = (b + 0.02 * (rnd() * 2 - 1)) / 1.02; d[i] = b * 3.5; } }
 
   const now = () => ac.currentTime;
   const route = (node, o = {}) => {
@@ -51,14 +74,15 @@ export function makeSfx(ac, out, ambLP = null) {
     gain.setValueAtTime(Math.max(0.0002, peak), t + a + hold); gain.exponentialRampToValueAtTime(0.0001, t + a + hold + rel);
     return t + a + hold + rel;
   };
-  const src = (buf, t, end) => { const s = ac.createBufferSource(); s.buffer = buf; s.loop = true; s.start(t, R(0, 2)); s.stop(end + 0.05); return s; };
+  const src = (buf, t, end) => { const s = ac.createBufferSource(); s.buffer = buf; s.loop = true; s.start(t, R(0, buf.duration - 0.01)); s.stop(end + 0.05); return s; };
 
   // ---------- temel parçalar ----------
   function noise(at, dur, o = {}) {
     const t = now() + at, f = o.f || 1000, f2 = o.f2 || f;
     const s = src(o.brown ? brown : white, t, t + dur + (o.rel || 0.05));
     const fl = ac.createBiquadFilter(); fl.type = o.type || "bandpass"; fl.Q.value = o.q ?? 1;
-    fl.frequency.setValueAtTime(f, t); fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    fl.frequency.value = f;                          // değişmeyen frekansta otomasyon yok (her örnekte katsayı hesabı pahalı)
+    if (f2 !== f) { fl.frequency.setValueAtTime(f, t); fl.frequency.exponentialRampToValueAtTime(f2, t + dur); }
     const g = ac.createGain();
     const a = o.a ?? 0.005, rel = o.rel ?? dur * 0.6;
     env(g.gain, t, o.vol ?? 0.5, a, Math.max(0, dur - a - rel), rel);
@@ -68,7 +92,8 @@ export function makeSfx(ac, out, ambLP = null) {
   function tone(at, dur, o = {}) {
     const t = now() + at, f = o.f || 440, f2 = o.f2 || f;
     const os = ac.createOscillator(); os.type = o.type || "sine";
-    os.frequency.setValueAtTime(f, t); os.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    os.frequency.value = f;
+    if (f2 !== f) { os.frequency.setValueAtTime(f, t); os.frequency.exponentialRampToValueAtTime(f2, t + dur); }
     const g = ac.createGain(); const a = o.a ?? 0.004, rel = o.rel ?? dur * 0.7;
     env(g.gain, t, o.vol ?? 0.4, a, Math.max(0, dur - a - rel), rel);
     let n = os;
@@ -80,35 +105,24 @@ export function makeSfx(ac, out, ambLP = null) {
     tone(at, dur, { f: f0, f2: f1, vol, a: 0.003, rel: dur * 0.85, wet });
     noise(at, dur * 0.5, { type: "lowpass", f: 260, f2: 90, q: 0.7, vol: vol * 0.5, a: 0.002, wet: wet * 0.5, brown: true });
   }
-  // çıtırtı: seyrek, çok kısa kırılma darbeleri (kıkırdak, kemik, pençe)
+  // çıtırtı: seyrek, çok kısa kırılma darbeleri (kıkırdak, kemik, pençe) — hazır dokudan bir dilim
   function crackle(at, dur, o = {}) {
-    const t = now() + at, len = Math.max(1, Math.floor(sr * dur)), buf = ac.createBuffer(1, len, sr), d = buf.getChannelData(0);
-    const n = Math.max(1, Math.round((o.rate || 300) * dur));
-    for (let k = 0; k < n; k++) {
-      const p = Math.floor(rnd() * len), amp = R(0.3, 1) * (rnd() < 0.5 ? -1 : 1), L = Math.floor(sr * R(0.0006, 0.003));
-      for (let i = 0; i < L && p + i < len; i++) d[p + i] += amp * (rnd() * 2 - 1) * Math.pow(1 - i / L, 2);
-    }
-    const s = ac.createBufferSource(); s.buffer = buf;
+    const t = now() + at, rate = o.rate || 300, buf = rate < 150 ? crkLo : rate < 1200 ? crkMid : crkHi;
+    const s = src(buf, t, t + dur);
     const fl = ac.createBiquadFilter(); fl.type = "bandpass"; fl.frequency.value = o.f || 2500; fl.Q.value = o.q || 2;
-    const g = ac.createGain(); g.gain.value = o.vol ?? 0.6;
-    s.connect(fl); fl.connect(g); route(g, o); s.start(t);
+    const g = ac.createGain(); env(g.gain, t, o.vol ?? 0.6, 0.002, Math.max(0, dur - 0.01), 0.008);
+    s.connect(fl); fl.connect(g); route(g, o);
   }
   // ıslak gurultu: noktacıklar halinde genliği oynayan gürültü, filtresi rastgele zıplar (ezilen et, kan, ağızdaki salya)
   function squelch(at, dur, o = {}) {
-    const t = now() + at, len = Math.floor(sr * dur), buf = ac.createBuffer(1, len, sr), d = buf.getChannelData(0);
-    let p = 0;
-    while (p < len) {
-      const L = Math.floor(sr * R(0.012, 0.05)), amp = R(0.2, 1);
-      for (let i = 0; i < L && p + i < len; i++) { const w = Math.sin(Math.PI * i / L); d[p + i] = (rnd() * 2 - 1) * amp * w * w; }
-      p += Math.floor(L * R(0.5, 1.1));
-    }
-    const s = ac.createBufferSource(); s.buffer = buf;
+    const t = now() + at;
+    const s = src(grain, t, t + dur);
     const fl = ac.createBiquadFilter(); fl.type = "bandpass"; fl.Q.value = o.q || 3;
     const lo = o.f1 || 300, hi = o.f2 || 1300;
-    for (let x = 0; x < dur; x += R(0.02, 0.05)) fl.frequency.setValueAtTime(R(lo, hi), t + x);
+    for (let x = 0; x < dur; x += R(0.035, 0.07)) fl.frequency.setValueAtTime(R(lo, hi), t + x);
     const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = o.lp || 2400;
     const g = ac.createGain(); env(g.gain, t, o.vol ?? 0.5, 0.01, Math.max(0, dur - 0.1), 0.09);
-    s.connect(fl); fl.connect(lp); lp.connect(g); route(g, o); s.start(t);
+    s.connect(fl); fl.connect(lp); lp.connect(g); route(g, o);
   }
   function drip(at, vol = 0.18, pan = 0) {
     const f = R(1100, 1700);
@@ -140,12 +154,12 @@ export function makeSfx(ac, out, ambLP = null) {
   // sinematik vuruş: uyumsuz yaylı/bakır kümesi + alt bas patlaması + zil çarpması, uzun yankı
   function stinger(at, vol = 0.8) {
     const t = now() + at;
-    for (const f of [55, 58.27, 82.41, 87.31, 110, 116.54, 164.81, 174.61]) {
-      const os = ac.createOscillator(); os.type = "sawtooth"; os.frequency.value = f * R(0.997, 1.003);
+    for (const [pan, fs] of [[-0.45, [55, 82.41, 110, 164.81]], [0.45, [58.27, 87.31, 116.54, 174.61]]]) {   // sol/sağ küme, ortak filtre
       const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 2;
       lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(380, t + 1.4);
       const g = ac.createGain(); env(g.gain, t, vol * 0.11, 0.006, 0.08, 1.7);
-      os.connect(lp); lp.connect(g); route(g, { wet: 0.7, pan: R(-0.5, 0.5) }); os.start(t); os.stop(t + 2);
+      for (const f of fs) { const os = ac.createOscillator(); os.type = "sawtooth"; os.frequency.value = f * R(0.997, 1.003); os.connect(lp); os.start(t); os.stop(t + 2); }
+      lp.connect(g); route(g, { wet: 0.7, pan });
     }
     for (const f of [220, 233.08]) tone(at, 0.6, { type: "square", f, vol: vol * 0.08, a: 0.004, rel: 0.5, lp: 1600, wet: 0.6 });
     tone(at, 2.0, { f: 48, f2: 30, vol: vol * 0.9, a: 0.004, rel: 1.9, wet: 0.2 });
@@ -172,14 +186,14 @@ export function makeSfx(ac, out, ambLP = null) {
     const t = now() + at, end = t + dur, f0 = o.f0 || 120, fp = o.fp || f0 * 1.8, f1 = o.f1 || f0 * 1.2, vol = o.vol ?? 0.7;
     const mix = ac.createGain(); mix.gain.value = 1;
     const freqs = [];
-    for (const [type, k, gv] of [["sawtooth", 1, 0.5], ["sawtooth", 1.012, 0.4], ["square", 0.5, 0.35], ["sawtooth", 2.01, 0.15]]) {
+    for (const [type, k, gv] of [["sawtooth", 1, 0.7], ["square", 0.5, 0.4]]) {        // ses teli + bir oktav alttan gövde
       const os = ac.createOscillator(); os.type = type; freqs.push([os.frequency, k]);
       const g = ac.createGain(); g.gain.value = gv; os.connect(g); g.connect(mix); os.start(t); os.stop(end + 0.1);
     }
     // perde eğrisi (f0 -> tepe -> f1) + düzensiz titreme: 50 ms'lik noktalar arası doğrusal geçiş
     const pitchAt = (x) => x < dur * 0.3 ? f0 * Math.pow(fp / f0, x / (dur * 0.3)) : fp * Math.pow(f1 / fp, (x - dur * 0.3) / (dur * 0.7));
     for (const [p, k] of freqs) p.setValueAtTime(f0 * k, t);
-    for (let x = 0.05; x <= dur + 1e-6; x += 0.05) {
+    for (let x = 0.08; x <= dur + 1e-6; x += 0.08) {
       const j = 1 + R(-1, 1) * (o.jitter ?? 0.06);
       for (const [p, k] of freqs) p.linearRampToValueAtTime(pitchAt(Math.min(x, dur)) * k * j, t + x);
     }
@@ -190,17 +204,16 @@ export function makeSfx(ac, out, ambLP = null) {
     const fry = ac.createGain(); fry.gain.value = 0.6; const fl = ac.createOscillator(); fl.frequency.value = o.fry || 28;
     const flg = ac.createGain(); flg.gain.value = 0.4; fl.connect(flg); flg.connect(fry.gain); fl.start(t); fl.stop(end + 0.1);
     mix.connect(fry);
-    const ws = ac.createWaveShaper(), n = 1024, c = new Float32Array(n), amt = o.grit ?? 50;
+    const ws = ac.createWaveShaper(), n = 512, c = new Float32Array(n), amt = o.grit ?? 50;
     for (let i = 0; i < n; i++) { const x = (i * 2) / n - 1; c[i] = ((3 + amt) * x * 20 * (Math.PI / 180)) / (Math.PI + amt * Math.abs(x)); }
     ws.curve = c; fry.connect(ws);
     const sum = ac.createGain(); sum.gain.value = 1;
-    for (const [f, q, gv] of o.vow || [[750, 4, 1], [1250, 5, 0.7], [2600, 7, 0.4]]) {
+    for (const [f, q, gv] of (o.vow || [[750, 4, 1], [1250, 5, 0.7]]).slice(0, 2)) {   // iki gırtlak/ağız tınısı (sesli harf)
       const bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = f; bp.Q.value = q;
       const g = ac.createGain(); g.gain.value = gv; ws.connect(bp); bp.connect(g); g.connect(sum);
     }
-    const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = o.lp || 6000;
-    const g = ac.createGain(); env(g.gain, t, vol, o.a ?? 0.06, Math.max(0, dur - (o.a ?? 0.06) - (o.rel ?? 0.35)), o.rel ?? 0.35);
-    sum.connect(lp); lp.connect(g); route(g, { wet: o.wet ?? 0.45, pan: o.pan || 0 });
+    const g = ac.createGain(); env(g.gain, t, vol * 1.15, o.a ?? 0.06, Math.max(0, dur - (o.a ?? 0.06) - (o.rel ?? 0.35)), o.rel ?? 0.35);
+    sum.connect(g); route(g, { wet: o.wet ?? 0.45, pan: o.pan || 0 });
   }
   const growl = (at, dur, f = 65, vol = 0.45) => roar(at, dur, { f0: f, fp: f * 1.15, f1: f * 0.95, vol, vow: [[380, 4, 1], [800, 5, 0.5], [2400, 8, 0.15]], fry: 22, grit: 30, breath: 0.5, a: dur * 0.3, rel: dur * 0.4, jitter: 0.04, wet: 0.3 });
   const hiss = (at, dur, vol = 0.35) => { noise(at, dur, { type: "bandpass", f: 3200, f2: 4200, q: 1.8, vol, a: dur * 0.4, rel: dur * 0.4, wet: 0.3 }); noise(at, dur, { type: "highpass", f: 6000, vol: vol * 0.5, a: dur * 0.4, rel: dur * 0.4 }); };
@@ -341,6 +354,11 @@ export function makeSfx(ac, out, ambLP = null) {
   };
   return {
     scene(name, T) { const f = scenes[name]; if (f) f(T); return !!f; },
+    // sahne bitince: zinciri ve yankı döngülerini sök, boğuklaştırmayı geri al (arkada işlem kalmasın)
+    dispose() {
+      try { outG.disconnect(); send.disconnect(); for (const n of loops) n.disconnect(); } catch { /* zaten sökülmüş */ }
+      if (ambLP) { ambLP.frequency.cancelScheduledValues(now()); ambLP.frequency.setTargetAtTime(20000, now(), 0.2); }
+    },
     // karanlıkta yazı belirirken: 1. satır derin vuruş, 2. satır ürpertici tiz tını
     text(line, at = 0) {
       if (line === 1) boom(at, 0.75);
