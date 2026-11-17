@@ -1,18 +1,25 @@
 // Prosedürel ses (WebAudio): uğultu, rüzgâr, kalp atışı, adımlar, silah sesleri, çığlık.
-let AC = null, master = null, beatT = 0, noiseBuf = null;
+// Yakalanma sahnelerinin katmanlı ses tasarımı sfx.js'tedir.
+import { makeSfx } from "./sfx.js";
+let AC = null, master = null, beatT = 0, noiseBuf = null, ambLP = null, sfx = null, sfxTimer = 0;
 
 export function initAudio() {
   if (AC) { if (AC.state === "suspended") AC.resume(); return; }
   try {
-    AC = new (window.AudioContext || window.webkitAudioContext)();
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    try { AC = new Ctx({ latencyHint: "balanced" }); } catch { AC = new Ctx(); }   // biraz büyük tampon: yavaş cihazda ses kesilip cızırdamasın
     master = AC.createGain();
     master.gain.value = 0.9;
-    master.connect(AC.destination);
+    const lim = AC.createDynamicsCompressor();         // son sınırlayıcı: sesler üst üste binince kırpılıp cızırdamasın
+    lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.15;
+    master.connect(lim); lim.connect(AC.destination);
+    ambLP = AC.createBiquadFilter(); ambLP.type = "lowpass"; ambLP.frequency.value = 20000;   // ortam sesi (sahnelerde boğuklaşır)
+    ambLP.connect(master);
     for (const [f, type, g] of [[38, "sawtooth", 0.035], [41.5, "sine", 0.06], [57, "triangle", 0.02]]) {
       const o = AC.createOscillator(); o.type = type; o.frequency.value = f;
       const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 160;
       const gn = AC.createGain(); gn.gain.value = g;
-      o.connect(lp); lp.connect(gn); gn.connect(master); o.start();
+      o.connect(lp); lp.connect(gn); gn.connect(ambLP); o.start();
     }
     const len = AC.sampleRate * 2;
     noiseBuf = AC.createBuffer(1, len, AC.sampleRate);
@@ -24,7 +31,7 @@ export function initAudio() {
     const lfo = AC.createOscillator(); lfo.frequency.value = 0.12;
     const lg = AC.createGain(); lg.gain.value = 0.015;
     lfo.connect(lg); lg.connect(wg.gain); lfo.start();
-    src.connect(bp); bp.connect(wg); wg.connect(master); src.start();
+    src.connect(bp); bp.connect(wg); wg.connect(ambLP); src.start();
   } catch { AC = null; }
 }
 
@@ -160,35 +167,16 @@ export function playScream() {
   thump(0.8, 1.3, 70, 22, 0.5);
 }
 
-// Sıska Canavar üstümüze atlayıp bizi devirir: gövdeye çarpma + yere sırtüstü düşüş
-export function playTackle() {
-  if (!AC) return;
-  thump(1.0, 0, 110, 30, 0.35);                         // çarpma
-  noiseBurst(0.9, 0.3, 300, "lowpass");
-  noiseBurst(0.35, 0.25, 1800, "bandpass", 0.02, 1.5);  // hırıltılı nefes
-  thump(0.9, 0.42, 80, 26, 0.4);                        // sırtüstü yere çarpma
-  noiseBurst(0.6, 0.35, 220, "lowpass", 0.42);
+// Yakalanma sahnesinin bütün sesleri (T: render.js'teki zamanlar). Sahne yoksa false döner.
+// Her sahne kendi ses zincirini kurar; sahne ve yazılar bitince zincir tamamen sökülür (arkada işlem kalmaz).
+function freshSfx(sec) {
+  if (sfx) sfx.dispose();
+  sfx = makeSfx(AC, master, ambLP);
+  clearTimeout(sfxTimer);
+  const mine = sfx;
+  sfxTimer = setTimeout(() => { mine.dispose(); if (sfx === mine) sfx = null; }, sec * 1000);
+  return sfx;
 }
-// Isırık: kemik çatırtısı + boğuk darbe
-export function playBite() {
-  if (!AC) return;
-  for (let i = 0; i < 4; i++) noiseBurst(0.7, 0.06, 2600 + i * 500, "bandpass", i * 0.045, 3);
-  thump(1.0, 0.02, 140, 28, 0.45);
-  noiseBurst(0.8, 0.5, 400, "lowpass", 0.05);
-}
-// Saplama / elini çekme: ıslak, boğuk delinme
-export function playStab() {
-  if (!AC) return;
-  thump(1.0, 0, 160, 40, 0.3);
-  noiseBurst(0.9, 0.25, 900, "bandpass", 0, 1.2);
-  noiseBurst(0.6, 0.4, 250, "lowpass", 0.04);
-}
-// Boyun kırılması: art arda kuru çatırtılar + boğuk darbe
-export function playNeckSnap() {
-  if (!AC) return;
-  for (let i = 0; i < 5; i++) noiseBurst(0.9 - i * 0.12, 0.03, 3200 + i * 700, "highpass", i * 0.022, 1);
-  noiseBurst(0.7, 0.08, 1500, "bandpass", 0.01, 4);
-  thump(0.9, 0.0, 180, 60, 0.18);
-}
-// Bedenin yere yığılması
-export function playFall() { thump(0.9, 0, 80, 26, 0.4); noiseBurst(0.5, 0.35, 220, "lowpass"); }
+export function playScene(name, T) { return !!(AC && freshSfx(T.end + 10).scene(name, T)); }
+// Karanlıkta yazı belirirken: 1 = ilk satır, 2 = ikinci satır
+export function playText(line) { if (!AC) return; (sfx || freshSfx(6)).text(line); }
