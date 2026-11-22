@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function me() { return request.auth != null && request.auth.uid != null; }
+
+    // Kullanıcı kendi belgesini okur/yazar; e-posta ve davet kodu alanı dışında hassas alan tutulmaz.
+    match /users/{uid} {
+      allow read: if me() && request.auth.uid == uid;
+      allow create, update: if me() && request.auth.uid == uid;
+
+      // Hibeler (Pro hakları): yalnızca izinli türler, sabit gün sayılarıyla.
+      match /grants/{gid} {
+        allow read: if me() && request.auth.uid == uid;
+        allow create: if me() && request.auth.uid == uid && request.resource.data.kind in ['eco', 'launch', 'invite_in', 'invite_out', 'purchase']
+                      && (request.resource.data.get('days', 0) <= 150);
+      }
+      // Uygulama kayıtları (ekosistem motoru)
+      match /apps/{appId} {
+        allow read, write: if me() && request.auth.uid == uid;
+      }
+      // Davet edene kredi: yalnızca davet edilen kişi, kendi uid'siyle ve kullanılmış davet varsa yazabilir.
+      match /credits/{friend} {
+        allow read, update: if me() && request.auth.uid == uid;
+        allow create: if me() && request.auth.uid == friend
+                      && getAfter(/databases/$(db)/documents/invites/$(request.resource.data.code)).data.usedBy == request.auth.uid
+                      && getAfter(/databases/$(db)/documents/invites/$(request.resource.data.code)).data.ownerUid == uid;
+      }
+    }
+
+    match /invites/{code} {
+      allow read: if me();
+      // Kod yalnızca sahibi tarafından oluşturulur; "used" yalnızca false→true ve kendi uid'sini yazarak değişir.
+      allow create: if me() && request.resource.data.ownerUid == request.auth.uid && request.resource.data.used == false;
+      allow update: if me() && resource.data.used == false && request.resource.data.used == true
+                    && request.resource.data.usedBy == request.auth.uid && resource.data.ownerUid != request.auth.uid;
+    }
+
+    // Cihaz defteri (sil-yükle suistimali): yalnızca kendi hesabına ait kayıt.
+    match /devices/{d} {
+      allow read: if me();
+      allow create: if me();
+      allow update: if me() && (resource.data.uid == request.auth.uid);
+    }
+
+    match /app_meta/config { allow read: if true; allow write: if false; }
+    match /app_meta/launch_rewards {
+      allow read: if me();
+      allow create, update: if me() && request.resource.data.count == (resource == null ? 1 : resource.data.count + 1) && request.resource.data.count <= 10;
+    }
+  }
+}
