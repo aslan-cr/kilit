@@ -11,14 +11,15 @@ class Sfx {
 class SleepMixer {
   static final Map<String, AudioPlayer> _players = {};
   static const tracks = <String, String>{
-    'rain': 'audio/rain_loop.ogg',
-    'wind': 'audio/wind_loop.ogg',
-    'thunder': 'audio/thunder_distant.ogg',
-    'forest': 'audio/forest_night.ogg',
+    'rain': 'audio/rain_loop.mp3',
+    'forest': 'audio/forest_night.mp3',
+    'waves': 'audio/waves.mp3',
+    'campfire': 'audio/campfire.mp3',
+    'waterfall': 'audio/waterfall.mp3',
   };
-  static const labels = {'rain': '🌧️ Yağmur', 'wind': '💨 Rüzgar', 'thunder': '⛈️ Uzak gök gürültüsü', 'forest': '🌲 Orman gecesi'};
+  static const labels = {'rain': '🌧️ Gece yağmuru', 'forest': '🌲 Orman gecesi (kurbağa & cırcır)', 'waves': '🌊 Dalga sesi', 'campfire': '🔥 Kamp ateşi', 'waterfall': '💧 Şelale'};
 
-  /// false dönerse ses dosyası pakette yok demektir (assets/audio/README.md).
+  /// false dönerse ses dosyası pakette yok demektir (assets/audio/CREDITS.md).
   static Future<bool> setVolume(String key, double v) async {
     try {
       var p = _players[key];

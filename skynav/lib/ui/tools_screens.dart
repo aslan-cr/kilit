@@ -62,7 +62,7 @@ class _SleepMixerScreenState extends State<SleepMixerScreen> {
               for (final k in SleepMixer.tracks.keys) ListTile(
                 title: Text(SleepMixer.labels[k]!),
                 subtitle: _missing.contains(k)
-                    ? const Text('Ses dosyası pakette yok (assets/audio/README.md)', style: TextStyle(color: Color(0xFFC62828), fontSize: 12))
+                    ? const Text('Ses dosyası pakette yok (assets/audio/CREDITS.md)', style: TextStyle(color: Color(0xFFC62828), fontSize: 12))
                     : Slider(value: _vol[k]!, onChanged: (v) async {
                         setState(() => _vol[k] = v);
                         final ok = await SleepMixer.setVolume(k, v);
