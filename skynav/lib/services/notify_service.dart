@@ -5,7 +5,7 @@ class Notify {
   static bool _ok = false;
   static Future<void> init() async {
     try {
-      await _p.initialize(const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')));
+      await _p.initialize(const InitializationSettings(android: AndroidInitializationSettings('ic_stat')));
       _ok = true;
     } catch (_) {}
   }

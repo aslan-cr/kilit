@@ -35,6 +35,16 @@ android {
         versionName = flutter.versionName
     }
 
+    // Diğer uygulamalarla aynı sabit imza: güncelleyici yeni sürümü eskisinin üstüne kurabilsin.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("../../../app/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

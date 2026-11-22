@@ -55,6 +55,14 @@ jobs:
         with:
           name: kilit-aab
           path: app/build/outputs/bundle/release/app-release.aab
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: SkyNav (Flutter) APK derle
+        run: |
+          cd skynav
+          flutter pub get
+          flutter build apk --debug
       - name: APK dosyalarini topla
         run: |
           mkdir out
@@ -68,6 +76,7 @@ jobs:
             esac
             cp "$f" "out/$name.apk"
           done
+          cp skynav/build/app/outputs/flutter-apk/app-debug.apk out/skynav.apk
           ls -l out
       - uses: actions/upload-artifact@v4
         with:

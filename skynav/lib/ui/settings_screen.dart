@@ -6,6 +6,8 @@ import '../pro/pro_service.dart';
 import '../services/auth_service.dart';
 import '../services/store.dart';
 import '../services/weather_repository.dart';
+import '../widgets/widget_service.dart';
+import 'badges_screen.dart';
 import 'paywall.dart';
 import 'theme.dart';
 
@@ -63,6 +65,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ListTile(leading: const Icon(Icons.gavel), title: const Text('Kullanım Şartları'), onTap: () => _show('Kullanım Şartları', termsText)),
             ListTile(leading: const Icon(Icons.shield_outlined), title: const Text('Veri Kullanımı & İzinler'), onTap: () => _show('Veri Kullanımı & İzinler', dataText)),
             ListTile(leading: const Icon(Icons.lock_open), title: const Text('Uygulama izinlerini aç/değiştir'), onTap: openAppSettings),
+            ListTile(leading: const Text('🏅'), title: const Text('Rozetler & Kar Yarışı'), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BadgesScreen()))),
+            SwitchListTile(secondary: const Icon(Icons.speed), title: const Text('Hız & Yol widget\'ı canlı takip (Pro)'), subtitle: const Text('Açıkken görünür bildirimle GPS hızı ana ekran widget\'ına yazılır'),
+                value: WidgetService.speedTracking, onChanged: (v) async { if (!ProService.I.state.isPro) { Navigator.push(context, MaterialPageRoute(builder: (_) => const Paywall())); return; } if (v) { await WidgetService.startSpeedTracking(); } else { await WidgetService.stopSpeedTracking(); } setState(() {}); }),
             SwitchListTile(secondary: const Icon(Icons.bolt), title: const Text('Turbo Mod (1 dk, Pro)'), subtitle: const Text('Kapalıyken pil dostu: 15 dk'),
                 value: WeatherController.I.turbo, onChanged: (v) { if (ProService.I.state.isPro) { setState(() => WeatherController.I.turbo = v); } else { Navigator.push(context, MaterialPageRoute(builder: (_) => const Paywall())); } }),
           ])),

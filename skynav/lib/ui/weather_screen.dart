@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../data/phrases.dart';
 import '../engine/formulas.dart';
+import '../game/badges.dart';
 import '../services/audio_service.dart';
 import '../services/geocode_service.dart';
 import '../services/location_service.dart';
@@ -98,7 +99,7 @@ class WeatherScreen extends StatelessWidget {
 
         Section('Gözlem Butonları (beni eğit)', Wrap(spacing: 8, runSpacing: 6, children: [
           for (final e in [('🔘 Mercimek karı yağıyor', PrecipKind.lentilSnow), ('❄️ Normal kar başladı', PrecipKind.snow), ('🌨️ Tipi var', PrecipKind.blizzard), ('⛄ Kar tuttu', PrecipKind.snow)])
-            ActionChip(label: Text(e.$1), onPressed: () { Sfx.tap(); w.observe(e.$2); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Teşekkürler kanki, tahminimi buna göre ayarladım.'))); }),
+            ActionChip(label: Text(e.$1), onPressed: () { Sfx.tap(); w.observe(e.$2); if (e.$2 == PrecipKind.lentilSnow) Badges.award('first_lentil'); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Teşekkürler kanki, tahminimi buna göre ayarladım.'))); }),
         ]), trailing: Pill('Karne %${w.accuracy.round()}')),
 
         Section('Detaylar', Wrap(spacing: 22, runSpacing: 12, children: [
