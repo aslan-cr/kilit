@@ -1,7 +1,9 @@
 # SkyNav bulut kurulumu (Firebase)
 
-1. Firebase'de proje aç, Android uygulaması ekle: paket adı `com.skynav.skynav`, debug/release SHA-1'leri ekle.
-2. Authentication > Google'ı etkinleştir. İndirdiğin `google-services.json` dosyasını `android/app/` içine koy (depoya ekleme; `.gitignore`'da).
+1. Firebase'de proje aç, Android uygulaması ekle: paket adı `com.skynav.skynav`. İmza parmak izleri (CI'daki sabit anahtar, `app/debug.keystore`):
+   - SHA-1: `D0:F0:81:B9:98:26:55:20:76:ED:E7:37:EE:9A:7F:0C:79:13:82:C0`
+   - SHA-256: `61:33:92:5B:67:7C:02:70:69:6E:37:09:A4:58:07:05:33:4B:E4:79:E3:35:AF:0D:E8:57:F8:94:05:18:3E:92`
+2. Authentication > Google'ı etkinleştir. İndirdiğin `google-services.json` dosyasını `android/app/` içine koy ve depoya ekle (gizli anahtar değildir; CI derlemesi için gerekli).
 3. Firestore'u oluştur, `firestore.rules` dosyasını yayınla.
 4. Konsolda belgeleri oluştur:
    - `app_meta/config`: `{ is_published_on_play_store: false, developer_emails: ["<senin gmail>"] }` (e-postan kaynak koda gömülmez).
