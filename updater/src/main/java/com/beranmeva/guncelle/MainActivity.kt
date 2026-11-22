@@ -322,8 +322,12 @@ class MainActivity : Activity() {
         return stream.use { importStream(it) }
     }
 
+    /** Son hatanın gerçek nedeni (ekranda "geçersiz dosya" yerine gösterilir). */
+    private var lastFail: String = ""
+
     /** warn=false: otomatik kontrolde APK olmayan/bozuk dosya sessizce atlanır, uyarı çıkmaz. */
     private fun importStream(ins: InputStream, warn: Boolean = true): Entry? {
+        lastFail = ""
         val tmp = File.createTempFile("yeni", ".apk", cacheDir)
         try {
             FileOutputStream(tmp).use { out -> ins.copyTo(out) }
@@ -333,6 +337,8 @@ class MainActivity : Activity() {
                 magic[0] == 'P'.code.toByte() && magic[1] == 'K'.code.toByte()
             val e = if (okMagic) parse(tmp) else null
             if (e == null) {
+                lastFail = if (!okMagic) "zip başlığı yok, ${tmp.length() / 1024} KB indi"
+                else "Android paketi okuyamadı (${tmp.length() / 1024} KB, Android API ${Build.VERSION.SDK_INT}, boş alan ${cacheDir.usableSpace / 1048576} MB)"
                 if (warn) toastUi("Bu dosya geçerli bir APK değil")
                 return null
             }
@@ -346,6 +352,7 @@ class MainActivity : Activity() {
             tmp.copyTo(dest, overwrite = true)
             return parse(dest)
         } catch (ex: Exception) {
+            lastFail = "${ex.javaClass.simpleName}: ${ex.message} (boş alan ${cacheDir.usableSpace / 1048576} MB)"
             if (warn) toastUi("Dosya eklenemedi: ${ex.message}")
             return null
         } finally {
@@ -445,7 +452,7 @@ class MainActivity : Activity() {
                                 prefs.edit().putString("d_$aname", adigest).putString("p_$aname", e.pkg).apply()
                                 runOnUiThread { refresh() }
                             } else if (!skippedOld) {
-                                failed++; failedNames.add("$aname (geçersiz dosya)")
+                                failed++; failedNames.add("$aname (geçersiz dosya: $lastFail)")
                             }
                         } else {
                             failed++; failedNames.add("$aname (HTTP ${dl.responseCode})")
