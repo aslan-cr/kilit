@@ -8,7 +8,9 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val aliases = mapOf(
-        "snow" to "IconSnow", "lentil" to "IconLentil", "night" to "IconNight", "sun" to "IconSun"
+        "snow" to "IconSnow", "lentil" to "IconLentil", "blizzard" to "IconBlizzard", "rain" to "IconRain",
+        "sleet" to "IconSleet", "cloudy" to "IconCloudy", "night" to "IconNight", "sun" to "IconSun",
+        "sun_hot" to "IconSunHot", "sun_extreme" to "IconSunExtreme"
     )
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

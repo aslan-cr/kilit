@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skynav/data/models.dart';
 import 'package:skynav/engine/weather_engine.dart';
 import 'package:skynav/services/store.dart';
+import 'package:skynav/services/location_service.dart';
 import 'package:skynav/services/weather_repository.dart';
 import 'package:skynav/ui/app_shell.dart';
 import 'package:skynav/ui/lab_screen.dart';
@@ -70,6 +71,8 @@ void main() {
     final tmp = Directory.systemTemp.createTempSync('hive');
     await Store.init(testPath: tmp.path);
     await Store.put('onboarding_done', true);
+    await LocationService.savePlace(const GeoPoint2(39.91, 41.28, name: 'Evim'));
+    await LocationService.savePlace(const GeoPoint2(39.95, 41.10, name: 'Anneannem'));
   });
 
   testWidgets('ekranlar', (t) async {
@@ -85,6 +88,7 @@ void main() {
     WeatherController.I.debugSet(n, WeatherEngine.analyze(n));
     await shot(t, const AppShell(), '06_weather_night');
     await shot(t, const Scaffold(body: Stack(children: [Positioned.fill(child: SkyBackground(state: SkyState(cloud: 30))), SafeArea(child: RoadScreen())])), '07_road');
+    await shot(t, const Scaffold(body: Stack(children: [Positioned.fill(child: SkyBackground(state: SkyState(cloud: 30))), SafeArea(child: RoadScreen())])), '07b_road_full', size: const Size(412, 1500));
     await shot(t, const Scaffold(body: Stack(children: [Positioned.fill(child: SkyBackground(state: SkyState(cloud: 30, isDay: false))), SafeArea(child: SkyScreen())])), '08_sky');
   });
 }

@@ -50,6 +50,30 @@
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity-alias>
 
+        <activity-alias android:name=".IconBlizzard" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:icon="@mipmap/ic_launcher_blizzard" android:roundIcon="@mipmap/ic_launcher_blizzard" android:label="SkyNav">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconRain" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:icon="@mipmap/ic_launcher_rain" android:roundIcon="@mipmap/ic_launcher_rain" android:label="SkyNav">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconSleet" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:icon="@mipmap/ic_launcher_sleet" android:roundIcon="@mipmap/ic_launcher_sleet" android:label="SkyNav">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconCloudy" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:icon="@mipmap/ic_launcher_cloudy" android:roundIcon="@mipmap/ic_launcher_cloudy" android:label="SkyNav">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconSunHot" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:icon="@mipmap/ic_launcher_sun_hot" android:roundIcon="@mipmap/ic_launcher_sun_hot" android:label="SkyNav">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
+        <activity-alias android:name=".IconSunExtreme" android:targetActivity=".MainActivity" android:enabled="false" android:exported="true"
+            android:icon="@mipmap/ic_launcher_sun_extreme" android:roundIcon="@mipmap/ic_launcher_sun_extreme" android:label="SkyNav">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity-alias>
         <receiver android:name=".SkyWeatherWidget" android:exported="true" android:label="SkyNav Hava">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/sky_weather_widget_info"/>
