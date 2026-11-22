@@ -63,7 +63,7 @@ jobs:
         run: |
           cd skynav
           flutter pub get
-          flutter build apk --debug
+          flutter build apk --release --target-platform android-arm,android-arm64
       - name: APK dosyalarini topla
         run: |
           mkdir out
@@ -77,7 +77,7 @@ jobs:
             esac
             cp "$f" "out/$name.apk"
           done
-          cp skynav/build/app/outputs/flutter-apk/app-debug.apk out/skynav.apk
+          cp skynav/build/app/outputs/flutter-apk/app-release.apk out/skynav.apk
           ls -l out
       - uses: actions/upload-artifact@v4
         with:
