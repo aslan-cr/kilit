@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 import '../data/models.dart';
+import 'shared_state.dart';
 import 'store.dart';
 
 enum LocStatus { ok, denied, deniedForever, serviceOff, weakSignal }
@@ -18,7 +19,11 @@ class LocationService {
     if (s == null) return null;
     try { return GeoPoint2.fromJson((jsonDecode(s) as Map).cast<String, dynamic>()); } catch (_) { return null; }
   }
-  static Future<void> remember(GeoPoint2 p) => Store.put('last_place', jsonEncode(p.toJson()));
+  static Future<void> remember(GeoPoint2 p) async {
+    final j = jsonEncode(p.toJson());
+    await Store.put('last_place', j);
+    await (await SharedState.get()).setString('sn_last_place', j); // arka plan görevi için
+  }
 
   /// GPS (bestForNavigation) + gerçek rakım. İzin yoksa/sinyal zayıfsa kilitlenmeden son/yakın konuma düşer.
   static Future<LocResult> current() async {

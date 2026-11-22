@@ -1,15 +1,23 @@
 import 'package:skynav_icon/skynav_icon.dart';
 import '../data/models.dart';
-import 'store.dart';
+import 'shared_state.dart';
 
-/// Hava durumuna göre launcher ikonu (activity-alias). Sık değiştirmemek için 30 dk'da en çok bir kez.
+/// Hava durumuna göre launcher ikonu (activity-alias).
+///
+/// Android (özellikle Samsung) uygulamayı başlatan alias kapatılınca uygulamayı sonlandırabiliyor.
+/// Bu yüzden ikon ASLA uygulama açıkken ya da yeni kapatılmışken değiştirilmez:
+/// yalnızca uygulama ekranda değilken VE en az [idle] süredir kullanılmıyorken, arka plan görevinde uygulanır.
 class IconService {
   static const aliases = <String, String>{
     'snow': 'IconSnow', 'lentil': 'IconLentil', 'blizzard': 'IconBlizzard', 'rain': 'IconRain',
     'sleet': 'IconSleet', 'cloudy': 'IconCloudy', 'night': 'IconNight', 'sun': 'IconSun',
     'sun_hot': 'IconSunHot', 'sun_extreme': 'IconSunExtreme',
   };
-  static bool get enabled => Store.prefs.get('dyn_icon', defaultValue: true) as bool;
+  static const idle = Duration(minutes: 2, seconds: 30);
+  static const _minGap = Duration(minutes: 30);
+
+  static bool get enabled => SharedState.cached?.getBool('sn_dyn_icon') ?? true;
+
   /// Hava durumu → launcher ikonu.
   /// Sıcak tehlikesi: 33°C+ ya da UV 8+ turuncu güneş; 38°C+ ya da UV 10+ kırmızı, kıvırcık ışınlı güneş.
   static String keyFor(Analysis a, WeatherSnapshot s) {
@@ -28,42 +36,55 @@ class IconService {
     }
   }
 
-  /// Uygulama içinden: istenen ikonu kaydeder, uygulama ekrandayken DEĞİŞTİRMEZ (Android uygulamayı kapatabiliyor).
-  /// Asıl değişiklik [applyPending] ile uygulama arka plana geçince ya da arka plan görevinde yapılır.
+  /// Uygulama içinden: istenen ikonu yalnızca KAYDEDER.
   static Future<void> maybeUpdate(Analysis? a, WeatherSnapshot? s) async {
     if (a == null || s == null || !enabled) return;
-    await Store.put('icon_pending', keyFor(a, s));
+    await (await SharedState.get()).setString('sn_icon_pending', keyFor(a, s));
   }
 
-  /// Uygulama arka plana geçerken (ya da arka plan görevinde) bekleyen ikonu uygula. 30 dk'da en çok bir kez.
-  static Future<String> applyPending({bool force = false}) async {
-    final reset = Store.prefs.get('icon_reset', defaultValue: false) as bool;
-    if (!enabled && !reset) return 'off';
-    final key = reset ? 'snow' : Store.prefs.get('icon_pending') as String?;
+  /// Uygulama ön plana gelince / arka plana geçince çağrılır (son kullanım anını tutar).
+  static Future<void> markForeground(bool fg) async {
+    final p = await SharedState.get();
+    await p.setInt('sn_last_used', DateTime.now().millisecondsSinceEpoch);
+    await p.setBool('sn_fg', fg);
+  }
+
+  /// Bekleyen ikonu uygula: sadece uygulama ekranda değilse ve [idle] süredir kullanılmıyorsa.
+  /// Dönüş: off | none | busy | throttled | deferred | same | changed | error
+  static Future<String> applyPending() async {
+    final p = await SharedState.fresh();
+    final reset = p.getBool('sn_icon_reset') ?? false;
+    if (!(p.getBool('sn_dyn_icon') ?? true) && !reset) return 'off';
+    final key = reset ? 'snow' : p.getString('sn_icon_pending');
     if (key == null || !aliases.containsKey(key)) return 'none';
-    final last = (Store.prefs.get('icon_t') as int?) ?? 0;
-    if (!reset && key != Store.prefs.get('icon_key') && DateTime.now().millisecondsSinceEpoch - last < 30 * 60 * 1000) return 'throttled';
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final lastUsed = p.getInt('sn_last_used') ?? 0;
+    if ((p.getBool('sn_fg') ?? false) || now - lastUsed < idle.inMilliseconds) return 'busy';
+    final last = p.getInt('sn_icon_t') ?? 0;
+    if (!reset && key != p.getString('sn_icon_key') && now - last < _minGap.inMilliseconds) return 'throttled';
     try {
-      final r = await SkynavIcon.setIcon(aliases[key]!, aliases.values.toList(), force: force);
+      final r = await SkynavIcon.setIcon(aliases[key]!, aliases.values.toList());
       if (r == 'changed' || r == 'same') {
-        await Store.put('icon_key', key);
-        if (reset) await Store.put('icon_reset', false);
-        if (r == 'changed') await Store.put('icon_t', DateTime.now().millisecondsSinceEpoch);
+        await p.setString('sn_icon_key', key);
+        if (reset) await p.setBool('sn_icon_reset', false);
+        if (r == 'changed') await p.setInt('sn_icon_t', now);
       }
       return r;
     } catch (_) { return 'error'; }
   }
 
-  /// Arka plan görevi için: hesapla ve uygulama ekranda değilse hemen uygula.
+  /// Arka plan görevi için: hesapla, kaydet, koşullar uygunsa uygula.
   static Future<String> updateFromBackground(Analysis a, WeatherSnapshot s) async {
-    if (!enabled) return 'off';
-    await Store.put('icon_pending', keyFor(a, s));
+    final p = await SharedState.fresh();
+    if (!(p.getBool('sn_dyn_icon') ?? true)) return applyPending(); // kapalıysa yalnızca sıfırlamayı uygula
+    await p.setString('sn_icon_pending', keyFor(a, s));
     return applyPending();
   }
 
-  /// Ayarlardan kapatılınca varsayılan (kar kristali) ikona dön; uygulama arka plana geçince uygulanır.
+  /// Ayarlardan kapatılınca varsayılan (kar kristali) ikona dön; uygulama kullanılmadığında uygulanır.
   static Future<void> setEnabled(bool v) async {
-    await Store.put('dyn_icon', v);
-    await Store.put('icon_reset', !v);
+    final p = await SharedState.get();
+    await p.setBool('sn_dyn_icon', v);
+    await p.setBool('sn_icon_reset', !v);
   }
 }

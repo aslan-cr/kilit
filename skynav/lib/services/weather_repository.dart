@@ -10,6 +10,7 @@ import 'location_service.dart';
 import 'metar_service.dart';
 import 'mountain_radar.dart';
 import 'open_meteo_service.dart';
+import 'shared_state.dart';
 import 'store.dart';
 
 /// Onaylı hava durumu: ekranda yalnızca doğrulanmış (confirmed) veri görünür.
@@ -123,6 +124,7 @@ class WeatherController extends ChangeNotifier {
     if (snowReal && !snowPred) bias += .2;
     if (!snowReal && snowPred) bias -= .2;
     await Store.put('bias_c', bias.clamp(-1.5, 1.5));
+    await (await SharedState.get()).setDouble('sn_bias', bias.clamp(-1.5, 1.5).toDouble());
     await refresh(force: true);
   }
 

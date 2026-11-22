@@ -7,7 +7,9 @@ import '../services/auth_service.dart';
 import '../services/store.dart';
 import '../services/weather_repository.dart';
 import '../widgets/widget_service.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../services/icon_service.dart';
+import '../services/shared_state.dart';
 import 'badges_screen.dart';
 import 'paywall.dart';
 import 'theme.dart';
@@ -118,6 +120,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Switch(value: ProService.I.devMode, onChanged: (v) async { await ProService.I.setDevMode(v); setState(() {}); }),
           ])),
         ],
+        const SectionLabel('Tanılama'),
+        Builder(builder: (_) {
+          final p = SharedState.cached;
+          final err = p?.getString('sn_last_error');
+          final t = p?.getInt('sn_last_error_t');
+          return Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              IconBadge(err == null ? Icons.check_circle_outline_rounded : Icons.bug_report_outlined, color: err == null ? kGood : kWarn, size: 38),
+              const SizedBox(width: 12),
+              Expanded(child: Text(err == null ? 'Kayıtlı hata yok' : 'Son hata · ${DateTime.fromMillisecondsSinceEpoch(t ?? 0).toString().substring(0, 16)}', style: T.body.copyWith(fontWeight: FontWeight.w700))),
+            ]),
+            if (err != null) ...[
+              const SizedBox(height: 10),
+              Text(err.split('\n').take(4).join('\n'), style: T.small.copyWith(fontSize: 11.5), maxLines: 6, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 8),
+              Row(children: [
+                TextButton.icon(onPressed: () => Clipboard.setData(ClipboardData(text: err)), icon: const Icon(Icons.copy_rounded, size: 18), label: const Text('Kopyala')),
+                TextButton(onPressed: () async { await p!.remove('sn_last_error'); setState(() {}); }, child: const Text('Temizle')),
+              ]),
+            ],
+            const SizedBox(height: 4),
+            Text('İkon: ${p?.getString('sn_icon_key') ?? 'kar (varsayılan)'} · bekleyen: ${p?.getString('sn_icon_pending') ?? '-'}', style: T.small.copyWith(fontSize: 11.5)),
+          ]));
+        }),
         const SizedBox(height: 18),
         Center(child: GestureDetector(onTap: _tapVersion, child: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
           const Icon(Icons.ac_unit_rounded, color: kInkFaint, size: 20),

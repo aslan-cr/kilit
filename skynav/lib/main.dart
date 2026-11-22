@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' show PlatformDispatcher;
+import 'services/shared_state.dart';
 import 'l10n/l10n.dart';
 import 'pro/billing_service.dart';
 import 'pro/pro_service.dart';
@@ -18,10 +19,26 @@ import 'ui/app_shell.dart';
 import 'ui/onboarding.dart';
 import 'ui/theme.dart';
 
+void _saveError(String text) {
+  SharedState.get().then((p) {
+    p.setString('sn_last_error', text.length > 4000 ? text.substring(0, 4000) : text);
+    p.setInt('sn_last_error_t', DateTime.now().millisecondsSinceEpoch);
+  });
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.dark));
   await Store.init();
+  await SharedState.init();
+  // Tanılama: yakalanmayan Dart hatalarını kaydet (Ayarlar > Tanılama'da görünür).
+  FlutterError.onError = (d) { FlutterError.presentError(d); _saveError('${d.exception}\n${d.stack}'); };
+  PlatformDispatcher.instance.onError = (e, st) { _saveError('$e\n$st'); return true; };
+  // Eski sürümden kalan konum/sapma değerlerini arka plan görevi için aktar.
+  final sp = await SharedState.get();
+  final lp = Store.prefs.get('last_place') as String?;
+  if (lp != null) await sp.setString('sn_last_place', lp);
+  await sp.setDouble('sn_bias', (Store.prefs.get('bias_c', defaultValue: 0.0) as num).toDouble());
   await Cloud.init();
   await Notify.init();
   runApp(const SkyNavApp());
@@ -41,15 +58,21 @@ class _SkyNavAppState extends State<SkyNavApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    IconService.markForeground(true);
     if (_ready) _boot();
   }
 
-  /// İkon değişikliği uygulama ekrandayken yapılmaz (Android uygulamayı kapatabiliyor);
-  /// kullanıcı uygulamadan çıkınca bekleyen ikon uygulanır.
+  /// İkon değişikliği uygulama açıkken yapılmaz (Android, özellikle Samsung, uygulamayı kapatıyor);
+  /// uygulama birkaç dakika kullanılmayınca arka planda uygulanır.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
-      IconService.applyPending(force: true);
+    if (state == AppLifecycleState.resumed) {
+      IconService.markForeground(true);
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      // İkon burada DEĞİŞTİRİLMEZ (izin/giriş penceresi açılınca da bu durum oluşur, Samsung uygulamayı kapatır).
+      // Sadece son kullanım anını kaydet ve birkaç dakika sonrası için arka plan işi planla.
+      IconService.markForeground(false);
+      Background.scheduleIconApply();
     }
   }
 
