@@ -114,7 +114,7 @@ class PlacesService {
     if (resp.statusCode != 200) {
       throw PlacesException('Arama hatası (HTTP ${resp.statusCode})');
     }
-    final body = jsonDecode(resp.body) as Map<String, dynamic>;
+    final body = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
     final out = <Place>[];
     for (final f in (body['features'] as List? ?? const [])) {
       final m = f as Map<String, dynamic>;
@@ -223,7 +223,7 @@ class PlacesService {
     if (resp.statusCode != 200) {
       throw PlacesException('Yakın çevre hatası (HTTP ${resp.statusCode})');
     }
-    final body = jsonDecode(resp.body) as Map<String, dynamic>;
+    final body = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
     return (body['elements'] as List?) ?? const [];
   }
 

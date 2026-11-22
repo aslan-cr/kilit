@@ -7,7 +7,8 @@ import '../services/weather_repository.dart';
 import '../l10n/l10n.dart';
 import 'map3d_screen.dart';
 import 'plane_radar_screen.dart';
-import 'placeholders.dart';
+import 'road_screen.dart';
+import 'sky_screen.dart';
 import 'settings_screen.dart';
 import 'sky_background.dart';
 import 'theme.dart';
@@ -66,8 +67,8 @@ class _AppShellState extends State<AppShell> {
       case 0: return const WeatherScreen();
       case 1: return const Map3DScreen();
       case 2: return const PlaneRadarScreen();
-      case 3: return const FeaturePlaceholder(emoji: '🧭', title: 'Yol Tarifi', text: 'OSRM navigasyonu, canlı hız, G-kuvveti sensörü ve esprili sesli asistan 2. yarıda geliyor.');
-      default: return const FeaturePlaceholder(emoji: '🌌', title: 'Gökyüzü & Astronomi', text: 'Zaman makinesi, uydu nişangahı ve 360° kubbe 2. yarıda geliyor. (Gece yıldız netliği radarı Hava sekmesinde hazır.)');
+      case 3: return const RoadScreen();
+      default: return const SkyScreen();
     }
   }
 

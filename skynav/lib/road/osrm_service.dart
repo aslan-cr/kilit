@@ -49,8 +49,9 @@ class RouteStep {
   });
 
   /// Manevraya [distanceToManeuverM] metre kala anlık duyuru.
-  String announce(double distanceToManeuverM) =>
-      RouteText.announce(phraseTr, distanceToManeuverM);
+  String announce(double distanceToManeuverM) => RouteText.announce(
+      RouteText.withStreet(phraseTr, maneuverType, streetName),
+      distanceToManeuverM);
 }
 
 class RouteResult {
@@ -249,7 +250,7 @@ class OsrmService {
 
     final Map<String, dynamic> body;
     try {
-      body = jsonDecode(resp.body) as Map<String, dynamic>;
+      body = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
     } catch (_) {
       throw OsrmException('Geçersiz yanıt (HTTP ${resp.statusCode})');
     }
