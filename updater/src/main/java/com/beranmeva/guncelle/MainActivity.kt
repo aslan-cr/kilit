@@ -438,28 +438,43 @@ class MainActivity : Activity() {
                         }
                     }
                     // Bir APK inmezse diğerleri yine denensin; hiçbiri sessizce atlanmasın.
-                    try {
-                        val dl = URL(a.getString("browser_download_url"))
-                            .openConnection() as HttpURLConnection
-                        dl.connectTimeout = 15000
-                        dl.readTimeout = 60000
-                        dl.instanceFollowRedirects = true
-                        if (dl.responseCode == 200) {
-                            skippedOld = false
-                            val e = dl.inputStream.use { importStream(it, warn = false) }
-                            if (e != null) {
-                                added.add(e)
-                                prefs.edit().putString("d_$aname", adigest).putString("p_$aname", e.pkg).apply()
-                                runOnUiThread { refresh() }
-                            } else if (!skippedOld) {
-                                failed++; failedNames.add("$aname (geçersiz dosya: $lastFail)")
+                    // Yavaş mobil bağlantıda büyük dosya (SkyNav ~62 MB) için: uzun bekleme + 3 deneme.
+                    var attempt = 0
+                    while (attempt < 3) {
+                        attempt++
+                        try {
+                            val dl = URL(a.getString("browser_download_url"))
+                                .openConnection() as HttpURLConnection
+                            dl.connectTimeout = 30000
+                            dl.readTimeout = 240000
+                            dl.instanceFollowRedirects = true
+                            if (dl.responseCode == 200) {
+                                skippedOld = false
+                                val e = dl.inputStream.use { importStream(it, warn = false) }
+                                if (e != null) {
+                                    added.add(e)
+                                    prefs.edit().putString("d_$aname", adigest).putString("p_$aname", e.pkg).apply()
+                                    runOnUiThread { refresh() }
+                                } else if (!skippedOld) {
+                                    if (lastFail.contains("Exception") && attempt < 3) {
+                                        setStatus("$aname inemedi (${lastFail.substringBefore(":")}), yeniden deneniyor ($attempt/3)...", WARN)
+                                        dl.disconnect()
+                                        continue
+                                    }
+                                    failed++; failedNames.add("$aname (geçersiz dosya: $lastFail)")
+                                }
+                            } else {
+                                failed++; failedNames.add("$aname (HTTP ${dl.responseCode})")
                             }
-                        } else {
-                            failed++; failedNames.add("$aname (HTTP ${dl.responseCode})")
+                            dl.disconnect()
+                            break
+                        } catch (ex: Exception) {
+                            if (attempt >= 3) {
+                                failed++; failedNames.add("$aname (${ex.message ?: ex.javaClass.simpleName})")
+                            } else {
+                                setStatus("$aname inemedi, yeniden deneniyor ($attempt/3)...", WARN)
+                            }
                         }
-                        dl.disconnect()
-                    } catch (ex: Exception) {
-                        failed++; failedNames.add("$aname (${ex.message ?: ex.javaClass.simpleName})")
                     }
                 }
                 setStatus(
