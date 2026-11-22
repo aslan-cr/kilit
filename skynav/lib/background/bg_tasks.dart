@@ -42,7 +42,7 @@ class Background {
   static Future<void> start() async {
     await Workmanager().initialize(callbackDispatcher);
     await Workmanager().registerPeriodicTask(_task, _task,
-        frequency: const Duration(minutes: 15), existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
+        frequency: const Duration(minutes: 15), existingWorkPolicy: ExistingWorkPolicy.update,
         constraints: Constraints(networkType: NetworkType.connected));
   }
 }
