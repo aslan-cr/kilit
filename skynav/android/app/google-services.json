@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "187082258469",
+    "project_id": "skynav-af288",
+    "storage_bucket": "skynav-af288.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:187082258469:android:34f7efe3a4d7957fcae7cc",
+        "android_client_info": {
+          "package_name": "com.skynav.skynav"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "187082258469-atm23v5t5evahat2vqi88covhi3breo3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.skynav.skynav",
+            "certificate_hash": "d0f081b99826552076ede737ee9a7f0c791382c0"
+          }
+        },
+        {
+          "client_id": "187082258469-jbhfj79cjp7372aohesqg5585ufkm74s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCr1oqRF_LZsTjvDDtSocTt_P0brDQtxT4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "187082258469-jbhfj79cjp7372aohesqg5585ufkm74s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

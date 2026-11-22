@@ -3,6 +3,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'cloud.dart';
 
 class AuthService {
+  /// Firebase web istemcisi (google-services.json, client_type 3): Firebase'e giriş jetonu bunun için alınır.
+  static const _webClientId = '187082258469-jbhfj79cjp7372aohesqg5585ufkm74s.apps.googleusercontent.com';
   static bool _gsiInit = false;
   static User? get user => Cloud.ready ? FirebaseAuth.instance.currentUser : null;
   static Stream<User?> get changes => Cloud.ready ? FirebaseAuth.instance.authStateChanges() : const Stream.empty();
@@ -13,7 +15,7 @@ class AuthService {
     lastError = null;
     if (!Cloud.ready) { lastError = 'Bulut yapılandırması (google-services.json) yok; giriş şimdilik kapalı.'; return null; }
     try {
-      if (!_gsiInit) { await GoogleSignIn.instance.initialize(); _gsiInit = true; }
+      if (!_gsiInit) { await GoogleSignIn.instance.initialize(serverClientId: _webClientId); _gsiInit = true; }
       final acc = await GoogleSignIn.instance.authenticate();
       final idToken = acc.authentication.idToken;
       final cred = GoogleAuthProvider.credential(idToken: idToken);
