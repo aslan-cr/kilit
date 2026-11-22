@@ -4,7 +4,7 @@ import '../services/audio_service.dart';
 import 'paywall.dart';
 import 'theme.dart';
 
-/// Pro içerik kapısı: kilitliyse içerik yumuşakça gösterilir, zorlayıcı duvar yok.
+/// Pro içerik kapısı: kilitliyse sakin bir davet kartı gösterir; zorlayıcı duvar yok.
 class ProGate extends StatelessWidget {
   final Widget child; final String title;
   const ProGate({super.key, required this.child, required this.title});
@@ -16,28 +16,34 @@ class ProGate extends StatelessWidget {
           return Glass(
             onTap: () { Sfx.tap(); Navigator.push(context, MaterialPageRoute(builder: (_) => const Paywall())); },
             child: Row(children: [
-              const Text('🔒', style: TextStyle(fontSize: 26)),
-              const SizedBox(width: 12),
+              Container(
+                width: 46, height: 46,
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(15), gradient: const LinearGradient(colors: [Color(0xFF8E6CFF), Color(0xFF4F7BFF)])),
+                child: const Icon(Icons.lock_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                const Text('SkyNav Pro özelliği. Dokun, nasıl açılacağına bak (arkadaş davetiyle bedava da olur).', style: TextStyle(color: kInkSoft, fontSize: 13)),
+                Text(title, style: T.body.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                const Text('SkyNav Pro ile açılır · arkadaş davetiyle 1 hafta bedava', style: T.small),
               ])),
-              const Pill('PRO'),
+              const Icon(Icons.chevron_right_rounded, color: kInkFaint),
             ]),
           );
         },
       );
 }
 
+/// Başlıklı kart.
 class Section extends StatelessWidget {
   final String title; final Widget child; final Widget? trailing;
   const Section(this.title, this.child, {super.key, this.trailing});
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.only(bottom: 12),
         child: Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [Expanded(child: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800))), if (trailing != null) trailing!]),
-          const SizedBox(height: 10), child,
+          Row(children: [Expanded(child: Text(title, style: T.h2)), if (trailing != null) trailing!]),
+          const SizedBox(height: 12), child,
         ])),
       );
 }
@@ -47,8 +53,8 @@ class Stat extends StatelessWidget {
   const Stat(this.label, this.value, {super.key});
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-        Text(label, style: const TextStyle(fontSize: 12, color: kInkSoft)),
+        Text(value, style: T.num.copyWith(fontSize: 18)),
+        Text(label, style: T.small.copyWith(fontSize: 12)),
       ]);
 }
 
@@ -57,11 +63,11 @@ class Bar extends StatelessWidget {
   const Bar(this.label, this.pct, {super.key, this.color = kAccent});
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 5),
         child: Row(children: [
-          SizedBox(width: 118, child: Text(label, style: const TextStyle(fontSize: 13))),
-          Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(8), child: LinearProgressIndicator(value: (pct / 100).clamp(0, 1), minHeight: 9, color: color, backgroundColor: color.withValues(alpha: .13)))),
-          SizedBox(width: 44, child: Text('%${pct.round()}', textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))),
+          SizedBox(width: 112, child: Text(label, style: T.small.copyWith(color: kInk, fontWeight: FontWeight.w600))),
+          Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(8), child: LinearProgressIndicator(value: (pct / 100).clamp(0, 1), minHeight: 8, color: color, backgroundColor: color.withValues(alpha: .12)))),
+          SizedBox(width: 46, child: Text('%${pct.round()}', textAlign: TextAlign.right, style: T.body.copyWith(fontWeight: FontWeight.w700, fontSize: 14))),
         ]),
       );
 }

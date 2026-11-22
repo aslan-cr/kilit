@@ -82,6 +82,22 @@ class Kanki {
     'Güneş de yıldızlar da keyifli, kendini rahat hisset kanki.',
   ];
 
+  /// Açık gündüz (sıcaklıktan bağımsız, güneşe uygun).
+  static const List<String> acikGunduz = [
+    'Hava açık kanki, gökyüzü masmavi, keyfini çıkar.',
+    'Gökyüzü berrak, uzaktaki dağlar bile net görünüyor.',
+    'Bugün güzel bir gün kanki, güneş gözlüğünü yanına al.',
+    'Pırıl pırıl bir gökyüzü var, dışarı çıkmak için iyi zaman.',
+  ];
+
+  /// Açık gece.
+  static const List<String> acikGece = [
+    'Gökyüzü açık kanki, yıldızlar seni bekliyor.',
+    'Bulut yok, gece berrak; başını kaldır, yıldızlara bak.',
+    'Açık bir gece kanki, hava serinler, üstünü sıkı tut.',
+    'Gece tertemiz, Ay ve yıldızlar sahnede kanki.',
+  ];
+
   static const List<String> bulutlu = [
     'Hava bulutlu kanki, güneş yok ama görüş fena değil.',
     'Gökyüzü kapalı, hava biraz serin, üstüne bir şey al.',

@@ -156,69 +156,122 @@ class _RoadScreenState extends State<RoadScreen> {
     if (mounted) setState(() => _busy = false);
   }
 
+  static const _chipIcons = <String, IconData>{
+    'Fırın': Icons.bakery_dining_outlined, 'Bakkal': Icons.storefront_outlined, 'Eczane': Icons.local_pharmacy_outlined,
+    'Kafe': Icons.local_cafe_outlined, 'Benzinlik': Icons.local_gas_station_outlined, 'Hastane': Icons.local_hospital_outlined,
+    'Market': Icons.shopping_cart_outlined,
+  };
+
+  /// Ücretsiz yol durumu: hava verisinden zemin tahmini.
+  (String, String, Color, IconData) _road(WeatherSnapshot? s, Analysis? a) {
+    if (s == null || a == null) return ('Bilinmiyor', 'Hava verisi gelince yol durumunu söylerim.', kInkSoft, Icons.help_outline_rounded);
+    final ice = s.temp <= 1 && (a.kind != PrecipKind.none || (s.soil0 ?? 5) <= 0);
+    if (a.kind == PrecipKind.blizzard) return ('Tipi', 'Tipi var kanki, mümkünse yola çıkma; çıkarsan çok yavaş git.', kDanger, Icons.air_rounded);
+    if (ice) return ('Buzlanma riski', Kanki.pick(Kanki.yolBuzlu, s.temp.round()), kDanger, Icons.ac_unit_rounded);
+    if (a.kind == PrecipKind.snow || a.kind == PrecipKind.lentilSnow || a.kind == PrecipKind.sleet) return ('Karlı', 'Yol kaygan, yavaş git kanki, takip mesafesini iki katına çıkar.', kWarn, Icons.cloudy_snowing);
+    if (a.kind == PrecipKind.rain) return ('Islak', 'Yol ıslak, ani fren yapma kanki.', kWarn, Icons.water_drop_outlined);
+    if (a.fogDensity > 60) return ('Sisli', 'Görüş düştü, kısa farlarını yak kanki.', kWarn, Icons.foggy);
+    return ('Kuru', 'Yol temiz kanki, keyifli sürüşler.', kGood, Icons.check_circle_outline_rounded);
+  }
+
   @override
   Widget build(BuildContext context) {
     final w = WeatherController.I; final s = w.confirmed, a = w.analysis;
     final pro = ProService.I.state.isPro;
-    return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 100), children: [
-      _speedo(pro),
+    final road = _road(s, a);
+    return ListView(padding: const EdgeInsets.fromLTRB(18, 4, 18, 110), children: [
+      _speedo(pro, road),
       if (_driftShownAt != null && DateTime.now().difference(_driftShownAt!) < const Duration(seconds: 8) && _lastDrift != null)
-        Padding(padding: const EdgeInsets.only(bottom: 12), child: Glass(tint: const Color(0xFFFFE0E0), child: Text('🚨 ${_lastDrift!.message}', style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFC62828))))),
-      Glass(child: Column(children: [
-        TextField(controller: _q, onSubmitted: _search, decoration: InputDecoration(hintText: L10n.t('search_hint'), prefixIcon: const Icon(Icons.search), suffixIcon: IconButton(icon: const Icon(Icons.arrow_forward), onPressed: _search))),
-        const SizedBox(height: 8),
-        SizedBox(height: 38, child: ListView(scrollDirection: Axis.horizontal, children: [
-          for (final c in PlacesService.quickChips) Padding(padding: const EdgeInsets.only(right: 6), child: ActionChip(label: Text('${c.emoji} ${c.labelTr}'), onPressed: () { Sfx.tap(); _chip(c); })),
+        Padding(padding: const EdgeInsets.only(top: 12), child: Glass(tint: const Color(0xFFFFE3E3), child: Row(children: [
+          const IconBadge(Icons.warning_amber_rounded, color: kDanger, size: 42), const SizedBox(width: 12),
+          Expanded(child: Text(_lastDrift!.message, style: T.body.copyWith(fontWeight: FontWeight.w800, color: kDanger))),
+        ]))),
+      const SectionLabel('Nereye gidiyoruz?'),
+      Glass(padding: const EdgeInsets.fromLTRB(14, 14, 14, 12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        TextField(
+          controller: _q, onSubmitted: _search, textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: L10n.t('search_hint'), filled: true, fillColor: kIce,
+            prefixIcon: const Icon(Icons.search_rounded), suffixIcon: IconButton(icon: const Icon(Icons.arrow_forward_rounded, color: kAccent), onPressed: _search),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(height: 40, child: ListView(scrollDirection: Axis.horizontal, children: [
+          for (final c in PlacesService.quickChips) Padding(padding: const EdgeInsets.only(right: 8), child: ActionChip(
+            avatar: Icon(_chipIcons[c.labelTr] ?? Icons.shopping_bag_outlined, size: 18, color: kAccent),
+            label: Text(c.labelTr), onPressed: () { Sfx.tap(); _chip(c); })),
         ])),
-        if (_busy) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
-        if (_err != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_err!, style: const TextStyle(color: Color(0xFFB26A00), fontSize: 13))),
-        for (final r in _results) ListTile(dense: true, title: Text(r.name), subtitle: Text(r.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        if (_busy) const Padding(padding: EdgeInsets.only(top: 12), child: LinearProgressIndicator(minHeight: 3)),
+        if (_err != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_err!, style: T.small.copyWith(color: kWarn))),
+        for (final r in _results) ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const IconBadge(Icons.place_outlined, size: 38, color: kInkSoft),
+          title: Text(r.name, style: const TextStyle(fontWeight: FontWeight.w600)), subtitle: Text(r.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
             if (_dest != null) IconButton(tooltip: L10n.t('add_stop'), icon: const Icon(Icons.add_location_alt_outlined), onPressed: () => setState(() { _stops.add(r); _results = []; })),
-            IconButton(icon: const Icon(Icons.directions, color: kAccent), onPressed: () { setState(() { _dest = r; _results = []; }); _startRoute(); }),
-          ])),
-        if (_stops.isNotEmpty) Wrap(spacing: 6, children: [for (final s in _stops) InputChip(label: Text('📍 ${s.name}'), onDeleted: () { setState(() => _stops.remove(s)); if (_dest != null) _startRoute(silent: true); })]),
-      ])),
-      const SizedBox(height: 12),
-      if (_route != null) _routeCard(pro, s, a),
-      const SizedBox(height: 12),
-      if (_route != null) SizedBox(height: 220, child: ClipRRect(borderRadius: BorderRadius.circular(20), child: FlutterMap(
-        mapController: _map, options: MapOptions(initialCenter: LatLng(_pos?.latitude ?? 39, _pos?.longitude ?? 35), initialZoom: 10),
-        children: [
-          TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.skynav.app'),
-          PolylineLayer(polylines: [Polyline(points: [for (final g in _route!.geometry) LatLng(g.$1, g.$2)], color: kAccent, strokeWidth: 5)]),
-          MarkerLayer(markers: [
-            if (_pos != null) Marker(point: LatLng(_pos!.latitude, _pos!.longitude), width: 24, height: 24, child: const Icon(Icons.navigation, color: kAccent)),
-            if (_dest != null) Marker(point: LatLng(_dest!.lat, _dest!.lon), width: 30, height: 30, child: const Icon(Icons.flag, color: Colors.red)),
+            IconButton.filled(icon: const Icon(Icons.directions_rounded), onPressed: () { setState(() { _dest = r; _results = []; }); _startRoute(); }),
           ]),
-        ],
-      ))),
-      const SizedBox(height: 14),
-      ProGate(title: 'Yol Güvenliği Süper Paketi', child: s == null || a == null ? const SizedBox() : Section('🛡️ Yol Güvenliği Paketi', Column(children: [
+        ),
+        if (_stops.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final st in _stops) InputChip(avatar: const Icon(Icons.flag_outlined, size: 16), label: Text(st.name), onDeleted: () { setState(() => _stops.remove(st)); if (_dest != null) _startRoute(silent: true); }),
+        ])),
+      ])),
+      if (_route != null) ...[const SectionLabel('Rota'), _routeCard(pro, s, a), const SizedBox(height: 12),
+        SizedBox(height: 240, child: ClipRRect(borderRadius: BorderRadius.circular(24), child: FlutterMap(
+          mapController: _map, options: MapOptions(initialCenter: LatLng(_pos?.latitude ?? 39, _pos?.longitude ?? 35), initialZoom: 10),
+          children: [
+            TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.skynav.app'),
+            PolylineLayer(polylines: [Polyline(points: [for (final g in _route!.geometry) LatLng(g.$1, g.$2)], color: kAccent, strokeWidth: 6, borderColor: Colors.white, borderStrokeWidth: 2)]),
+            MarkerLayer(markers: [
+              if (_pos != null) Marker(point: LatLng(_pos!.latitude, _pos!.longitude), width: 28, height: 28, child: const Icon(Icons.navigation_rounded, color: kAccent)),
+              if (_dest != null) Marker(point: LatLng(_dest!.lat, _dest!.lon), width: 32, height: 32, child: const Icon(Icons.flag_rounded, color: kDanger)),
+            ]),
+          ],
+        )))],
+      const SectionLabel('Yol güvenliği'),
+      ProGate(title: 'Yol Güvenliği Süper Paketi', child: s == null || a == null ? const SizedBox() : Glass(padding: const EdgeInsets.symmetric(vertical: 6), child: Column(children: [
         for (final it in computeRoad(s, a, headingDeg: _pos?.heading ?? 0)) ListTile(
-          dense: true, contentPadding: EdgeInsets.zero,
-          leading: Text(it.emoji, style: const TextStyle(fontSize: 22)),
-          title: Text('${it.title} · ${it.valueText}', style: TextStyle(fontWeight: FontWeight.w800, color: [kInk, const Color(0xFF8A6D00), const Color(0xFFD35400), const Color(0xFFC62828)][it.level0to3.clamp(0, 3)])),
-          subtitle: Text(it.kanki, style: const TextStyle(fontSize: 12)),
-          onTap: () => showModalBottomSheet(context: context, builder: (_) => Padding(padding: const EdgeInsets.all(22), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${it.emoji} ${it.title}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)), const SizedBox(height: 8), Text(it.explain), const SizedBox(height: 8), FilledButton.tonal(onPressed: () => Voice.speak(it.explain), child: const Text('🔊'))]))),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+          leading: Container(width: 40, height: 40, alignment: Alignment.center,
+              decoration: BoxDecoration(color: [kGood, kWarn, kHeat, kDanger][it.level0to3.clamp(0, 3)].withValues(alpha: .12), borderRadius: BorderRadius.circular(13)),
+              child: Text(it.emoji, style: const TextStyle(fontSize: 20))),
+          title: Text(it.title, style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 14.5, color: kInk)),
+          subtitle: Text(it.kanki, style: T.small.copyWith(fontSize: 12.5), maxLines: 2, overflow: TextOverflow.ellipsis),
+          trailing: Text(it.valueText, style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w800, color: [kGood, kWarn, kHeat, kDanger][it.level0to3.clamp(0, 3)])),
+          onTap: () => showModalBottomSheet(context: context, builder: (_) => Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 28), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(it.title, style: T.h1), const SizedBox(height: 10), Text(it.explain, style: T.body), const SizedBox(height: 16),
+            FilledButton.icon(onPressed: () => Voice.speak(it.explain), icon: const Icon(Icons.volume_up_rounded), label: const Text('Sesli oku')),
+          ]))),
         ),
       ]))),
     ]);
   }
 
-  Widget _speedo(bool pro) {
+  Widget _speedo(bool pro, (String, String, Color, IconData) road) {
     final kmh = (_speedMs * 3.6);
-    return Padding(padding: const EdgeInsets.only(bottom: 12), child: Glass(child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      Text(kmh.round().toString(), style: const TextStyle(fontSize: 72, fontWeight: FontWeight.w900, height: 1)),
-      const SizedBox(width: 8),
-      Padding(padding: const EdgeInsets.only(bottom: 10), child: Text(L10n.t('speed_kmh'), style: const TextStyle(fontSize: 18, color: kInkSoft, fontWeight: FontWeight.w700))),
-      const Spacer(),
-      if (pro) Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text('G ${_drift.gForce.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900)),
-        Text('yan ${_drift.lateralG.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: kInkSoft)),
-        const Pill('kayma sensörü açık', color: Color(0xFF2E9E5B)),
-      ]) else const Pill('G/kayma: Pro'),
-    ])));
+    return Glass(child: Column(children: [
+      Row(children: [
+        SizedBox(width: 150, height: 120, child: CustomPaint(painter: _GaugePainter(kmh / 160, road.$3), child: Padding(padding: const EdgeInsets.only(top: 34), child: Column(children: [
+          Text(kmh.round().toString(), style: const TextStyle(fontFamily: 'InterDisplay', fontSize: 46, fontWeight: FontWeight.w500, height: 1, color: kInk)),
+          Text(L10n.t('speed_kmh'), style: T.small.copyWith(fontWeight: FontWeight.w700)),
+        ])))),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('YOL DURUMU', style: T.label),
+          const SizedBox(height: 4),
+          Row(children: [Icon(road.$4, color: road.$3, size: 20), const SizedBox(width: 6), Flexible(child: Text(road.$1, style: T.h2.copyWith(color: road.$3)))]),
+          const SizedBox(height: 4),
+          Text(road.$2, style: T.small, maxLines: 3, overflow: TextOverflow.ellipsis),
+        ])),
+      ]),
+      const Divider(height: 22),
+      Row(children: [
+        const Icon(Icons.sensors_rounded, size: 18, color: kInkSoft), const SizedBox(width: 8),
+        Expanded(child: Text(pro ? 'Kayma sensörü açık · G ${_drift.gForce.toStringAsFixed(2)} · yan ${_drift.lateralG.toStringAsFixed(2)}' : 'G-kuvveti & kayma sensörü', style: T.small.copyWith(color: kInk, fontWeight: FontWeight.w600))),
+        pro ? const Pill('Açık', color: kGood) : const Pill('Pro', color: kPro, icon: Icons.lock_outline),
+      ]),
+    ]));
   }
 
   Widget _routeCard(bool pro, WeatherSnapshot? s, Analysis? a) {
@@ -227,20 +280,45 @@ class _RoadScreenState extends State<RoadScreen> {
     if (pro && s != null && a != null) { eta = adjustedEta(baseSeconds: r.durationS, s: s, a: a); closures = closureWarnings(s: s, a: a); }
     String fmt(Duration d) => d.inHours > 0 ? '${d.inHours} sa ${d.inMinutes % 60} dk' : '${d.inMinutes} dk';
     return Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('➡️ ${step.instructionTr}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-      const SizedBox(height: 6),
-      Text('${(r.distanceM / 1000).toStringAsFixed(1)} km · normal ${fmt(Duration(seconds: r.durationS.round()))}'),
-      if (eta != null) ...[
-        Text('⏱️ Hava dahil varış: ${fmt(eta.eta)}', style: const TextStyle(fontWeight: FontWeight.w900, color: kAccent)),
-        Text(eta.reasonTr, style: const TextStyle(fontSize: 12, color: kInkSoft)),
-        for (final c in closures) Padding(padding: const EdgeInsets.only(top: 4), child: Text('⛰️ $c', style: const TextStyle(fontSize: 12))),
-      ] else const Padding(padding: EdgeInsets.only(top: 4), child: Text('Akıllı varış süresi (kar/buz/tipi) Pro ile açılır.', style: TextStyle(fontSize: 12, color: kInkSoft))),
-      const SizedBox(height: 8),
       Row(children: [
-        FilledButton(onPressed: () => setState(() { _navigating = !_navigating; }), child: Text(_navigating ? L10n.t('stop_route') : L10n.t('start_route'))),
-        const SizedBox(width: 8),
-        TextButton(onPressed: () => setState(() { _route = null; _dest = null; _navigating = false; _stops.clear(); }), child: const Text('İptal')),
+        const IconBadge(Icons.turn_right_rounded, size: 48), const SizedBox(width: 12),
+        Expanded(child: Text(step.instructionTr, style: T.h2)),
+      ]),
+      const SizedBox(height: 14),
+      Row(children: [
+        Expanded(child: _kv('Mesafe', '${(r.distanceM / 1000).toStringAsFixed(1)} km')),
+        Expanded(child: _kv('Normal süre', fmt(Duration(seconds: r.durationS.round())))),
+        Expanded(child: _kv('Hava dahil', eta == null ? 'Pro' : fmt(eta.eta), color: eta == null ? kPro : kAccent)),
+      ]),
+      if (eta != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(eta.reasonTr, style: T.small)),
+      for (final c in closures) Padding(padding: const EdgeInsets.only(top: 6), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Icon(Icons.landscape_outlined, size: 16, color: kWarn), const SizedBox(width: 6), Expanded(child: Text(c, style: T.small.copyWith(color: kInk))),
+      ])),
+      const SizedBox(height: 14),
+      Row(children: [
+        Expanded(child: FilledButton.icon(onPressed: () => setState(() { _navigating = !_navigating; }),
+            icon: Icon(_navigating ? Icons.pause_rounded : Icons.navigation_rounded), label: Text(_navigating ? L10n.t('stop_route') : L10n.t('start_route')))),
+        const SizedBox(width: 10),
+        OutlinedButton(onPressed: () => setState(() { _route = null; _dest = null; _navigating = false; _stops.clear(); }), child: const Text('İptal')),
       ]),
     ]));
   }
+
+  Widget _kv(String k, String v, {Color color = kInk}) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(trUpper(k), style: T.label.copyWith(fontSize: 10.5)), const SizedBox(height: 2), Text(v, style: T.num.copyWith(fontSize: 17, color: color)),
+      ]);
+}
+
+class _GaugePainter extends CustomPainter {
+  final double v; final Color color;
+  _GaugePainter(this.v, this.color);
+  @override
+  void paint(Canvas c, Size s) {
+    final r = Rect.fromCircle(center: Offset(s.width / 2, s.height * .62), radius: s.width / 2 - 8);
+    const start = pi * .8, sweep = pi * 1.4;
+    c.drawArc(r, start, sweep, false, Paint()..color = kLine..style = PaintingStyle.stroke..strokeWidth = 10..strokeCap = StrokeCap.round);
+    if (v > 0) c.drawArc(r, start, sweep * v.clamp(0.0, 1.0), false, Paint()..shader = SweepGradient(startAngle: start, endAngle: start + sweep, colors: [kAccent, color], transform: const GradientRotation(0)).createShader(r)..style = PaintingStyle.stroke..strokeWidth = 10..strokeCap = StrokeCap.round);
+  }
+  @override
+  bool shouldRepaint(covariant _GaugePainter o) => o.v != v || o.color != color;
 }

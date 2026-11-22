@@ -29,6 +29,10 @@ class WeatherController extends ChangeNotifier {
   bool offline = false;
   bool turbo = false;
 
+  /// Yalnızca test/ekran görüntüsü için: veriyi doğrudan yerleştirir.
+  @visibleForTesting
+  void debugSet(WeatherSnapshot s, Analysis a) { confirmed = s; analysis = a; lab = computeLab(s, a); notifyListeners(); }
+
   WeatherSnapshot? _candidate;
   Analysis? _candAnalysis;
   GeoPoint2? _place;

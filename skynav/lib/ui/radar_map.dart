@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import '../services/weather_repository.dart';
 import 'theme.dart';
-import 'widgets.dart';
 
 /// RainViewer yağış radarı + gerçek taban harita (OSM) / NASA GIBS uydu görüntüsü. Karolar önbelleklenir; tek kare, hafif.
 class RadarMapCard extends StatefulWidget {
@@ -34,8 +33,15 @@ class _RadarMapCardState extends State<RadarMapCard> {
   Widget build(BuildContext context) {
     final p = WeatherController.I.confirmed?.place;
     final ctr = LatLng(p?.lat ?? 39.0, p?.lon ?? 35.0);
-    return Section('🛰️ Radar & Uydu Haritası', Column(children: [
-      if (!_open) FilledButton.tonal(onPressed: () { setState(() => _open = true); _load(); }, child: const Text('Haritayı aç'))
+    return Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (!_open) Row(children: [
+        const IconBadge(Icons.radar_rounded, size: 46), const SizedBox(width: 14),
+        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Canlı yağış radarı', style: T.h2),
+          Text('RainViewer radarı + NASA uydu görüntüsü', style: T.small),
+        ])),
+        FilledButton(style: FilledButton.styleFrom(minimumSize: const Size(82, 46)), onPressed: () { setState(() => _open = true); _load(); }, child: const Text('Aç')),
+      ])
       else ...[
         Row(children: [
           ChoiceChip(label: const Text('Harita'), selected: !_sat, onSelected: (_) => setState(() => _sat = false)),
@@ -58,7 +64,7 @@ class _RadarMapCardState extends State<RadarMapCard> {
           ],
         ))),
         if (_err != null) Text(_err!, style: const TextStyle(fontSize: 12)),
-        const Text('Mavi/yeşil: yağış (RainViewer). Uydu: NASA GIBS (MODIS).', style: TextStyle(fontSize: 11, color: kInkSoft)),
+        const Padding(padding: EdgeInsets.only(top: 8), child: Text('Mavi/yeşil: yağış (RainViewer). Uydu: NASA GIBS (MODIS).', style: T.small)),
       ],
     ]));
   }

@@ -11,7 +11,6 @@ import '../services/store.dart';
 import '../services/weather_repository.dart';
 import 'sky_background.dart';
 import 'theme.dart';
-import 'widgets.dart';
 
 /// Şimşek Mesafe Ölçer: çakmayı gördüğünde başlat, gök gürültüsünü duyunca durdur (ses ≈ 343 m/sn).
 class LightningMeter extends StatefulWidget {
@@ -34,9 +33,20 @@ class _LightningMeterState extends State<LightningMeter> {
   @override
   void dispose() { _t?.cancel(); super.dispose(); }
   @override
-  Widget build(BuildContext context) => Section('⚡ Şimşek Mesafe Ölçer', Row(children: [
-        Expanded(child: Text(_sw.isRunning ? '${(_sw.elapsedMilliseconds / 1000).toStringAsFixed(1)} sn…' : _km == null ? 'Çakmayı görünce başlat, gürültüyü duyunca durdur.' : 'Yıldırım yaklaşık ${_km!.toStringAsFixed(1)} km uzakta.')),
-        FilledButton(onPressed: _toggle, child: Text(_sw.isRunning ? 'Gürledi!' : 'Çaktı!')),
+  Widget build(BuildContext context) => Glass(child: Row(children: [
+        const IconBadge(Icons.bolt_rounded, color: kWarn, size: 46),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Şimşek mesafe ölçer', style: T.h2),
+          const SizedBox(height: 2),
+          Text(_sw.isRunning ? '${(_sw.elapsedMilliseconds / 1000).toStringAsFixed(1)} sn… gürlemeyi bekle'
+              : _km == null ? 'Çakınca başlat, gürleyince durdur.' : 'Yıldırım yaklaşık ${_km!.toStringAsFixed(1)} km uzakta.', style: T.small),
+        ])),
+        const SizedBox(width: 10),
+        FilledButton(
+          style: FilledButton.styleFrom(minimumSize: const Size(92, 46), backgroundColor: _sw.isRunning ? kDanger : kWarn),
+          onPressed: _toggle, child: Text(_sw.isRunning ? 'Gürledi' : 'Çaktı'),
+        ),
       ]));
 }
 

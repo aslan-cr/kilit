@@ -78,7 +78,6 @@ class _SkyPainter extends CustomPainter {
       final c = Offset(size.width * .82, size.height * .1);
       final col = s.tempC >= 38 ? const Color(0xFFFF5A3C) : s.tempC >= 33 ? const Color(0xFFFF9A2E) : const Color(0xFFFFD23F);
       canvas.drawCircle(c, 90, Paint()..shader = RadialGradient(colors: [col.withValues(alpha: .55), col.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: c, radius: 90)));
-      canvas.drawCircle(c, 26, Paint()..color = col);
     }
 
     // Yıldızlar (açık gece)
@@ -88,8 +87,6 @@ class _SkyPainter extends CustomPainter {
         canvas.drawCircle(Offset(p.x * size.width, p.y * size.height * .6), p.s * 1.1,
             Paint()..color = const Color(0xFF3B5B8C).withValues(alpha: .55 * tw));
       }
-      canvas.drawCircle(Offset(size.width * .8, size.height * .09), 20, Paint()..color = const Color(0xFFF6E7B0));
-      canvas.drawCircle(Offset(size.width * .8 + 8, size.height * .09 - 4), 18, Paint()..color = g.first);
     }
 
     // Rüzgar: yönden gelen rüzgar parçacıkları (yön+180) o tarafa sürükler

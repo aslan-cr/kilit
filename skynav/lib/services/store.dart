@@ -4,8 +4,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 /// Yerel depo (Hive). Tüm özetler, öz-denetim ve önbellek cihazda kalır.
 class Store {
   static late Box prefs, cache, selfcheck, places;
-  static Future<void> init() async {
-    await Hive.initFlutter();
+  static Future<void> init({String? testPath}) async {
+    if (testPath != null) { Hive.init(testPath); } else { await Hive.initFlutter(); }
     prefs = await Hive.openBox('prefs');
     cache = await Hive.openBox('cache');
     selfcheck = await Hive.openBox('selfcheck');

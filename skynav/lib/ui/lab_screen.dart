@@ -12,14 +12,15 @@ class LabScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final lab = WeatherController.I.lab;
     return Scaffold(
-      appBar: AppBar(title: const Text('Yaşam & Doğa Laboratuvarı')),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(title: const Text('Yaşam Laboratuvarı')),
       body: Stack(children: [
         const Positioned.fill(child: SkyBackground(state: SkyState(cloud: 30))),
         lab.isEmpty
             ? const Center(child: Text('Önce hava verisi gelsin kanki.'))
             : GridView.builder(
-                padding: const EdgeInsets.all(14),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: .95),
+                padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + kToolbarHeight + 8, 16, 24),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: .80),
                 itemCount: lab.length,
                 itemBuilder: (_, i) => _tile(context, lab[i]),
               ),
@@ -33,9 +34,10 @@ class LabScreen extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(r.emoji, style: const TextStyle(fontSize: 26)),
           const SizedBox(height: 4),
-          Text(r.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
-          Text(r.valueText, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: kAccent)),
-          Expanded(child: Text(r.kanki, style: const TextStyle(fontSize: 12, color: kInkSoft), overflow: TextOverflow.fade)),
+          const SizedBox(height: 2),
+          Text(r.title, style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 13.5, color: kInk), maxLines: 2, overflow: TextOverflow.ellipsis),
+          Text(r.valueText, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w800, fontSize: 18, color: kAccent, letterSpacing: -.3)),
+          Expanded(child: Text(r.kanki, maxLines: 4, style: T.small.copyWith(fontSize: 12.5), overflow: TextOverflow.ellipsis)),
           if (r.entertainment) const Pill('eğlence', color: Color(0xFF8E24AA)),
         ]),
       );
