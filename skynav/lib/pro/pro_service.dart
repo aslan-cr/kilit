@@ -91,7 +91,14 @@ class ProService extends ChangeNotifier {
       await Store.put('pro_until', until?.millisecondsSinceEpoch);
       await Store.put('pro_life', life);
     }
-    state = ProState(dev: devMode, lifetime: life, until: until);
+    // Firebase'deki geliştirici e-postalarıyla giriş yapan hesap: Pro kendiliğinden açık (ödeme yok, sayaçtan muaf).
+    bool devAccount = Store.prefs.get('dev_account', defaultValue: false) as bool;
+    if (Cloud.ready && uid != null) {
+      try { devAccount = await _isDeveloper(); await Store.put('dev_account', devAccount); } catch (_) {}
+    } else if (uid == null) {
+      devAccount = false;
+    }
+    state = ProState(dev: devMode || devAccount, lifetime: life, until: until);
     await _refreshDiscount();
     notifyListeners();
   }
