@@ -33,14 +33,24 @@ class SkyNavApp extends StatefulWidget {
   State<SkyNavApp> createState() => _SkyNavAppState();
 }
 
-class _SkyNavAppState extends State<SkyNavApp> {
+class _SkyNavAppState extends State<SkyNavApp> with WidgetsBindingObserver {
   Timer? _pulse;
   bool _ready = Store.onboardingDone;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (_ready) _boot();
+  }
+
+  /// İkon değişikliği uygulama ekrandayken yapılmaz (Android uygulamayı kapatabiliyor);
+  /// kullanıcı uygulamadan çıkınca bekleyen ikon uygulanır.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      IconService.applyPending(force: true);
+    }
   }
 
   Future<void> _boot() async {
@@ -68,7 +78,7 @@ class _SkyNavAppState extends State<SkyNavApp> {
   }
 
   @override
-  void dispose() { _pulse?.cancel(); super.dispose(); }
+  void dispose() { WidgetsBinding.instance.removeObserver(this); _pulse?.cancel(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) => MaterialApp(

@@ -1,0 +1,19 @@
+name: skynav_icon
+description: "SkyNav: hava durumuna göre launcher ikonunu (activity-alias) değiştiren küçük yerel eklenti. Arka plan motorunda da çalışır."
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.2
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.skynav.skynav_icon
+        pluginClass: SkynavIconPlugin

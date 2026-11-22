@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 import '../engine/weather_engine.dart';
 import '../services/location_service.dart';
+import '../services/icon_service.dart';
 import '../services/notify_service.dart';
 import '../services/open_meteo_service.dart';
 import '../services/store.dart';
@@ -20,6 +21,8 @@ void callbackDispatcher() {
       if (p == null) return true;
       final s = await OpenMeteoService().fetch(p);
       final a = WeatherEngine.analyze(s, biasCorrection: (Store.prefs.get('bias_c', defaultValue: 0.0) as num).toDouble());
+      // Uygulama kapalıyken de ikon havaya göre değişsin (ekrandaysa ertelenir).
+      await IconService.updateFromBackground(a, s);
       String? msg; String key = '';
       if (a.blizzardProb >= 50) { msg = 'Tipi ihtimali %${a.blizzardProb.round()} kanki, dışarıda dikkat!'; key = 'blizzard'; }
       else if (a.lentilProb >= 50) { msg = 'Mercimek karı ihtimali %${a.lentilProb.round()}!'; key = 'lentil'; }
