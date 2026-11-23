@@ -5,6 +5,7 @@ import '../services/location_service.dart';
 import '../services/open_meteo_service.dart';
 import '../services/weather_repository.dart';
 import 'bento.dart';
+import 'compare_screen.dart';
 import 'hero_scene.dart' show deg;
 import 'theme.dart';
 import 'wx_glyph.dart';
@@ -57,19 +58,48 @@ class _PlacesScreenState extends State<PlacesScreen> {
     Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
+  /// Şu anki konumun özeti (karşılaştırma için 7 gün dahil).
+  PlaceNow? _here() {
+    final s = WeatherController.I.confirmed;
+    if (s == null) return null;
+    final t = DateTime.now();
+    final days = s.daily.where((d) => !d.date.isBefore(DateTime(t.year, t.month, t.day))).take(7).toList();
+    return PlaceNow(place: s.place.name.isEmpty ? GeoPoint2(s.place.lat, s.place.lon, name: 'Konumum') : s.place,
+        temp: s.temp, tMax: days.isEmpty ? s.temp : days.first.tMax, tMin: days.isEmpty ? s.temp : days.first.tMin,
+        wind: s.windSpeed, precip: s.precip, cloud: s.cloudCover, code: s.weatherCode, isDay: s.isDay, days: days);
+  }
+
+  void _compare(PlaceNow b) {
+    final a = _here();
+    if (a == null) return;
+    Sfx.tap();
+    Navigator.push(context, MaterialPageRoute(builder: (_) => CompareScreen(a: a, b: b)));
+  }
+
+  /// Hangi kayıtlı yerle karşılaştırılacağını sorar.
+  void _pickCompare() {
+    final ready = [for (final p in LocationService.places()) if (_now[_key(p)] != null) _now[_key(p)]!];
+    showModalBottomSheet(context: context, showDragHandle: true, builder: (ctx) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Neresiyle karşılaştıralım?', style: T.h2),
+        const SizedBox(height: 8),
+        if (ready.isEmpty) const Text('Kayıtlı yerlerin havası henüz gelmedi.', style: T.small),
+        for (final p in ready) ListTile(contentPadding: EdgeInsets.zero, leading: WxGlyph(wxFromCode(p.code), day: p.isDay, size: 34),
+            title: Text(p.place.name, maxLines: 1, overflow: TextOverflow.ellipsis), trailing: Text(deg(p.temp), style: T.num.copyWith(fontSize: 18)),
+            onTap: () { Navigator.pop(ctx); _compare(p); }),
+      ]),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final w = WeatherController.I;
-    final s = w.confirmed;
     final saved = LocationService.places();
+    final here = _here();
     final cards = <Widget>[
-      if (s != null) _PlaceCard(
-        name: s.place.name.isEmpty ? 'Konumum' : s.place.name, here: true,
-        now: PlaceNow(place: s.place, temp: s.temp, tMax: s.daily.isEmpty ? s.temp : s.daily.first.tMax, tMin: s.daily.isEmpty ? s.temp : s.daily.first.tMin,
-            wind: s.windSpeed, precip: s.precip, cloud: s.cloudCover, code: s.weatherCode, isDay: s.isDay),
-        onTap: () => Navigator.pop(context),
-      ),
-      for (final p in saved) _PlaceCard(name: p.name, now: _now[_key(p)], failed: _failed.contains(_key(p)), onTap: () => _go(p)),
+      if (here != null) _PlaceCard(name: here.place.name, here: true, now: here, onTap: () => Navigator.pop(context)),
+      for (final p in saved) _PlaceCard(name: p.name, now: _now[_key(p)], failed: _failed.contains(_key(p)), onTap: () => _go(p),
+          onLongPress: _now[_key(p)] == null ? null : () => _compare(_now[_key(p)]!)),
       _AddCard(onTap: () async { Sfx.tap(); await widget.onAdd?.call(); await _load(); }),
     ];
     return Scaffold(
@@ -78,7 +108,7 @@ class _PlacesScreenState extends State<PlacesScreen> {
       body: RefreshIndicator(
         onRefresh: () async { _cache.clear(); _failed.clear(); await _load(); },
         child: ListView(padding: const EdgeInsets.fromLTRB(18, 4, 18, 40), children: [
-          Text('Kayıtlı yerlerinin havası tek bakışta. Dokun, o yere geç.', style: T.small),
+          Text('Kayıtlı yerlerinin havası tek bakışta. Dokun: o yere geç · uzun bas: karşılaştır.', style: T.small),
           const SizedBox(height: 12),
           GridView.count(
             padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
@@ -86,6 +116,14 @@ class _PlacesScreenState extends State<PlacesScreen> {
             children: cards,
           ),
           const SizedBox(height: 14),
+          if (saved.isNotEmpty && here != null) ...[
+            Bento(onTap: _pickCompare, color: kBentoBlue, padding: const EdgeInsets.all(14), child: Row(children: [
+              const Icon(Icons.compare_arrows_rounded, color: kAccent), const SizedBox(width: 12),
+              Expanded(child: Text('İki yeri karşılaştır (7 gün yan yana)', style: T.body.copyWith(fontWeight: FontWeight.w700))),
+              const Icon(Icons.chevron_right_rounded, color: kInkFaint),
+            ])),
+            const SizedBox(height: 12),
+          ],
           Bento(padding: const EdgeInsets.all(14), child: Row(children: [
             const Icon(Icons.my_location_rounded, color: kAccent), const SizedBox(width: 12),
             Expanded(child: Text('Konumumu kullan (GPS)', style: T.body.copyWith(fontWeight: FontWeight.w700))),
@@ -110,8 +148,8 @@ List<Color> _skyFor(Wx wx, bool day) {
 }
 
 class _PlaceCard extends StatelessWidget {
-  final String name; final PlaceNow? now; final bool here, failed; final VoidCallback onTap;
-  const _PlaceCard({required this.name, required this.now, this.here = false, this.failed = false, required this.onTap});
+  final String name; final PlaceNow? now; final bool here, failed; final VoidCallback onTap; final VoidCallback? onLongPress;
+  const _PlaceCard({required this.name, required this.now, this.here = false, this.failed = false, required this.onTap, this.onLongPress});
   @override
   Widget build(BuildContext context) {
     final n = now;
@@ -120,7 +158,7 @@ class _PlaceCard extends StatelessWidget {
     const white = TextStyle(fontFamily: 'Inter', color: Colors.white);
     return Pressable(child: Material(
       borderRadius: BorderRadius.circular(26), clipBehavior: Clip.antiAlias,
-      child: InkWell(onTap: onTap, child: Ink(
+      child: InkWell(onTap: onTap, onLongPress: onLongPress, child: Ink(
         decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: sky),
             boxShadow: const [BoxShadow(color: Color(0x141B3A5C), blurRadius: 20, spreadRadius: -6, offset: Offset(0, 10))]),
         child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

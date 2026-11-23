@@ -62,8 +62,8 @@ class OpenMeteoService {
       'latitude': coord(p.lat),
       'longitude': coord(p.lon),
       'current': 'temperature_2m,weather_code,is_day,wind_speed_10m,precipitation,cloud_cover',
-      'daily': 'temperature_2m_max,temperature_2m_min',
-      'forecast_days': '1',
+      'daily': 'temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,snowfall_sum,wind_speed_10m_max',
+      'forecast_days': '7',
       'wind_speed_unit': 'ms',
       'timezone': 'auto',
     })));
@@ -76,6 +76,12 @@ class OpenMeteoService {
       tMin: opt(numList(d['temperature_2m_min']), 0) ?? temp,
       wind: toD(cur['wind_speed_10m']) ?? 0, precip: toD(cur['precipitation']) ?? 0, cloud: toD(cur['cloud_cover']) ?? 0,
       code: toD(cur['weather_code'])?.round() ?? 0, isDay: (toD(cur['is_day']) ?? 1) >= 1,
+      days: [
+        for (final (i, t) in strList(d['time']).indexed)
+          DayPoint(date: DateTime.parse(t), tMax: at(numList(d['temperature_2m_max']), i), tMin: at(numList(d['temperature_2m_min']), i),
+              precipSum: at(numList(d['precipitation_sum']), i), snowSum: at(numList(d['snowfall_sum']), i),
+              windMax: at(numList(d['wind_speed_10m_max']), i), weatherCode: at(numList(d['weather_code']), i).round()),
+      ],
     );
   }
 

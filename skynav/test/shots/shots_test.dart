@@ -28,6 +28,7 @@ import 'package:skynav/ui/clouds.dart';
 import 'package:skynav/ui/detail_screens.dart';
 import 'package:skynav/ui/plain.dart';
 import 'package:skynav/ui/places_screen.dart';
+import 'package:skynav/ui/compare_screen.dart';
 import 'package:skynav/ui/best_time_screen.dart';
 import 'package:skynav/ui/climate_screen.dart';
 import 'package:skynav/ui/air_screen.dart';
@@ -181,6 +182,11 @@ void main() {
     await shot(t, PlacesScreen(fetch: (p) async => p.name == 'Evim'
         ? PlaceNow(place: p, temp: -3, tMax: 0, tMin: -8, wind: 4, precip: .4, cloud: 95, code: 73, isDay: true)
         : PlaceNow(place: p, temp: 1, tMax: 4, tMin: -6, wind: 2, precip: 0, cloud: 30, code: 2, isDay: true)), '21_places', size: const Size(412, 900));
+    await shot(t, CompareScreen(
+        a: PlaceNow(place: const GeoPoint2(39.9, 41.27, name: 'Erzurum'), temp: -2, tMax: 1, tMin: -7, wind: 6, precip: 1, cloud: 90, code: 73, isDay: true, days: s.daily),
+        b: PlaceNow(place: const GeoPoint2(39.95, 41.10, name: 'Anneannem'), temp: -5, tMax: -1, tMin: -11, wind: 3, precip: 0, cloud: 30, code: 2, isDay: true,
+            days: [for (final d in s.daily) DayPoint(date: d.date, tMax: d.tMax - 3, tMin: d.tMin - 4, precipSum: d.precipSum * 1.5, snowSum: d.snowSum * 1.6, windMax: d.windMax, weatherCode: d.weatherCode)])),
+        '25_compare', size: const Size(412, 1000));
     await shot(t, BestTimeScreen(s: s), '22_best_time', size: const Size(412, 1000));
     final n0 = DateTime.now();
     // İklim: sentetik 30 yıllık seri (yalnızca test; uygulamada ERA5 arşivinden)

@@ -4,6 +4,7 @@ import 'package:skynav/astro/space_events.dart';
 import 'package:skynav/astro/sky_times.dart';
 import 'package:skynav/astro/star_catalog.dart';
 import 'package:skynav/engine/alerts.dart';
+import 'package:skynav/ui/compare_screen.dart';
 import 'package:skynav/astro/sky_calendar.dart';
 import 'package:skynav/engine/brief.dart';
 import 'package:skynav/services/climate_service.dart';
@@ -217,5 +218,13 @@ void main() {
     expect(gem.quality, greaterThan(50)); // 2026: Ay yeni aya yakın, radyant yüksekte
     expect(ev.where((e) => e.kind == 'full').length, greaterThanOrEqualTo(2));
     expect(ev.any((e) => e.kind == 'new'), isTrue);
+  });
+
+  test('karşılaştırma özeti', () {
+    DayPoint d(double snow) => DayPoint(date: DateTime(2026, 12, 1), tMax: 0, tMin: -5, precipSum: 0, snowSum: snow, windMax: 3, weatherCode: 73);
+    final a = PlaceNow(place: const GeoPoint2(39.9, 41.27, name: 'Evim, Erzurum'), temp: 1, tMax: 2, tMin: -4, wind: 3, precip: 0, cloud: 50, code: 2, isDay: true, days: [d(4), d(6)]);
+    final b = PlaceNow(place: const GeoPoint2(39.95, 41.1, name: 'Anneannem'), temp: -2.4, tMax: 0, tMin: -8, wind: 3, precip: 0, cloud: 50, code: 2, isDay: true, days: [d(1), d(1)]);
+    expect(CompareScreen.summary(a, b), "Şu an Anneannem, Evim'den 3° daha soğuk. 7 günde kar: Evim 10 cm, Anneannem 2 cm.");
+    expect(['Erzurum', 'Ağrı', 'Kars', 'İzmit', 'Rize', 'Van'].map(ablative).toList(), ["Erzurum'dan", "Ağrı'dan", "Kars'tan", "İzmit'ten", "Rize'den", "Van'dan"]);
   });
 }

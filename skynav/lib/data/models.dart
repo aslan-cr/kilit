@@ -57,8 +57,10 @@ class PlaceNow {
   final double temp, tMax, tMin, wind, precip, cloud;
   final int code;
   final bool isDay;
+  /// 7 günlük özet (karşılaştırma için); boş olabilir.
+  final List<DayPoint> days;
   const PlaceNow({required this.place, required this.temp, required this.tMax, required this.tMin, required this.wind,
-      required this.precip, required this.cloud, required this.code, required this.isDay});
+      required this.precip, required this.cloud, required this.code, required this.isDay, this.days = const []});
 }
 
 /// 15 dakikalık yağış tahmini: o çeyrekte düşen yağış (mm) ve kar (cm).
