@@ -60,7 +60,7 @@ class WeatherScreen extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: () => w.refresh(force: true),
-      child: ListView(padding: const EdgeInsets.fromLTRB(18, 8, 18, 120), children: [
+      child: ListView(padding: const EdgeInsets.fromLTRB(18, 8, 18, 120), children: _staggered([
         // ── Sahne ──
         HeroScene(s: s, a: a, wx: nowWx, today: todayPt, offline: s.fromCache || w.offline, onPlace: () => _pickPlace(context)),
         gap,
@@ -169,8 +169,14 @@ class WeatherScreen extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         SizedBox(height: 92, child: _ToolTile(Icons.videocam_outlined, 'Hava Kanalı', 'Kendi yayınını yap', kPro, const BroadcastScreen(), wide: true)),
-      ]),
+      ])),
     );
+  }
+
+  /// İlk ekrana sığan bloklar sırayla, yumuşakça belirir (aralıklar ve başlıklar hariç).
+  static List<Widget> _staggered(List<Widget> items) {
+    var k = 0;
+    return [for (final w in items) (w is SizedBox || w is SectionLabel) ? w : Reveal(index: k++, child: w)];
   }
 
   static const _precipHelp = 'Kar: sıcaklık ve yaş termometre donma altındayken. Karla karışık: 0–2,5 °C bandı. Mercimek karı: kar tanesi yerine küçük beyaz boncuklar; kararsız, konvektif havada olur. Tipi: güçlü rüzgâr karı savurur; bulunduğun yerde yağış olmasa bile dağdaki kar savrulup gelebilir.';

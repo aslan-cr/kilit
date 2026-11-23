@@ -24,6 +24,7 @@ import 'package:skynav/ui/sky_screen.dart';
 import 'package:skynav/ui/clouds.dart';
 import 'package:skynav/ui/scene_shaders.dart';
 import 'package:skynav/ui/sky_bodies.dart';
+import 'package:skynav/ui/bento.dart';
 import 'package:skynav/ui/theme.dart';
 import 'package:skynav/widgets/widget_faces.dart';
 
@@ -104,6 +105,18 @@ void main() {
     await shot(t, const Onboarding(onDone: _noop), '01_onboarding');
     await shot(t, const AppShell(), '02_weather');
     await shot(t, const AppShell(), '02b_weather_full', size: const Size(412, 4600));
+    // Saatlik grafikte parmakla gezinme
+    final hb = find.byType(HourlyBlock);
+    final g = await t.startGesture(t.getCenter(hb) + const Offset(-60, 40));
+    await g.moveBy(const Offset(30, 0)); await t.pump(const Duration(milliseconds: 50));
+    await g.moveBy(const Offset(40, 0)); for (var i = 0; i < 6; i++) { await t.pump(const Duration(milliseconds: 60)); }
+    await t.runAsync(() async {
+      final b = t.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first);
+      final img = await b.toImage(pixelRatio: 1.5);
+      final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+      File('$outDir/02c_scrub.png').writeAsBytesSync(bytes!.buffer.asUint8List());
+    });
+    await g.up(); await t.pump(const Duration(seconds: 2));
     await shot(t, const LabScreen(), '03_lab');
     await shot(t, const Paywall(), '04_paywall');
     await shot(t, const SettingsScreen(), '05_settings');

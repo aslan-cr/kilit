@@ -116,13 +116,20 @@ class _GlyphPainter extends CustomPainter {
   }
 
   void _cloud(Canvas c, Offset o, double k, {required bool dark, bool faint = false}) {
-    Path u = Path()..addOval(Rect.fromCircle(center: o + Offset(-18 * k, 4 * k), radius: 14 * k));
-    for (final p in [
-      Path()..addOval(Rect.fromCircle(center: o + Offset(-2 * k, -8 * k), radius: 19 * k)),
-      Path()..addOval(Rect.fromCircle(center: o + Offset(17 * k, 2 * k), radius: 15 * k)),
-      Path()..addRRect(RRect.fromRectAndRadius(Rect.fromLTRB(o.dx - 30 * k, o.dy - 2 * k, o.dx + 32 * k, o.dy + 17 * k), Radius.circular(10 * k))),
-    ]) { u = Path.combine(PathOperation.union, u, p); }
-    final path = u;
+    // Tek parça bulut: kabarıklar arasında çentik yok; teğetleri sürekli tek bir eğri.
+    Offset P(double x, double y) => o + Offset(x * k, y * k);
+    final path = Path()
+      ..moveTo(P(-24, 17).dx, P(-24, 17).dy)
+      ..lineTo(P(24, 17).dx, P(24, 17).dy)
+      ..cubicTo(P(31, 17).dx, P(31, 17).dy, P(35, 11).dx, P(35, 11).dy, P(34, 4).dx, P(34, 4).dy)
+      ..cubicTo(P(33, -5).dx, P(33, -5).dy, P(27, -14).dx, P(27, -14).dy, P(19, -14).dx, P(19, -14).dy)
+      ..cubicTo(P(15, -14).dx, P(15, -14).dy, P(12, -14.5).dx, P(12, -14.5).dy, P(11, -17).dx, P(11, -17).dy)
+      ..cubicTo(P(8, -25).dx, P(8, -25).dy, P(3, -28).dx, P(3, -28).dy, P(-3, -28).dx, P(-3, -28).dy)
+      ..cubicTo(P(-9, -28).dx, P(-9, -28).dy, P(-14, -23).dx, P(-14, -23).dy, P(-15, -17).dx, P(-15, -17).dy)
+      ..cubicTo(P(-15.5, -14).dx, P(-15.5, -14).dy, P(-19, -11.5).dx, P(-19, -11.5).dy, P(-24, -11.5).dx, P(-24, -11.5).dy)
+      ..cubicTo(P(-29, -11.5).dx, P(-29, -11.5).dy, P(-33, -6).dx, P(-33, -6).dy, P(-33, 1).dx, P(-33, 1).dy)
+      ..cubicTo(P(-33, 10).dx, P(-33, 10).dy, P(-30, 17).dx, P(-30, 17).dy, P(-24, 17).dx, P(-24, 17).dy)
+      ..close();
     c.drawPath(path.shift(const Offset(0, 3)), Paint()..color = const Color(0xFF2B4A6B).withValues(alpha: faint ? .04 : .10)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3));
     final colors = dark ? [const Color(0xFFC9D3DE), const Color(0xFF93A4B8)] : [Colors.white, const Color(0xFFDCE7F2)];
     final b = path.getBounds();

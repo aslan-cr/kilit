@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../data/models.dart';
 import '../engine/formulas.dart';
 import 'hero_scene.dart' show deg, moonLitPath;
@@ -26,7 +27,7 @@ class Bento extends StatelessWidget {
     final r = BorderRadius.circular(26);
     Widget body = Padding(padding: padding, child: child);
     if (onTap != null) body = InkWell(borderRadius: r, onTap: onTap, child: body);
-    return Container(
+    final box = Container(
       height: height,
       decoration: BoxDecoration(color: color, borderRadius: r, boxShadow: const [
         BoxShadow(color: Color(0x0F1B3A5C), blurRadius: 24, spreadRadius: -6, offset: Offset(0, 10)),
@@ -34,6 +35,52 @@ class Bento extends StatelessWidget {
       ]),
       child: Material(type: MaterialType.transparency, borderRadius: r, clipBehavior: clip || onTap != null ? Clip.antiAlias : Clip.none, child: body),
     );
+    return onTap == null ? box : Pressable(child: box);
+  }
+}
+
+/// Dokununca hafifçe içe çöken sarmalayıcı (yay hissi).
+class Pressable extends StatefulWidget {
+  final Widget child;
+  const Pressable({super.key, required this.child});
+  @override
+  State<Pressable> createState() => _PressableState();
+}
+
+class _PressableState extends State<Pressable> {
+  bool _down = false;
+  @override
+  Widget build(BuildContext context) => Listener(
+        onPointerDown: (_) => setState(() => _down = true),
+        onPointerUp: (_) => setState(() => _down = false),
+        onPointerCancel: (_) => setState(() => _down = false),
+        child: AnimatedScale(scale: _down ? .975 : 1, duration: Duration(milliseconds: _down ? 90 : 220), curve: _down ? Curves.easeOut : Curves.easeOutBack, child: widget.child),
+      );
+}
+
+/// Açılışta sırayla, yumuşakça yukarı kayarak beliren blok. Hareket azaltma açıksa anında görünür.
+class Reveal extends StatefulWidget {
+  final int index; final Widget child;
+  const Reveal({super.key, required this.index, required this.child});
+  @override
+  State<Reveal> createState() => _RevealState();
+}
+
+class _RevealState extends State<Reveal> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
+  late final Animation<double> _a = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(milliseconds: 40 * widget.index.clamp(0, 10)), () { if (mounted) _c.forward(); });
+  }
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return widget.child;
+    return AnimatedBuilder(animation: _a, child: widget.child, builder: (_, child) => Opacity(
+          opacity: _a.value, child: Transform.translate(offset: Offset(0, 18 * (1 - _a.value)), child: child)));
   }
 }
 
@@ -53,7 +100,7 @@ class BlockHead extends StatelessWidget {
 
 class _Trail extends StatelessWidget {
   final String text; final Color color;
-  const _Trail(this.text, {this.color = kInkSoft});
+  const _Trail(this.text, {super.key, this.color = kInkSoft});
   @override
   Widget build(BuildContext context) => Text(text, style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: color));
 }
@@ -112,23 +159,51 @@ class _QuotePainter extends CustomPainter {
 }
 
 // ── Saatlik: sıcaklık eğrisi + yağış çubukları ─────────────────────────────
-class HourlyBlock extends StatelessWidget {
+class HourlyBlock extends StatefulWidget {
   final List<HourPoint> hours;
   const HourlyBlock({super.key, required this.hours});
   @override
-  Widget build(BuildContext context) => Bento(
-        padding: const EdgeInsets.all(18),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          BlockHead('Saatlik', trailing: _Trail('${hours.length} saat')),
-          const SizedBox(height: 12),
-          SizedBox(height: 150, width: double.infinity, child: CustomPaint(painter: _HourlyPainter(hours))),
-        ]),
-      );
+  State<HourlyBlock> createState() => _HourlyBlockState();
+}
+
+class _HourlyBlockState extends State<HourlyBlock> {
+  int? _sel;
+  void _pick(Offset p, double w) {
+    final n = widget.hours.length;
+    if (n < 2) return;
+    final i = ((p.dx - 6) / (w - 12) * (n - 1)).round().clamp(0, n - 1);
+    if (i != _sel) { HapticFeedback.selectionClick(); setState(() => _sel = i); }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = widget.hours;
+    final sel = _sel == null ? null : h[_sel!];
+    return Bento(
+      padding: const EdgeInsets.all(18),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        BlockHead('Saatlik', trailing: AnimatedSwitcher(duration: const Duration(milliseconds: 160), child: sel == null
+            ? _Trail('${h.length} saat · kaydır', key: const ValueKey('n'))
+            : _Trail('${sel.time.hour.toString().padLeft(2, '0')}:00 · ${deg(sel.temp)} · ${(max(sel.precip, sel.snowfall * .7)).toStringAsFixed(1)} mm · ${sel.windSpeed.round()} m/s',
+                key: ValueKey(_sel), color: kAccent))),
+        const SizedBox(height: 12),
+        LayoutBuilder(builder: (_, c) => GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: (d) => _pick(d.localPosition, c.maxWidth),
+          onHorizontalDragUpdate: (d) => _pick(d.localPosition, c.maxWidth),
+          onHorizontalDragEnd: (_) => setState(() => _sel = null),
+          onTapDown: (d) => _pick(d.localPosition, c.maxWidth),
+          onTapUp: (_) => Future.delayed(const Duration(milliseconds: 1400), () { if (mounted) setState(() => _sel = null); }),
+          child: SizedBox(height: 150, width: double.infinity, child: CustomPaint(painter: _HourlyPainter(h, _sel))),
+        )),
+      ]),
+    );
+  }
 }
 
 class _HourlyPainter extends CustomPainter {
-  final List<HourPoint> h;
-  _HourlyPainter(this.h);
+  final List<HourPoint> h; final int? sel;
+  _HourlyPainter(this.h, [this.sel]);
 
   void _text(Canvas c, String s, TextStyle st, Offset at, {double align = .5, double? minX, double? maxX}) {
     final tp = TextPainter(text: TextSpan(text: s, style: st), textDirection: TextDirection.ltr)..layout();
@@ -189,10 +264,19 @@ class _HourlyPainter extends CustomPainter {
       _text(c, first ? 'Şimdi' : h[i].time.hour.toString().padLeft(2, '0'), _st(11, first ? FontWeight.w700 : FontWeight.w600, first ? kAccent : kInkSoft),
           Offset(o.dx, ch - 15), minX: 0, maxX: cw);
     }
+    // Parmakla seçilen saat: dikey kılavuz ve vurgulu nokta
+    final si = sel;
+    if (si != null && si >= 0 && si < n) {
+      final x = X(si), y = Y(temps[si]);
+      c.drawLine(Offset(x, 6), Offset(x, ch - 20), Paint()..color = kAccent.withValues(alpha: .35)..strokeWidth = 1.5);
+      c.drawCircle(Offset(x, y), 9, Paint()..color = kAccent.withValues(alpha: .18));
+      c.drawCircle(Offset(x, y), 5.5, Paint()..color = Colors.white);
+      c.drawCircle(Offset(x, y), 5.5, Paint()..color = kAccent..style = PaintingStyle.stroke..strokeWidth = 3);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _HourlyPainter o) => o.h != h;
+  bool shouldRepaint(covariant _HourlyPainter o) => o.h != h || o.sel != sel;
 }
 
 // ── 7 günlük ────────────────────────────────────────────────────────────────
