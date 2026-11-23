@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../astro/tonight.dart';
 import '../data/models.dart';
 import '../data/phrases.dart';
@@ -191,31 +192,86 @@ class _ExploreGrid extends StatelessWidget {
       (Icons.flash_on_rounded, 'Gözlem & şimşek', 'Karne %${w.accuracy.round()} · beni eğit', kBentoPeach, kWarn, const ObservePage()),
       (Icons.handyman_outlined, 'Araçlar', 'Lab, mikser, SOS…', kBentoSand, const Color(0xFF8D6E63), const ToolsPage()),
     ];
-    return GridView.count(
-      padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.42,
-      children: [
-        for (final (icon, title, sub, bg, fg, page) in tiles)
-          Bento(
-            color: bg, padding: const EdgeInsets.all(14),
-            onTap: () { Sfx.tap(); Navigator.push(context, MaterialPageRoute(builder: (_) => page)); },
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(width: 38, height: 38, decoration: BoxDecoration(color: bg == kBentoNight ? const Color(0x22FFFFFF) : Colors.white.withValues(alpha: .85), shape: BoxShape.circle),
-                    child: Icon(icon, size: 20, color: fg)),
-                const Spacer(),
-                Icon(Icons.chevron_right_rounded, size: 20, color: bg == kBentoNight ? const Color(0xFF9DA9CF) : kInkFaint),
+    Widget tile((IconData, String, String, Color, Color, Widget) t) {
+      final (icon, title, sub, bg, fg, page) = t;
+      final night = bg == kBentoNight;
+      return Bento(
+        color: bg, padding: const EdgeInsets.all(14),
+        onTap: () { Sfx.tap(); Navigator.push(context, MaterialPageRoute(builder: (_) => page)); },
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(width: 38, height: 38, decoration: BoxDecoration(color: night ? const Color(0x22FFFFFF) : Colors.white.withValues(alpha: .85), shape: BoxShape.circle),
+                child: Icon(icon, size: 20, color: fg)),
+            const Spacer(),
+            Icon(Icons.chevron_right_rounded, size: 20, color: night ? const Color(0xFF9DA9CF) : kInkFaint),
+          ]),
+          const Spacer(),
+          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: T.body.copyWith(fontWeight: FontWeight.w800, fontSize: 15.5, color: night ? const Color(0xFFF4ECCF) : kInk)),
+          const SizedBox(height: 2),
+          Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: T.small.copyWith(fontSize: 12, color: night ? const Color(0xFF9DA9CF) : kInkSoft)),
+        ]),
+      );
+    }
+    return _ExplorePager(tiles: [for (final t in tiles) tile(t)]);
+  }
+}
+
+/// Keşfet: 2×2 kutuluk sayfalar yana kaydırılır (ana ekranda yalnızca iki satır yer kaplar).
+class _ExplorePager extends StatefulWidget {
+  final List<Widget> tiles;
+  const _ExplorePager({required this.tiles});
+  @override
+  State<_ExplorePager> createState() => _ExplorePagerState();
+}
+
+class _ExplorePagerState extends State<_ExplorePager> {
+  final _pc = PageController();
+  int _page = 0;
+  @override
+  void dispose() { _pc.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = <List<Widget>>[for (var i = 0; i < widget.tiles.length; i += 4) widget.tiles.sublist(i, min(i + 4, widget.tiles.length))];
+    return LayoutBuilder(builder: (_, c) {
+      const gap = 12.0;
+      final tw = (c.maxWidth - gap) / 2;
+      final th = max(tw / 1.42, 112 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.25));
+      return Column(children: [
+        SizedBox(
+          height: th * 2 + gap + 14, // alt pay: kutu gölgeleri kırpılmasın
+          child: PageView.builder(
+            controller: _pc, itemCount: pages.length, padEnds: false,
+            onPageChanged: (i) { HapticFeedback.selectionClick(); setState(() => _page = i); },
+            itemBuilder: (_, p) => Padding(
+              padding: EdgeInsets.only(right: p == pages.length - 1 ? 0 : 2, bottom: 14),
+              child: Column(children: [
+                for (var r = 0; r < 2; r++) ...[
+                  if (r > 0) const SizedBox(height: gap),
+                  SizedBox(height: th, child: Row(children: [
+                    for (var k = 0; k < 2; k++) ...[
+                      if (k > 0) const SizedBox(width: gap),
+                      Expanded(child: r * 2 + k < pages[p].length ? pages[p][r * 2 + k] : const SizedBox()),
+                    ],
+                  ])),
+                ],
               ]),
-              const Spacer(),
-              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: T.body.copyWith(fontWeight: FontWeight.w800, fontSize: 15.5, color: bg == kBentoNight ? const Color(0xFFF4ECCF) : kInk)),
-              const SizedBox(height: 2),
-              Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: T.small.copyWith(fontSize: 12, color: bg == kBentoNight ? const Color(0xFF9DA9CF) : kInkSoft)),
-            ]),
+            ),
           ),
-      ],
-    );
+        ),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          for (var i = 0; i < pages.length; i++)
+            GestureDetector(
+              onTap: () => _pc.animateToPage(i, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic),
+              child: AnimatedContainer(duration: const Duration(milliseconds: 220), margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: i == _page ? 20 : 7, height: 7,
+                  decoration: BoxDecoration(color: i == _page ? kAccent : kLine, borderRadius: BorderRadius.circular(4))),
+            ),
+        ]),
+      ]);
+    });
   }
 }
 
