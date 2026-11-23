@@ -80,3 +80,9 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
   konum başına (0,1°) bir kez indirilir → Store.cache 'clim_v1_*'; normalden fark, hafta bandı, takvim günü rekorları.
   Sandbox'ta archive API kapalı: canlı indirme cihazda doğrulanmadı, hesap testli.
 
+## 2.1.0+15
+- Keşfet > Hava kalitesi (lib/services/air_service.dart, lib/ui/air_screen.dart): EAQI, PM2.5/PM10/O₃/NO₂ (DSÖ 2021), 3 gün.
+- Saatlik detay: HourlyBlock.onHour → showHourSheet (detail_screens.dart).
+- Sabah özeti: lib/engine/brief.dart + bg_tasks (07–10, günde bir; SharedState sn_brief_off / sn_brief_day).
+- Canlı pencere paylaşma (share_plus SharePlus.instance.share + path_provider temp).
+
