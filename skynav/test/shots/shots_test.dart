@@ -20,6 +20,8 @@ import 'package:skynav/ui/settings_screen.dart';
 import 'package:skynav/ui/road_screen.dart';
 import 'package:skynav/ui/sky_screen.dart';
 import 'package:skynav/ui/sky_background.dart';
+import 'package:skynav/ui/clouds.dart';
+import 'package:skynav/ui/scene_shaders.dart';
 import 'package:skynav/ui/theme.dart';
 import 'package:skynav/widgets/widget_faces.dart';
 
@@ -76,6 +78,7 @@ void main() {
     await _font('MaterialIcons', ['/tmp/fl/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf']);
     await _font('InterDisplay', ['/usr/share/fonts/opentype/inter/InterDisplay-Light.otf', '/usr/share/fonts/opentype/inter/InterDisplay-Medium.otf']);
     await _font('NotoColorEmoji', ['/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf']);
+    await Future.wait([CloudShader.load(), MountainShader.load()]);
     final tmp = Directory.systemTemp.createTempSync('hive');
     await Store.init(testPath: tmp.path);
     await Store.put('onboarding_done', true);
@@ -105,6 +108,17 @@ void main() {
     final n = fake(k: PrecipKind.none, day: false, t: 6);
     WeatherController.I.debugSet(n, WeatherEngine.analyze(n));
     await shot(t, const AppShell(), '06_weather_night');
+    WeatherSnapshot variant(double t0, double cloud, int code, double precip, bool day, {double snowDepth = 0, double wind = 4, GeoPoint2? at}) => WeatherSnapshot(
+        place: at ?? s.place, fetchedAt: s.fetchedAt, temp: t0, feelsLike: t0 - 1, humidity: 60, dewPoint: t0 - 6, pressure: 1014, windSpeed: wind, windDir: 230, windGust: wind * 1.5,
+        cloudCover: cloud, cloudHigh: 10, precip: precip, snowfall: 0, visibilityM: 15000, cape: code >= 95 ? 1400 : 100, uv: day ? 5 : 0, freezingLevelM: 2600, snowDepthM: snowDepth,
+        weatherCode: code, isDay: day, hourly: s.hourly, daily: s.daily);
+    for (final (name, v) in [('06b_clear', variant(19, 25, 1, 0, true)), ('06c_rain', variant(9, 95, 63, 2.4, true, wind: 9)), ('06d_hot', variant(34, 10, 0, 0, true)), ('06e_overcast', variant(12, 92, 3, 0, true)),
+        // Gün batımı / mavi saat testi için güneşin şu an alçakta olduğu boylamlar (çalıştırma saatine göre ayarla)
+        ('06f_golden', variant(4, 30, 1, 0, true, snowDepth: .1, at: const GeoPoint2(39.9, 15.6, elevation: 1850, name: 'Gün batımı'))),
+        ('06g_bluehour', variant(2, 20, 0, 0, false, snowDepth: .1, at: const GeoPoint2(39.9, 24.0, elevation: 1850, name: 'Mavi saat')))]) {
+      WeatherController.I.debugSet(v, WeatherEngine.analyze(v));
+      await shot(t, const AppShell(), name, size: const Size(412, 560));
+    }
     await shot(t, const Scaffold(body: Stack(children: [Positioned.fill(child: SkyBackground(state: SkyState(cloud: 30))), SafeArea(child: RoadScreen())])), '07_road');
     await shot(t, const Scaffold(body: Stack(children: [Positioned.fill(child: SkyBackground(state: SkyState(cloud: 30))), SafeArea(child: RoadScreen())])), '07b_road_full', size: const Size(412, 1500));
     await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: SkyScreen())), '08_sky');

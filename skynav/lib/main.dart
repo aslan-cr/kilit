@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'ui/clouds.dart';
+import 'ui/scene_shaders.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' show PlatformDispatcher;
 import 'services/shared_state.dart';
@@ -41,6 +43,8 @@ Future<void> main() async {
   await sp.setDouble('sn_bias', (Store.prefs.get('bias_c', defaultValue: 0.0) as num).toDouble());
   await Cloud.init();
   await Notify.init();
+  // GPU bulut ve dağ programları (yüklenemezse sahne eski çizimle devam eder).
+  await Future.wait([CloudShader.load(), MountainShader.load()]);
   runApp(const SkyNavApp());
 }
 

@@ -20,6 +20,7 @@ import '../services/notify_service.dart';
 import '../services/voice_service.dart';
 import '../services/weather_repository.dart';
 import 'bento.dart';
+import 'clouds.dart';
 import 'hero_scene.dart' show moonLitPath;
 import 'theme.dart';
 import 'widgets.dart';
@@ -159,8 +160,9 @@ class _SkyScreenState extends State<SkyScreen> {
             });
           },
           onTapUp: (d) => _tapSky(d.localPosition, Size(c.maxWidth, c.maxHeight)),
-          child: CustomPaint(size: Size(c.maxWidth, c.maxHeight), painter: _DomePainter(lat: _lat, lon: _lon, t: t, az: _az, pitch: _pitch, fov: _fov, cloud: _xray ? 0 : cloud, iss: _aimShown ? (_aimAz, _aimAlt) : null, sats: _satPoints(t), planetsOn: true)),
+          child: CustomPaint(size: Size(c.maxWidth, c.maxHeight), painter: _DomePainter(lat: _lat, lon: _lon, t: t, az: _az, pitch: _pitch, fov: _fov, cloud: _xray || CloudShader.ready ? 0 : cloud, iss: _aimShown ? (_aimAz, _aimAlt) : null, sats: _satPoints(t), planetsOn: true)),
         ))),
+        if (!_xray && cloud > .03) Positioned.fill(child: IgnorePointer(child: LayoutBuilder(builder: (_, c) => CloudLayer(spec: _domeClouds(cloud, t, c.biggest))))),
         Positioned(left: 16, top: 16, right: 16, child: Wrap(spacing: 6, runSpacing: 6, children: [
           if (_tonight) const _DarkPill(Icons.schedule_rounded, 'Bu gece 22:00'),
           _DarkPill(cloudy && !_xray ? Icons.cloud_rounded : Icons.auto_awesome, cloudy && !_xray ? 'Gökyüzü kapalı' : 'Netlik %${stars.round()}'),
@@ -223,6 +225,21 @@ class _SkyScreenState extends State<SkyScreen> {
     ]);
     if (!_red) return mainCol;
     return ColorFiltered(colorFilter: const ColorFilter.matrix([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]), child: mainCol);
+  }
+
+  /// Kubbedeki bulutlar: gerçek örtü; gündüz beyaz, gece ay ışığında gri-mavi. Bakış yönüyle birlikte kayar.
+  CloudSpec _domeClouds(double cover, DateTime t, Size size) {
+    final day = sunAltitude(_lat, _lon, t) > 0;
+    final s = WeatherController.I.confirmed;
+    final wet = s != null && (s.precip > .1);
+    return CloudSpec(
+      cover: cover, horizon: 1.0, scale: 120 * 80 / _fov, sun: const Offset(.5, .1), seed: 5.1,
+      offset: Offset(_az * size.width / _fov, -_pitch * size.height / _fov),
+      lit: day ? (wet ? const Color(0xFFD5DCE5) : Colors.white) : const Color(0xFF5E6884),
+      shade: day ? (wet ? const Color(0xFF56616F) : const Color(0xFFA9B8CA)) : const Color(0xFF1E2438),
+      weight: wet ? .9 : (day ? .2 : .55), opacity: day ? .96 : .9,
+      wind: Offset(-.01 - (s?.windSpeed ?? 3) * .001, 0),
+    );
   }
 
   String _shadow() {

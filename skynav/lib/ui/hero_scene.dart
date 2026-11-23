@@ -1,7 +1,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../data/models.dart';
+import '../astro/astro_math.dart' show sunAltitude, sunRaDec, moonRaDec, raDecToAltAz;
 import '../engine/formulas.dart';
+import 'clouds.dart';
+import 'scene_shaders.dart';
 import 'wx_glyph.dart';
 
 /// Ana ekranın üst sahnesi (Figma "Sahne", 376×380): kodla çizilmiş manzara.
@@ -36,9 +39,22 @@ class _HeroSceneState extends State<HeroScene> with SingleTickerProviderStateMix
         child: SizedBox(
           height: H,
           child: Stack(fit: StackFit.expand, children: [
-            RepaintBoundary(child: still
-                ? CustomPaint(painter: _ScenePainter(s, widget.a, widget.wx, 12, _parts))
-                : AnimatedBuilder(animation: _c, builder: (_, __) => CustomPaint(painter: _ScenePainter(s, widget.a, widget.wx, _c.value * 3600, _parts)))),
+            // Katmanlar: gök + güneş/ay → GPU bulutları → sabit dağ resmi → yağış ve okunurluk perdesi
+            LayoutBuilder(builder: (_, box) {
+              final W = box.maxWidth;
+              final sl = skyLight(s, W, H);
+              final look = SceneLook.of(s, widget.wx, sun: Offset(sl.pos.dx / W, sl.pos.dy / H));
+              final night = !s.isDay && s.cloudCover < 70;
+              Widget layer(_Part part, {bool anim = true}) => RepaintBoundary(child: still || !anim
+                  ? CustomPaint(size: Size.infinite, painter: _ScenePainter(s, widget.a, widget.wx, 12, _parts, part))
+                  : AnimatedBuilder(animation: _c, builder: (_, __) => CustomPaint(size: Size.infinite, painter: _ScenePainter(s, widget.a, widget.wx, _c.value * 3600, _parts, part))));
+              return Stack(fit: StackFit.expand, children: [
+                layer(_Part.back, anim: night),
+                CloudLayer(spec: look.clouds, animate: !still),
+                MountainLayer(spec: look.mountains),
+                layer(_Part.front),
+              ]);
+            }),
             // Konum hapı
             Positioned(left: 18, top: 18, child: _PlacePill(name: name, elevation: s.place.elevation, onTap: widget.onPlace)),
             if (widget.offline) const Positioned(right: 16, top: 22, child: _OfflineDot()),
@@ -60,6 +76,20 @@ class _HeroSceneState extends State<HeroScene> with SingleTickerProviderStateMix
       ),
     );
   }
+}
+
+/// Gökteki ışık kaynağı: gündüz güneş, gece ay (ufkun altındaysa yok). Konum gerçek yükseklik ve yöne göre:
+/// alçaldıkça ufka (dağlara) iner; doğudan (solda) batıya (sağda) ilerler ama sıcaklık yazısını kapatmaz.
+({Offset pos, bool visible}) skyLight(WeatherSnapshot s, double W, double H, [DateTime? at]) {
+  final t = (at ?? DateTime.now()).toUtc();
+  final rd = s.isDay ? sunRaDec(t) : moonRaDec(t);
+  final aa = raDecToAltAz(rd.raDeg, rd.decDeg, s.place.lat, s.place.lon, t);
+  final k = H / 380;
+  final south = s.place.lat < 0;
+  final along = ((south ? 360 - aa.az : aa.az) - 90) / 180; // 0 doğu, 1 batı
+  final x = W * (.60 + .26 * along.clamp(0.0, 1.0));
+  final y = H * .40 - (H * .40 - 50 * k) * (aa.alt / 35).clamp(0.0, 1.0);
+  return (pos: Offset(x, y), visible: aa.alt > -1.5);
 }
 
 /// Sıcaklığı gerçek eksi işaretiyle yazar: −2°.
@@ -131,9 +161,23 @@ class ScenePalette {
   static const greyNight = ScenePalette(skyTop: Color(0xFF1C2434), skyBottom: Color(0xFF3E4A60), skyStop: .8, far1: Color(0xFF4C586E), far2: Color(0xFF414C60),
       mid1: Color(0xFF343E52), mid2: Color(0xFF2A3344), near1: Color(0xFF1C2333), near2: Color(0xFF141A27), haze: Color(0xFF465268), sun: Color(0xFFF4ECCF));
 
+  // Gün doğumu/batımı (güneş ufkun 0–7° üstünde) ve mavi saat (ufkun 0–6° altında): yalnızca açık/parçalı havada.
+  static const goldenHour = ScenePalette(skyTop: Color(0xFF3E5C9E), skyBottom: Color(0xFFF7AE84), skyStop: .78, far1: Color(0xFFBC9DB0), far2: Color(0xFFA0849B),
+      mid1: Color(0xFF806C89), mid2: Color(0xFF695872), near1: Color(0xFF3B324A), near2: Color(0xFF2A2337), haze: Color(0xFFF4C0A2), sun: Color(0xFFFFC27E));
+  static const blueHour = ScenePalette(skyTop: Color(0xFF1C2A5E), skyBottom: Color(0xFFD99488), skyStop: .85, far1: Color(0xFF6E6A92), far2: Color(0xFF5C587E),
+      mid1: Color(0xFF47456C), mid2: Color(0xFF3A3859), near1: Color(0xFF1F1D36), near2: Color(0xFF16142A), haze: Color(0xFF8C7E9E), sun: Color(0xFFF4ECCF));
+
+  /// Güneşin ufuktan yüksekliği (°), gerçek konum ve saatten.
+  static double sunAlt(WeatherSnapshot s, [DateTime? at]) => sunAltitude(s.place.lat, s.place.lon, (at ?? DateTime.now()).toUtc());
+
   static ScenePalette of(WeatherSnapshot s, Wx wx) {
     final snowy = {Wx.snow, Wx.lentil, Wx.blizzard, Wx.sleet}.contains(wx);
     final wet = {Wx.rain, Wx.thunder, Wx.drizzle}.contains(wx);
+    if (s.cloudCover < 70 && !snowy && !wet && wx != Wx.fog) {
+      final alt = sunAlt(s);
+      if (s.isDay && alt < 7 && alt > -2) return goldenHour;
+      if (!s.isDay && alt > -6 && alt <= 0) return blueHour;
+    }
     if (!s.isDay) return s.cloudCover < 60 && !snowy && !wet ? clearNight : greyNight;
     if (snowy) return snowyDay;
     if (wet) return wetDay;
@@ -157,12 +201,14 @@ class SceneStill extends StatelessWidget {
   final WeatherSnapshot s; final Analysis a;
   const SceneStill({super.key, required this.s, required this.a});
   @override
-  Widget build(BuildContext context) => CustomPaint(size: Size.infinite, painter: _ScenePainter(s, a, wxFromNow(s, a), 12, _Particles(Random(7))));
+  Widget build(BuildContext context) => CustomPaint(size: Size.infinite, painter: _ScenePainter(s, a, wxFromNow(s, a), 12, _Particles(Random(7)), _Part.all));
 }
 
+enum _Part { back, front, all }
+
 class _ScenePainter extends CustomPainter {
-  final WeatherSnapshot s; final Analysis a; final Wx wx; final double t; final _Particles p;
-  _ScenePainter(this.s, this.a, this.wx, this.t, this.p);
+  final WeatherSnapshot s; final Analysis a; final Wx wx; final double t; final _Particles p; final _Part part;
+  _ScenePainter(this.s, this.a, this.wx, this.t, this.p, this.part);
 
   static const _fw = 376.0; // Figma sahne genişliği
 
@@ -179,7 +225,19 @@ class _ScenePainter extends CustomPainter {
     final pal = ScenePalette.of(s, wx);
     final night = !s.isDay;
     final rect = Offset.zero & sz;
+    if (part != _Part.front) _back(c, sz, pal, W, H, sx, k, night, rect);
+    if (part == _Part.front) { _front(c, sz, pal, W, H, k); return; }
+    if (part == _Part.all) {
+      // Tek seferlik çizim (widget görüntüsü): bulut ve dağ shader'ları doğrudan çizilir.
+      final sl = skyLight(s, W, H);
+      final look = SceneLook.of(s, wx, sun: Offset(sl.pos.dx / W, sl.pos.dy / H), cloudScale: 150 * k);
+      if (!CloudShader.paint(c, rect, look.clouds, t)) _canvasClouds(c, W, k, sx, night, (s.cloudCover / 100).clamp(0.0, 1.0));
+      if (!MountainShader.paint(c, rect, look.mountains)) _canvasMountains(c, pal, W, H, sx, k, night);
+      _front(c, sz, pal, W, H, k);
+    }
+  }
 
+  void _back(Canvas c, Size sz, ScenePalette pal, double W, double H, double sx, double k, bool night, Rect rect) {
     // Gök
     c.drawRect(rect, Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
         colors: [pal.skyTop, pal.skyBottom], stops: [0, pal.skyStop]).createShader(rect));
@@ -195,9 +253,12 @@ class _ScenePainter extends CustomPainter {
     }
 
     // Güneş / ay (Figma: merkez 310,70; ışıltı yarıçapı 110)
-    final disc = Offset(W - 66 * max(k, .6), 70 * k);
+    final sl = skyLight(s, W, H);
+    final disc = sl.pos;
     final cover = (s.cloudCover / 100).clamp(0.0, 1.0);
-    if (!night) {
+    if (!sl.visible) {
+      // Ay ufkun altında: çizilmez (uydurma ay yok).
+    } else if (!night) {
       final glowA = (.75 * (1 - cover * .45)).clamp(.25, .75);
       c.drawCircle(disc, 110 * k, Paint()..shader = RadialGradient(colors: [pal.sun.withValues(alpha: glowA), pal.sun.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: disc, radius: 110 * k)));
       if (cover < .92) c.drawCircle(disc, 28 * k, Paint()..color = pal.sun.withValues(alpha: .9 - cover * .35));
@@ -205,6 +266,12 @@ class _ScenePainter extends CustomPainter {
       _moon(c, disc, k);
     }
 
+    // Yedek: GPU programları yüklenemezse eski kodla çizilmiş bulut ve dağlar.
+    if (part == _Part.back && !CloudShader.ready) _canvasClouds(c, W, k, sx, night, cover);
+    if (part == _Part.back && !MountainShader.ready) _canvasMountains(c, pal, W, H, sx, k, night);
+  }
+
+  void _canvasClouds(Canvas c, double W, double k, double sx, bool night, double cover) {
     // Bulutlar: Figma'daki üç küme, örtüye göre sayı ve saydamlık; rüzgâr yönünde süzülür.
     final dir = sin((s.windDir + 180) * pi / 180) >= 0 ? 1.0 : -1.0;
     final drift = t * (2 + s.windSpeed.clamp(0, 20) * .6) * dir;
@@ -221,7 +288,9 @@ class _ScenePainter extends CustomPainter {
       x -= w * k * .5 + 20;
       _cloud(c, x, y0 * k, w * k, op * (night ? .45 : 1) * (.7 + .3 * cover), cloudCol);
     }
+  }
 
+  void _canvasMountains(Canvas c, ScenePalette pal, double W, double H, double sx, double k, bool night) {
     // Dağlar (uzak → yakın), Figma katman değerleri
     final snowCap = (s.snowDepthM ?? 0) > .02 || {Wx.snow, Wx.lentil, Wx.blizzard, Wx.sleet}.contains(wx) || s.temp <= 1;
     final layers = <(Color, Color, double, double, List<double>, double, double)>[
@@ -272,7 +341,9 @@ class _ScenePainter extends CustomPainter {
       g..lineTo(W, H)..close();
       c.drawPath(g, Paint()..color = (night ? const Color(0xFFC9D3E6) : Colors.white).withValues(alpha: .95));
     }
+  }
 
+  void _front(Canvas c, Size sz, ScenePalette pal, double W, double H, double k) {
     // Sis bandı
     final fog = (a.fogProb * a.fogDensity / 10000).clamp(0.0, 1.0);
     if (fog > .05 || wx == Wx.fog) {
@@ -284,6 +355,12 @@ class _ScenePainter extends CustomPainter {
 
     _precip(c, W, H);
 
+    // Üst okunurluk gölgesi: açık renkli gökte beyaz sıcaklık yazısı net kalsın
+    if (s.isDay) {
+      final tr = Rect.fromLTWH(0, 0, W * .75, H * .5);
+      c.drawRect(tr, Paint()..shader = RadialGradient(center: Alignment.topLeft, radius: 1.1,
+          colors: [const Color(0xFF0B1A2E).withValues(alpha: .16 + .10 * (s.cloudCover / 100)), const Color(0x000B1A2E)]).createShader(tr));
+    }
     // Okunurluk perdesi (alt 120 px)
     final sr = Rect.fromLTWH(0, H - 120 * k, W, 120 * k);
     c.drawRect(sr, Paint()..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
@@ -342,7 +419,7 @@ class _ScenePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ScenePainter o) => o.t != t || o.s != s || o.wx != wx;
+  bool shouldRepaint(covariant _ScenePainter o) => o.t != t || o.s != s || o.wx != wx || o.part != part;
 }
 
 /// Ayın aydınlık kısmı. [fraction] 0 yeni ay, 0.5 dolunay. Kuzey yarımkürede büyüyen ay sağdan aydınlanır.

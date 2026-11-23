@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart' hide Path;
 import '../data/models.dart';
 import '../services/location_service.dart';
 import '../services/weather_repository.dart';
+import 'clouds.dart';
 import 'hero_scene.dart' show ScenePalette;
 import 'map_chrome.dart';
 import 'theme.dart';
@@ -60,6 +61,21 @@ class _Map3DScreenState extends State<Map3DScreen> with SingleTickerProviderStat
   @override
   void dispose() { _gps?.cancel(); _anim.dispose(); super.dispose(); }
 
+  /// Haritanın üstündeki bulut katmanı (ve gölgesi): gerçek örtü, rüzgâr yönünde süzülür.
+  CloudSpec _mapClouds(WeatherSnapshot s, {bool shadow = false}) {
+    final to = (s.windDir + 180) * pi / 180, spd = .006 + s.windSpeed.clamp(0, 25) * .0016;
+    final wet = s.precip > .1;
+    final cover = (s.cloudCover / 100).clamp(0.0, 1.0) * .92;
+    if (shadow) {
+      return CloudSpec(cover: cover, lit: const Color(0xFF0B1A2A), shade: const Color(0xFF0B1A2A), opacity: .22, weight: 0, scale: 230, horizon: 3, seed: 2.2,
+          wind: Offset(-sin(to) * spd, cos(to) * spd * .5));
+    }
+    return CloudSpec(cover: cover, horizon: 3, scale: 230, seed: 2.2, sun: const Offset(.8, .05), wind: Offset(-sin(to) * spd, cos(to) * spd * .5),
+        lit: !s.isDay ? const Color(0xFF6F7A92) : wet ? const Color(0xFFD5DCE5) : Colors.white,
+        shade: !s.isDay ? const Color(0xFF262D3D) : wet ? const Color(0xFF56616F) : const Color(0xFFAAB8C8),
+        weight: wet ? .85 : .15, opacity: .82);
+  }
+
   @override
   Widget build(BuildContext context) {
     final w = WeatherController.I;
@@ -91,7 +107,13 @@ class _Map3DScreenState extends State<Map3DScreen> with SingleTickerProviderStat
             Positioned(top: 0, left: 0, right: 0, height: c.maxHeight * (.18 + _tilt / 65 * .2), child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
                 begin: Alignment.topCenter, end: Alignment.bottomCenter, stops: const [0, .45, 1],
                 colors: [pal.skyTop.withValues(alpha: _tilt / 65), pal.skyBottom.withValues(alpha: .85), pal.haze.withValues(alpha: 0)]))))),
-            // Hacimli bulutlar + rüzgârla akan yağış + kar birikintisi
+            // Gerçek bulut örtüsü (GPU): önce yere düşen gölgesi, sonra bulutun kendisi
+            if (_showWeather && s != null && s.cloudCover > 3 && CloudShader.ready) ...[
+              if (s.isDay) Positioned.fill(child: IgnorePointer(child: Transform.translate(offset: const Offset(26, 40),
+                  child: CloudLayer(spec: _mapClouds(s, shadow: true))))),
+              Positioned.fill(child: IgnorePointer(child: CloudLayer(spec: _mapClouds(s)))),
+            ],
+            // Rüzgârla akan yağış, vadi sisi, kar birikintisi
             if (_showWeather && s != null && a != null)
               Positioned.fill(child: IgnorePointer(child: AnimatedBuilder(animation: _anim, builder: (_, __) => CustomPaint(painter: _WeatherLayerPainter(s, a, _anim.value * 120, _tilt))))),
           ]));
@@ -130,7 +152,7 @@ class _WeatherLayerPainter extends CustomPainter {
     final horizon = size.height * .16;
 
     // Bulutlar: uzak katman küçük/soluk, yakın katman büyük/belirgin (perspektif)
-    if (cover > .08) {
+    if (cover > .08 && !CloudShader.ready) {
       final n = (10 + cover * 22).round();
       for (var layer = 0; layer < 3; layer++) {
         for (var i = 0; i < n ~/ 3 + 2; i++) {
