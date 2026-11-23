@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -160,9 +161,9 @@ class WeatherScreen extends StatelessWidget {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
-  static Future<void> pickPlace(BuildContext context) => _pickPlace(context);
-  static Future<void> _pickPlace(BuildContext context) =>
-      showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => const _PlaceSheet());
+  static Future<void> pickPlace(BuildContext context, {bool add = false}) => _pickPlace(context, add: add);
+  static Future<void> _pickPlace(BuildContext context, {bool add = false}) =>
+      showModalBottomSheet(context: context, isScrollControlled: true, showDragHandle: true, builder: (_) => _PlaceSheet(add: add));
 }
 
 // ── Keşfet menüsü ──────────────────────────────────────────────────────────
@@ -182,7 +183,7 @@ class _ExploreGrid extends StatelessWidget {
     final tiles = <(IconData, String, String, Color, Color, Widget)>[
       (Icons.nightlight_round, 'Gök & Ay', '${moon.name} · ${planets.isEmpty ? 'gezegen yok' : '${planets.length} gezegen'}', kBentoNight, const Color(0xFFF4ECCF), SkyMoonPage(s: s, a: a)),
       (Icons.bookmarks_rounded, 'Yerlerim', '${LocationService.places().length} kayıtlı yer · yan yana', const Color(0xFFE6EEFF), const Color(0xFF4F6BED),
-          PlacesScreen(onAdd: () => WeatherScreen.pickPlace(context))),
+          PlacesScreen(onAdd: () => WeatherScreen.pickPlace(context, add: true))),
       (Icons.schedule_rounded, 'En iyi zaman', bestTimeTeaser(s, now), kBentoMint, kGood, BestTimeScreen(s: s)),
       (Icons.thermostat_auto_rounded, 'İklim', climateTeaser(s, now) ?? '30 yıllık normaller', const Color(0xFFFFF4E0), kWarn, ClimateScreen(s: s)),
       (Icons.air_rounded, 'Hava kalitesi', 'Toz-duman: ${Plain.dust(s.aqPm10).toLowerCase()} · 3 gün', const Color(0xFFE8F6EE), const Color(0xFF2E9E6A), AirScreen(s: s)),
@@ -529,7 +530,9 @@ class _Loading extends StatelessWidget {
 
 // ── Konum seçici ───────────────────────────────────────────────────────────
 class _PlaceSheet extends StatefulWidget {
-  const _PlaceSheet();
+  /// true: Yerlerim'den açıldı — sonuca dokununca kaydedilir.
+  final bool add;
+  const _PlaceSheet({this.add = false});
   @override
   State<_PlaceSheet> createState() => _PlaceSheetState();
 }
@@ -537,33 +540,93 @@ class _PlaceSheet extends StatefulWidget {
 class _PlaceSheetState extends State<_PlaceSheet> {
   final _q = TextEditingController();
   List<GeoPoint2> _res = [];
-  bool _busy = false;
+  bool _busy = false, _offline = false, _searched = false;
+  Timer? _debounce;
+  int _seq = 0;
+
+  @override
+  void dispose() { _debounce?.cancel(); _q.dispose(); super.dispose(); }
+
+  /// Yazarken arar (kısa beklemeyle); en son yazılanın sonucu gösterilir.
+  void _onChanged(String v) {
+    _debounce?.cancel();
+    if (v.trim().length < 2) { setState(() { _res = []; _searched = false; _offline = false; _busy = false; }); return; }
+    _debounce = Timer(const Duration(milliseconds: 450), () => _search(v));
+  }
+
+  Future<void> _search(String v) async {
+    final my = ++_seq;
+    setState(() { _busy = true; _offline = false; });
+    try {
+      final r = await GeocodeService().search(v, near: WeatherController.I.confirmed?.place);
+      if (my != _seq || !mounted) return;
+      setState(() { _res = r; _searched = true; });
+    } on GeocodeOffline {
+      if (my == _seq && mounted) setState(() { _res = []; _offline = true; _searched = true; });
+    } catch (_) {
+      if (my == _seq && mounted) setState(() { _res = []; _offline = true; _searched = true; });
+    } finally {
+      if (my == _seq && mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _save(GeoPoint2 p) async {
+    await LocationService.savePlace(p);
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text('${p.name.split(',').first} kaydedildi kanki.')));
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final saved = LocationService.places();
+    final mq = MediaQuery.of(context);
+    final note = _busy ? null : _offline ? 'İnternete bağlanılamadı. Bağlantını kontrol edip tekrar dene.'
+        : _searched && _res.isEmpty ? '"${_q.text.trim()}" bulunamadı. İl ya da ilçe adını dene.' : null;
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, mq.viewInsets.bottom + 24),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Konum', style: T.h1),
+        Text(widget.add ? 'Yer ekle' : 'Konum', style: T.h1),
+        if (widget.add) ...[const SizedBox(height: 4), const Text('Bul ve dokun: Yerlerim\'e eklenir.', style: T.small)],
         const SizedBox(height: 14),
         TextField(
-          controller: _q, textInputAction: TextInputAction.search,
+          controller: _q, textInputAction: TextInputAction.search, autofocus: widget.add,
           decoration: InputDecoration(
             hintText: 'Şehir, ilçe, mahalle, köy ara…', prefixIcon: const Icon(Icons.search),
             filled: true, fillColor: kIce, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-            suffixIcon: _busy ? const Padding(padding: EdgeInsets.all(14), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))) : null,
+            suffixIcon: _busy ? const Padding(padding: EdgeInsets.all(14), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
+                : _q.text.isNotEmpty ? IconButton(icon: const Icon(Icons.close_rounded), onPressed: () { _q.clear(); _onChanged(''); }) : null,
           ),
-          onSubmitted: (v) async { setState(() => _busy = true); try { final r = await GeocodeService().search(v); setState(() => _res = r); } catch (_) {} setState(() => _busy = false); },
+          onChanged: _onChanged,
+          onSubmitted: (v) { _debounce?.cancel(); if (v.trim().length >= 2) _search(v); },
         ),
         const SizedBox(height: 8),
-        ListTile(contentPadding: EdgeInsets.zero, leading: const IconBadge(Icons.my_location_rounded, size: 38), title: const Text('Konumumu kullan (GPS)', style: TextStyle(fontWeight: FontWeight.w600)),
-            onTap: () { WeatherController.I.useGps(); Navigator.pop(context); }),
-        for (final p in saved) ListTile(contentPadding: EdgeInsets.zero, leading: const IconBadge(Icons.bookmark_rounded, color: kWarn, size: 38), title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-            trailing: IconButton(icon: const Icon(Icons.delete_outline, color: kInkSoft), onPressed: () async { await LocationService.deletePlace(p.name); setState(() {}); }),
-            onTap: () { WeatherController.I.setPlace(p); Navigator.pop(context); }),
-        for (final p in _res) ListTile(contentPadding: EdgeInsets.zero, leading: const IconBadge(Icons.place_outlined, color: kInkSoft, size: 38), title: Text(p.name),
-            trailing: IconButton(icon: const Icon(Icons.bookmark_add_outlined, color: kAccent), tooltip: 'Kaydet (Evim, Anneannem…)', onPressed: () async { await LocationService.savePlace(p); setState(() {}); }),
-            onTap: () { WeatherController.I.setPlace(p); Navigator.pop(context); }),
+        if (note != null) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(children: [
+          Icon(_offline ? Icons.wifi_off_rounded : Icons.search_off_rounded, size: 20, color: _offline ? kWarn : kInkSoft),
+          const SizedBox(width: 10),
+          Expanded(child: Text(note, style: T.small)),
+        ])),
+        ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: mq.size.height * .5),
+          child: ListView(shrinkWrap: true, padding: EdgeInsets.zero, children: [
+            for (final p in _res) ListTile(contentPadding: EdgeInsets.zero,
+                leading: IconBadge(widget.add ? Icons.add_location_alt_outlined : Icons.place_outlined, color: widget.add ? kAccent : kInkSoft, size: 38),
+                title: Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                subtitle: p.elevation == null ? null : Text('${p.elevation!.round()} m', style: T.small.copyWith(fontSize: 12)),
+                trailing: widget.add ? null : IconButton(icon: const Icon(Icons.bookmark_add_outlined, color: kAccent), tooltip: 'Kaydet (Evim, Anneannem…)', onPressed: () => _save(p)),
+                onTap: () async {
+                  if (widget.add) { await _save(p); if (context.mounted) Navigator.pop(context); return; }
+                  WeatherController.I.setPlace(p); Navigator.pop(context);
+                }),
+            if (!widget.add) ...[
+              ListTile(contentPadding: EdgeInsets.zero, leading: const IconBadge(Icons.my_location_rounded, size: 38), title: const Text('Konumumu kullan (GPS)', style: TextStyle(fontWeight: FontWeight.w600)),
+                  onTap: () { WeatherController.I.useGps(); Navigator.pop(context); }),
+              for (final p in saved) ListTile(contentPadding: EdgeInsets.zero, leading: const IconBadge(Icons.bookmark_rounded, color: kWarn, size: 38), title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  trailing: IconButton(icon: const Icon(Icons.delete_outline, color: kInkSoft), onPressed: () async { await LocationService.deletePlace(p.name); setState(() {}); }),
+                  onTap: () { WeatherController.I.setPlace(p); Navigator.pop(context); }),
+            ],
+          ]),
+        ),
       ]),
     );
   }
