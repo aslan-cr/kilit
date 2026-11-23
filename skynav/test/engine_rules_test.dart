@@ -5,6 +5,7 @@ import 'package:skynav/astro/sky_times.dart';
 import 'package:skynav/astro/star_catalog.dart';
 import 'package:skynav/engine/alerts.dart';
 import 'package:skynav/services/climate_service.dart';
+import 'package:skynav/services/air_service.dart';
 import 'package:skynav/engine/best_time.dart';
 import 'package:skynav/engine/compare.dart';
 import 'package:skynav/engine/nowcast.dart';
@@ -171,5 +172,15 @@ void main() {
     expect(n.recMaxYear[ClimateNormals.doy(nov23)], 2010);
     final back = ClimateNormals.fromJson(n.toJson());
     expect(back.maxOn(nov23), n.maxOn(nov23));
+  });
+
+  test('hava kalitesi: ayrıştırma ve Avrupa endeksi kademeleri', () {
+    final pts = AirService.parse({
+      'time': ['2026-12-01T10:00', '2026-12-01T11:00', '2026-12-01T12:00'],
+      'european_aqi': [18, null, 64], 'pm2_5': [4.2, 5.0, 30], 'pm10': [9, 10, 55], 'ozone': [60, 61, 40], 'nitrogen_dioxide': [12, 13, 44],
+    });
+    expect(pts.length, 2); // endeksi olmayan saat atlanır
+    expect(pts.last.pm10, 55);
+    expect(Aqi.label(18), 'İyi'); expect(Aqi.label(35), 'Makul'); expect(Aqi.label(64), 'Kötü'); expect(Aqi.label(120), 'Aşırı kötü');
   });
 }

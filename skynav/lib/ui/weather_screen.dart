@@ -15,6 +15,7 @@ import '../services/weather_repository.dart';
 import 'lab_screen.dart';
 import 'radar_map.dart';
 import 'bento.dart';
+import 'air_screen.dart';
 import 'best_time_screen.dart';
 import 'climate_screen.dart';
 import 'detail_screens.dart';
@@ -182,12 +183,13 @@ class _ExploreGrid extends StatelessWidget {
       (Icons.bookmarks_rounded, 'Yerlerim', '${LocationService.places().length} kayıtlı yer · yan yana', const Color(0xFFE6EEFF), const Color(0xFF4F6BED),
           PlacesScreen(onAdd: () => WeatherScreen.pickPlace(context))),
       (Icons.schedule_rounded, 'En iyi zaman', bestTimeTeaser(s, now), kBentoMint, kGood, BestTimeScreen(s: s)),
-      (Icons.thermostat_auto_rounded, 'İklim', climateTeaser(s, now) ?? '30 yıllık normaller, rekorlar', const Color(0xFFFFF4E0), kWarn, ClimateScreen(s: s)),
+      (Icons.thermostat_auto_rounded, 'İklim', climateTeaser(s, now) ?? '30 yıllık normaller', const Color(0xFFFFF4E0), kWarn, ClimateScreen(s: s)),
+      (Icons.air_rounded, 'Hava kalitesi', 'Toz-duman: ${Plain.dust(s.aqPm10).toLowerCase()} · 3 gün', const Color(0xFFE8F6EE), const Color(0xFF2E9E6A), AirScreen(s: s)),
       (Icons.show_chart_rounded, 'Grafikler', 'Basınç ${trend ?? 'sabit'} · 72 saat', kBentoBlue, kAccent, TrendScreen(s: s)),
       (Icons.landscape_rounded, 'Pro analiz', 'Dağ desteği +%${a.mountainBonusPct.round()}', const Color(0xFFEFEAFE), kPro, ProPage(s: s, a: a)),
       (Icons.radar_rounded, 'Radar & uydu', 'Canlı yağış haritası', const Color(0xFFE3F4F4), const Color(0xFF1E9C9C), const RadarPage()),
       (Icons.flash_on_rounded, 'Gözlem & şimşek', 'Karne %${w.accuracy.round()} · beni eğit', kBentoPeach, kWarn, const ObservePage()),
-      (Icons.handyman_outlined, 'Araçlar', 'Laboratuvar, mikser, SOS…', kBentoSand, const Color(0xFF8D6E63), const ToolsPage()),
+      (Icons.handyman_outlined, 'Araçlar', 'Lab, mikser, SOS…', kBentoSand, const Color(0xFF8D6E63), const ToolsPage()),
     ];
     return GridView.count(
       padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),

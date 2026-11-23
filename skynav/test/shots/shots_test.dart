@@ -30,6 +30,8 @@ import 'package:skynav/ui/plain.dart';
 import 'package:skynav/ui/places_screen.dart';
 import 'package:skynav/ui/best_time_screen.dart';
 import 'package:skynav/ui/climate_screen.dart';
+import 'package:skynav/ui/air_screen.dart';
+import 'package:skynav/services/air_service.dart';
 import 'package:skynav/services/climate_service.dart';
 import 'package:skynav/ui/wx_glyph.dart' show Wx;
 import 'package:skynav/ui/hero_scene.dart' show Lightning;
@@ -169,6 +171,9 @@ void main() {
       ct.add(d.toIso8601String().substring(0, 10)); cx.add(b0 + 5 + (d.year == 2010 ? 3 : 0) - (d.year == 2003 ? 6 : 0)); cn.add(b0 - 6 - (d.year == 2003 ? 8 : 0));
     }
     await shot(t, ClimateScreen(s: s, normals: ClimateNormals.compute(ct, cx, cn)), '23_climate', size: const Size(412, 1000));
+    final n0 = DateTime.now();
+    await shot(t, AirScreen(s: s, data: [for (var i = -24; i < 72; i++) AirPoint(DateTime(n0.year, n0.month, n0.day, n0.hour).add(Duration(hours: i)),
+        28 + 14 * sin(i / 5) + (i > 30 && i < 40 ? 18 : 0), 9 + 5 * sin(i / 5), 22 + 8 * sin(i / 5), 55 + 20 * sin(i / 7), 14 + 9 * sin(i / 4))]), '24_air', size: const Size(412, 1100));
     await shot(t, const LabScreen(), '03_lab');
     await shot(t, const Paywall(), '04_paywall');
     await shot(t, const SettingsScreen(), '05_settings');

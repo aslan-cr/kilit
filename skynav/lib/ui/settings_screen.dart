@@ -187,6 +187,8 @@ Yazı tipi: Inter, Rasmus Andersson. Lisans: SIL Open Font License 1.1.
 
 Haritalar ve uydu: Esri World Imagery ve World Hillshade, OpenStreetMap katkıcıları (ODbL), NASA GIBS (MODIS), RainViewer radar.
 
+Hava kalitesi: Copernicus Atmosfer İzleme Servisi (CAMS) tahmini, Open-Meteo Air Quality API üzerinden; endeks: Avrupa Hava Kalitesi İndeksi (EEA), sınırlar: DSÖ 2021.
+
 İklim normalleri ve rekorlar: Copernicus ERA5 yeniden analizi (ECMWF), Open-Meteo Historical Weather API üzerinden (CC BY 4.0), son 30 yıl.
 
 Hava verisi: Open-Meteo (CC BY 4.0), havalimanı ölçümleri NOAA Aviation Weather Center, uzay havası NOAA SWPC. Uçaklar: OpenSky Network. Uydular: CelesTrak. Yol tarifi: OSRM. Yer arama: Photon (komoot), Overpass API (OpenStreetMap).
