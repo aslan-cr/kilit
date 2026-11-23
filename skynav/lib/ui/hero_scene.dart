@@ -152,6 +152,14 @@ class _Particles {
         stars = [for (var i = 0; i < 90; i++) (r.nextDouble(), r.nextDouble() * .55, .3 + r.nextDouble() * 1.2)];
 }
 
+/// Ana ekran widget'ı gibi küçük yüzeyler için hareketsiz sahne.
+class SceneStill extends StatelessWidget {
+  final WeatherSnapshot s; final Analysis a;
+  const SceneStill({super.key, required this.s, required this.a});
+  @override
+  Widget build(BuildContext context) => CustomPaint(size: Size.infinite, painter: _ScenePainter(s, a, wxFromNow(s, a), 12, _Particles(Random(7))));
+}
+
 class _ScenePainter extends CustomPainter {
   final WeatherSnapshot s; final Analysis a; final Wx wx; final double t; final _Particles p;
   _ScenePainter(this.s, this.a, this.wx, this.t, this.p);
@@ -167,7 +175,7 @@ class _ScenePainter extends CustomPainter {
 
   @override
   void paint(Canvas c, Size sz) {
-    final W = sz.width, H = sz.height, sx = W / _fw;
+    final W = sz.width, H = sz.height, sx = W / _fw, k = H / 380; // k: yükseklik ölçeği (sahne 380 px)
     final pal = ScenePalette.of(s, wx);
     final night = !s.isDay;
     final rect = Offset.zero & sz;
@@ -187,14 +195,14 @@ class _ScenePainter extends CustomPainter {
     }
 
     // Güneş / ay (Figma: merkez 310,70; ışıltı yarıçapı 110)
-    final disc = Offset(310 * sx, 70);
+    final disc = Offset(W - 66 * max(k, .6), 70 * k);
     final cover = (s.cloudCover / 100).clamp(0.0, 1.0);
     if (!night) {
       final glowA = (.75 * (1 - cover * .45)).clamp(.25, .75);
-      c.drawCircle(disc, 110, Paint()..shader = RadialGradient(colors: [pal.sun.withValues(alpha: glowA), pal.sun.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: disc, radius: 110)));
-      if (cover < .92) c.drawCircle(disc, 28, Paint()..color = pal.sun.withValues(alpha: .9 - cover * .35));
+      c.drawCircle(disc, 110 * k, Paint()..shader = RadialGradient(colors: [pal.sun.withValues(alpha: glowA), pal.sun.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: disc, radius: 110 * k)));
+      if (cover < .92) c.drawCircle(disc, 28 * k, Paint()..color = pal.sun.withValues(alpha: .9 - cover * .35));
     } else {
-      _moon(c, disc);
+      _moon(c, disc, k);
     }
 
     // Bulutlar: Figma'daki üç küme, örtüye göre sayı ve saydamlık; rüzgâr yönünde süzülür.
@@ -207,25 +215,25 @@ class _ScenePainter extends CustomPainter {
     final cloudCol = night ? const Color(0xFF9AA6C2) : Colors.white;
     for (var i = 0; i < n; i++) {
       final (x0, y0, w, op) = clouds[i];
-      final span = W + w * sx + 40;
+      final span = W + w * k + 40;
       var x = (x0 * sx + drift * (1 + i * .25)) % span;
       if (x < 0) x += span;
-      x -= w * sx * .5 + 20;
-      _cloud(c, x, y0, w, op * (night ? .45 : 1) * (.7 + .3 * cover), cloudCol);
+      x -= w * k * .5 + 20;
+      _cloud(c, x, y0 * k, w * k, op * (night ? .45 : 1) * (.7 + .3 * cover), cloudCol);
     }
 
     // Dağlar (uzak → yakın), Figma katman değerleri
     final snowCap = (s.snowDepthM ?? 0) > .02 || {Wx.snow, Wx.lentil, Wx.blizzard, Wx.sleet}.contains(wx) || s.temp <= 1;
     final layers = <(Color, Color, double, double, List<double>, double, double)>[
-      (pal.far1, pal.far2, H * .70, 120, [7.3, .6, 1.6, 17, 1.1, .12], .86, .45),
-      (pal.mid1, pal.mid2, H * .80, 96, [5.1, 2.2, 1.4, 13, .4, .14], .8, .5),
-      (pal.near1, pal.near2, H * .96, 70, [3.4, 1.3, 1.1, 9, 2.0, .18], 0, 0),
+      (pal.far1, pal.far2, H * .70, 120 * k, [7.3, .6, 1.6, 17, 1.1, .12], .86, .45),
+      (pal.mid1, pal.mid2, H * .80, 96 * k, [5.1, 2.2, 1.4, 13, .4, .14], .8, .5),
+      (pal.near1, pal.near2, H * .96, 70 * k, [3.4, 1.3, 1.1, 9, 2.0, .18], 0, 0),
     ];
-    for (final (c1, c2, base, amp, k, snow, thr) in layers) {
+    for (final (c1, c2, base, amp, kk, snow, thr) in layers) {
       final pts = <Offset>[];
       final path = Path()..moveTo(0, H);
       for (var x = 0.0; x <= W + 3; x += 3) {
-        final y = base - amp * _ridge(x / W, k);
+        final y = base - amp * _ridge(x / W, kk);
         pts.add(Offset(x, y)); path.lineTo(x, y);
       }
       path..lineTo(W, H)..close();
@@ -234,7 +242,7 @@ class _ScenePainter extends CustomPainter {
       if (snow > 0 && snowCap) {
         // Sırtı izleyen kar şapkası; alt kenar tırtıklı.
         final thrY = base - amp * thr;
-        double edge(double x) { final fx = x / sx; return thrY + 4 * sin(fx / 5 + k[1]) + 3 * sin(fx / 13); }
+        double edge(double x) { final fx = x / sx; return thrY + (4 * sin(fx / 5 + kk[1]) + 3 * sin(fx / 13)) * k; }
         final capPaint = Paint()..color = Colors.white.withValues(alpha: night ? snow * .55 : snow);
         var seg = <Offset>[];
         void flush() {
@@ -251,7 +259,7 @@ class _ScenePainter extends CustomPainter {
       }
       if (snow > 0) {
         // Katman arası pus
-        final hz = Rect.fromLTWH(0, base - 45, W, 90);
+        final hz = Rect.fromLTWH(0, base - 45 * k, W, 90 * k);
         c.drawRect(hz, Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
             colors: [pal.haze.withValues(alpha: 0), pal.haze.withValues(alpha: .5), pal.haze.withValues(alpha: 0)], stops: const [0, .55, 1]).createShader(hz));
       }
@@ -260,7 +268,7 @@ class _ScenePainter extends CustomPainter {
     // Ön plan kar örtüsü
     if ((s.snowDepthM ?? 0) > .02 || {Wx.snow, Wx.blizzard, Wx.lentil}.contains(wx)) {
       final g = Path()..moveTo(0, H);
-      for (var x = 0.0; x <= W + 4; x += 4) { final fx = x / sx; g.lineTo(x, H - 14 - 5 * sin(fx / 37) - 3 * sin(fx / 11)); }
+      for (var x = 0.0; x <= W + 4; x += 4) { final fx = x / sx; g.lineTo(x, H - (14 + 5 * sin(fx / 37) + 3 * sin(fx / 11)) * k); }
       g..lineTo(W, H)..close();
       c.drawPath(g, Paint()..color = (night ? const Color(0xFFC9D3E6) : Colors.white).withValues(alpha: .95));
     }
@@ -277,7 +285,7 @@ class _ScenePainter extends CustomPainter {
     _precip(c, W, H);
 
     // Okunurluk perdesi (alt 120 px)
-    final sr = Rect.fromLTWH(0, H - 120, W, 120);
+    final sr = Rect.fromLTWH(0, H - 120 * k, W, 120 * k);
     c.drawRect(sr, Paint()..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
         colors: [Color(0x00000000), Color(0x61050F1F)]).createShader(sr));
   }
@@ -294,16 +302,16 @@ class _ScenePainter extends CustomPainter {
   }
 
   /// Gerçek evresiyle ay: aydınlık kısım, terminatör elipsi, kraterler.
-  void _moon(Canvas c, Offset ctr) {
+  void _moon(Canvas c, Offset ctr, double k) {
     final m = moonPhase(DateTime.now());
-    const r = 24.0;
-    c.drawCircle(ctr, 64, Paint()..shader = RadialGradient(colors: [const Color(0xFFDDE6FF).withValues(alpha: .22 * (1 - s.cloudCover / 140)), const Color(0x00DDE6FF)]).createShader(Rect.fromCircle(center: ctr, radius: 64)));
+    final r = 24.0 * k;
+    c.drawCircle(ctr, 64 * k, Paint()..shader = RadialGradient(colors: [const Color(0xFFDDE6FF).withValues(alpha: .22 * (1 - s.cloudCover / 140)), const Color(0x00DDE6FF)]).createShader(Rect.fromCircle(center: ctr, radius: 64 * k)));
     c.drawCircle(ctr, r, Paint()..color = const Color(0xFF2B3866).withValues(alpha: .9));
     final lit = moonLitPath(ctr, r, m.fraction, south: s.place.lat < 0);
     c.drawPath(lit, Paint()..color = const Color(0xFFF4ECCF).withValues(alpha: s.cloudCover > 85 ? .45 : 1));
     c.save(); c.clipPath(lit);
     for (final (dx, dy, cr) in const [(5.0, -6.0, 3.5), (-6.0, 5.0, 4.5), (7.0, 7.0, 2.6), (-1.0, -12.0, 2.0)]) {
-      c.drawCircle(ctr + Offset(dx, dy), cr, Paint()..color = const Color(0xFFD8CDA8).withValues(alpha: .55));
+      c.drawCircle(ctr + Offset(dx, dy) * k, cr * k, Paint()..color = const Color(0xFFD8CDA8).withValues(alpha: .55));
     }
     c.restore();
   }
@@ -313,6 +321,7 @@ class _ScenePainter extends CustomPainter {
     if (!kinds.contains(wx)) return;
     final wind = sin((s.windDir + 180) * pi / 180) * s.windSpeed.clamp(0, 25); // + sağa
     final n = switch (wx) { Wx.blizzard => 170, Wx.drizzle => 70, Wx.snow || Wx.lentil => 80, _ => 110 };
+    final q = .55 + .45 * (H / 380).clamp(0.0, 1.0); // küçük yüzeyde (widget) taneler de küçülür
     for (var i = 0; i < n; i++) {
       final (rx, ry, depth, ph) = p.drops[i];
       final snowish = wx == Wx.snow || wx == Wx.blizzard || (wx == Wx.sleet && i.isEven);
@@ -322,11 +331,11 @@ class _ScenePainter extends CustomPainter {
       var x = rx * W + (y / H) * wind * (snowish ? 6 : 3) + t * wind * (snowish ? 2.2 : .6) + (snowish ? sin(t * 1.1 + ph * 6.28) * 7 : 0);
       x %= W; if (x < 0) x += W;
       if (snowish) {
-        c.drawCircle(Offset(x, y), .8 + depth * 2.1, Paint()..color = Colors.white.withValues(alpha: .55 + .45 * depth));
+        c.drawCircle(Offset(x, y), (.8 + depth * 2.1) * q, Paint()..color = Colors.white.withValues(alpha: .55 + .45 * depth));
       } else if (pellet) {
-        c.drawCircle(Offset(x, y), 1.4 + depth * 1.8, Paint()..color = Colors.white);
+        c.drawCircle(Offset(x, y), (1.4 + depth * 1.8) * q, Paint()..color = Colors.white);
       } else {
-        final len = wx == Wx.drizzle ? 5 + 4 * depth : 9 + 10 * depth;
+        final len = (wx == Wx.drizzle ? 5 + 4 * depth : 9 + 10 * depth) * q;
         c.drawLine(Offset(x, y), Offset(x + wind * .45, y + len), Paint()..color = Colors.white.withValues(alpha: .3 + .35 * depth)..strokeWidth = .8 + depth..strokeCap = StrokeCap.round);
       }
     }

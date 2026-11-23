@@ -21,6 +21,7 @@ import 'package:skynav/ui/road_screen.dart';
 import 'package:skynav/ui/sky_screen.dart';
 import 'package:skynav/ui/sky_background.dart';
 import 'package:skynav/ui/theme.dart';
+import 'package:skynav/widgets/widget_faces.dart';
 
 const outDir = String.fromEnvironment('OUT', defaultValue: '/tmp/shots');
 
@@ -85,6 +86,16 @@ void main() {
   testWidgets('ekranlar', (t) async {
     final s = fake();
     WeatherController.I.debugSet(s, WeatherEngine.analyze(s));
+    final an = WeatherEngine.analyze(s);
+    await shot(t, Scaffold(backgroundColor: const Color(0xFF6B7F99), body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      WeatherWidgetFace(s: s, a: an, place: 'Erzurum', condition: 'Kar', line2: 'Rüzgâr 6 m/s · nem %88', today: s.daily.first),
+      const SizedBox(height: 16),
+      WeatherWidgetFace(s: fake(k: PrecipKind.none, day: false, t: 6), a: WeatherEngine.analyze(fake(k: PrecipKind.none, day: false, t: 6)), place: 'Erzurum', condition: 'Açık gece', line2: 'Yıldız netliği %80'),
+      const SizedBox(height: 16),
+      const Row(mainAxisSize: MainAxisSize.min, children: [
+        SpeedWidgetFace(speedKmh: 54, road: 'Karlı', gText: 'G 0.2', warn: 'Yol kaygan, yavaş git kanki.', level: 1),
+      ]),
+    ]))), '00_widgets', size: const Size(412, 600));
     await shot(t, const Onboarding(onDone: _noop), '01_onboarding');
     await shot(t, const AppShell(), '02_weather');
     await shot(t, const AppShell(), '02b_weather_full', size: const Size(412, 4600));

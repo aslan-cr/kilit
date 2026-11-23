@@ -22,11 +22,17 @@ class WidgetService {
     final line2 = s.cloudCover > 75 && !s.isDay ? 'Yıldız yok kanki' : (!s.isDay ? 'Yıldız netliği %${a.starClarity.round()}' : 'Rüzgâr ${s.windSpeed.toStringAsFixed(0)} m/s · nem %${s.humidity.round()}');
     try {
       await HomeWidget.renderFlutterWidget(
-        WeatherWidgetFace(kind: a.kind, temp: s.temp, isDay: s.isDay, cloud: s.cloudCover, line1: '${s.place.name.isEmpty ? 'Konumum' : s.place.name} · $name', line2: line2),
+        WeatherWidgetFace(s: s, a: a, place: s.place.name.isEmpty ? 'Konumum' : s.place.name, condition: name, line2: line2, today: _today(s)),
         key: 'weather_img', logicalSize: const Size(320, 160), pixelRatio: 3,
       );
       await HomeWidget.updateWidget(qualifiedAndroidName: _weather);
     } catch (_) {}
+  }
+
+  static DayPoint? _today(WeatherSnapshot s) {
+    final n = DateTime.now();
+    for (final d in s.daily) { if (d.date.year == n.year && d.date.month == n.month && d.date.day == n.day) return d; }
+    return null;
   }
 
   /// 2) Bağımsız Araç Hızı & Yol Koşulları widget'ı (Pro).
