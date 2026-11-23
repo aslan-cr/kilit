@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../pro/pro_service.dart';
 import '../services/audio_service.dart';
 import 'paywall.dart';
+import 'bento.dart';
 import 'theme.dart';
 
 /// Pro içerik kapısı: kilitliyse sakin bir davet kartı gösterir; zorlayıcı duvar yok.
@@ -34,17 +35,33 @@ class ProGate extends StatelessWidget {
       );
 }
 
-/// Başlıklı kart.
+/// Başlıklı bento kartı (renkli nokta + büyük harf etiket).
 class Section extends StatelessWidget {
-  final String title; final Widget child; final Widget? trailing;
-  const Section(this.title, this.child, {super.key, this.trailing});
+  final String title; final Widget child; final Widget? trailing; final Color dot;
+  const Section(this.title, this.child, {super.key, this.trailing, this.dot = kAccent});
+  @override
+  Widget build(BuildContext context) => Bento(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        BlockHead(title, dot: dot, trailing: trailing),
+        const SizedBox(height: 12), child,
+      ]));
+}
+
+/// Simgeli bilgi satırı (emoji yerine yuvarlak zeminli ikon).
+class InfoRow extends StatelessWidget {
+  final IconData icon; final Color color; final String text; final String? sub;
+  const InfoRow(this.icon, this.text, {super.key, this.color = kAccent, this.sub});
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [Expanded(child: Text(title, style: T.h2)), if (trailing != null) trailing!]),
-          const SizedBox(height: 12), child,
-        ])),
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          IconBadge(icon, color: color, size: 34),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const SizedBox(height: 2),
+            Text(text, style: T.body.copyWith(fontSize: 14, fontWeight: FontWeight.w600, height: 1.35)),
+            if (sub != null) Text(sub!, style: T.small.copyWith(fontSize: 12)),
+          ])),
+        ]),
       );
 }
 

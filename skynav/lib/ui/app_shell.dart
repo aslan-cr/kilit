@@ -10,7 +10,6 @@ import 'plane_radar_screen.dart';
 import 'road_screen.dart';
 import 'sky_screen.dart';
 import 'settings_screen.dart';
-import 'sky_background.dart';
 import 'theme.dart';
 import 'weather_screen.dart';
 
@@ -23,15 +22,6 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _i = 0;
   final _w = WeatherController.I;
-
-  SkyState _sky() {
-    final s = _w.confirmed, a = _w.analysis;
-    if (s == null || a == null) return const SkyState(cloud: 30);
-    return SkyState(
-      kind: a.kind, cloud: s.cloudCover, windMs: s.windSpeed, windDirDeg: s.windDir, isDay: s.isDay, tempC: s.temp,
-      intensity: ((s.precip + s.snowfall) / 3).clamp(.25, 1.0), fog: a.fogProb * (a.fogDensity / 100), month: DateTime.now().month,
-    );
-  }
 
   static List<(NavIcon, String)> get _tabs => [
     (NavIcon.cloud, L10n.t('nav_weather')),
@@ -47,8 +37,8 @@ class _AppShellState extends State<AppShell> {
         builder: (_, __) => Scaffold(
           extendBody: true,
           body: Stack(children: [
-            // Hava sekmesinde gökyüzü üstteki sahnede; zemin sade buz beyazı (Figma).
-            Positioned.fill(child: _i == 0 ? const ColoredBox(color: kIce) : SkyBackground(state: _sky())),
+            // Gökyüzü sahnelerin içinde; zemin her sekmede sade buz beyazı (Figma).
+            const Positioned.fill(child: ColoredBox(color: kIce)),
             SafeArea(
               bottom: false,
               child: Column(children: [

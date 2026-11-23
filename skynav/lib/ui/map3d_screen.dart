@@ -7,7 +7,10 @@ import 'package:latlong2/latlong.dart' hide Path;
 import '../data/models.dart';
 import '../services/location_service.dart';
 import '../services/weather_repository.dart';
+import 'hero_scene.dart' show ScenePalette;
+import 'map_chrome.dart';
 import 'theme.dart';
+import 'wx_glyph.dart';
 
 /// 3D Harita: yalnızca bu sekme açıldığında kurulur, kapanınca (dispose) akışlar ve çizim tamamen boşaltılır.
 /// Zemin GERÇEK uydu (Esri World Imagery) + gerçek kabartma (Esri Hillshade) karolarıdır; uydurma bina/yazı yoktur.
@@ -62,6 +65,7 @@ class _Map3DScreenState extends State<Map3DScreen> with SingleTickerProviderStat
     final w = WeatherController.I;
     return ListenableBuilder(listenable: w, builder: (_, __) {
       final s = w.confirmed, a = w.analysis;
+      final pal = s != null && a != null ? ScenePalette.of(s, wxFromNow(s, a)) : ScenePalette.clearDay;
       return Stack(children: [
         Positioned.fill(child: ClipRect(child: LayoutBuilder(builder: (_, c) {
           return Container(color: const Color(0xFFBFD6E8), child: Stack(children: [
@@ -81,27 +85,31 @@ class _Map3DScreenState extends State<Map3DScreen> with SingleTickerProviderStat
                 ],
               ))),
             ),
-            // Gökyüzü sisi (ufuk çizgisi) — derinlik hissi
-            Positioned(top: 0, left: 0, right: 0, height: c.maxHeight * .30, child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [const Color(0xFFCFE6FA), const Color(0xFFCFE6FA).withValues(alpha: 0)])))),),
+            // Gece: gündüz çekilmiş uydu görüntüsünü karart (gerçekçi gece ışığı)
+            if (s != null && !s.isDay) const Positioned.fill(child: IgnorePointer(child: ColoredBox(color: Color(0x730B1330)))),
+            // Gökyüzü + ufuk pusu: havaya ve saate göre (üst sahneyle aynı palet) — derinlik hissi
+            Positioned(top: 0, left: 0, right: 0, height: c.maxHeight * (.18 + _tilt / 65 * .2), child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+                begin: Alignment.topCenter, end: Alignment.bottomCenter, stops: const [0, .45, 1],
+                colors: [pal.skyTop.withValues(alpha: _tilt / 65), pal.skyBottom.withValues(alpha: .85), pal.haze.withValues(alpha: 0)]))))),
             // Hacimli bulutlar + rüzgârla akan yağış + kar birikintisi
             if (_showWeather && s != null && a != null)
               Positioned.fill(child: IgnorePointer(child: AnimatedBuilder(animation: _anim, builder: (_, __) => CustomPaint(painter: _WeatherLayerPainter(s, a, _anim.value * 120, _tilt))))),
           ]));
         }))),
-        Positioned(left: 12, right: 12, top: 8, child: Column(children: [
-          Glass(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), child: Row(children: [
-            const Text('🗺️ 3D Harita', style: TextStyle(fontWeight: FontWeight.w900)),
-            const Spacer(),
-            Text('Eğim ${_tilt.round()}°', style: const TextStyle(fontSize: 12)),
-            SizedBox(width: 120, child: Slider(min: 0, max: 65, value: _tilt, onChanged: (v) => setState(() => _tilt = v))),
-            IconButton(tooltip: 'Konumuma dön', icon: const Icon(Icons.my_location), onPressed: () { _manual = false; WeatherController.I.useGps(); if (_me != null) _map.move(_me!, _map.camera.zoom); }),
-          ])),
-          if (_gpsNote != null) Padding(padding: const EdgeInsets.only(top: 6), child: Glass(tint: const Color(0xFFFFF8E1), padding: const EdgeInsets.all(8), child: Text(_gpsNote!, style: const TextStyle(fontSize: 12)))),
+        Positioned(left: 14, right: 14, top: 8, child: Column(children: [
+          MapHeader(icon: Icons.view_in_ar_rounded, title: '3D Harita', sub: s == null ? 'Gerçek uydu + kabartma' : '${s.place.name.isEmpty ? 'Konumum' : s.place.name} · ${s.temp.round()}° · eğim ${_tilt.round()}°',
+              trailing: MapRoundButton(Icons.my_location_rounded, 'Konumuma dön', () { _manual = false; WeatherController.I.useGps(); if (_me != null) _map.move(_me!, _map.camera.zoom); })),
+          if (_gpsNote != null) MapNote(Icons.gps_off_rounded, _gpsNote!),
+          const SizedBox(height: 6),
+          const Align(alignment: Alignment.centerLeft, child: MapCredit('Uydu: Esri World Imagery · Kabartma: Esri Hillshade · Uzun bas: o noktanın havası')),
         ])),
-        Positioned(right: 12, bottom: 96, child: FilledButton.icon(
-          onPressed: () => setState(() => _showWeather = !_showWeather),
-          icon: Icon(_showWeather ? Icons.cloud_off : Icons.cloud), label: Text(_showWeather ? 'Hava Koşullarını Gizle' : 'Hava Koşullarını Göster'))),
-        const Positioned(left: 12, bottom: 100, child: Text('Uydu: Esri World Imagery · Kabartma: Esri Hillshade\nUzun bas: başka bir noktanın havasına geç', style: TextStyle(fontSize: 10, color: Colors.white, shadows: [Shadow(blurRadius: 4, color: Colors.black)]))),
+        // Eğim: sağ kenarda dikey kaydırıcı
+        Positioned(right: 14, top: 124, height: 230, child: Glass(radius: 22, padding: const EdgeInsets.symmetric(vertical: 10), child: Column(children: [
+          const Icon(Icons.threed_rotation_rounded, size: 18, color: kInkSoft),
+          Expanded(child: RotatedBox(quarterTurns: 3, child: Slider(min: 0, max: 65, value: _tilt, onChanged: (v) => setState(() => _tilt = v)))),
+          Text('${_tilt.round()}°', style: T.small.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: kInk)),
+        ]))),
+        Positioned(right: 14, bottom: 96, child: LayerToggle(icon: Icons.cloud_rounded, label: 'Hava katmanı', on: _showWeather, onTap: () => setState(() => _showWeather = !_showWeather))),
       ]);
     });
   }
@@ -135,6 +143,12 @@ class _WeatherLayerPainter extends CustomPainter {
           final alpha = (.28 + .5 * depth) * cover;
           final dark = a.kind == PrecipKind.rain || s.cloudCover > 85;
           final col = dark ? const Color(0xFFB4BFCB) : Colors.white;
+          // Gündüz bulut gölgesi: bulutun altında, yerde, yakın katmanda daha belirgin
+          if (s.isDay && cover < .9) {
+            final so = Offset(x + r * .35, y + 30 + 70 * depth);
+            c.drawOval(Rect.fromCenter(center: so, width: r * 2.6, height: r * (.7 + .5 * depth)),
+                Paint()..color = const Color(0xFF0B1A2A).withValues(alpha: .10 * cover * (.5 + depth))..maskFilter = MaskFilter.blur(BlurStyle.normal, 10 + 10 * depth));
+          }
           for (var k = 0; k < 4; k++) {
             final o = Offset(x + (k - 1.5) * r * .55, y + (k.isOdd ? -r * .12 : r * .1));
             c.drawCircle(o, r * (.55 + (k % 2) * .18), Paint()..shader = RadialGradient(colors: [col.withValues(alpha: alpha), col.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: o, radius: r)));

@@ -19,6 +19,8 @@ import '../services/location_service.dart';
 import '../services/notify_service.dart';
 import '../services/voice_service.dart';
 import '../services/weather_repository.dart';
+import 'bento.dart';
+import 'hero_scene.dart' show moonLitPath;
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -33,7 +35,7 @@ class SkyScreen extends StatefulWidget {
 class _SkyScreenState extends State<SkyScreen> {
   double _lat = 41, _lon = 29, _alt = 0;
   double _az = 0, _pitch = 35; // bakış yönü (derece)
-  double _fov = 80;
+  double _fov = 80, _fov0 = 80;
   double _hours = 0; // zaman makinesi (saat)
   bool _xray = false, _sensor = false, _red = false;
   StreamSubscription<AccelerometerEvent>? _acc;
@@ -92,7 +94,7 @@ class _SkyScreenState extends State<SkyScreen> {
         final dir = windDirName(la.azDeg);
         _aimAz = la.azDeg; _aimAlt = la.altDeg;
         _aimText = la.altDeg > 0 ? 'Kanki başını $dir yönüne, ${la.altDeg.round()} derece yukarı kaldır; ISS şu an parlak bir yıldız gibi süzülüyor!' : 'ISS ${until.inSeconds > 0 ? '${until.inMinutes + 1} dk içinde' : 'birazdan'} $dir tarafından yükselecek, hazır ol kanki!';
-        if (!_aimShown) { _aimShown = true; Voice.speak(_aimText!); Notify.show('ISS geliyor 🛰️', _aimText!); }
+        if (!_aimShown) { _aimShown = true; Voice.speak(_aimText!); Notify.show('ISS geliyor', _aimText!); }
         if (mounted) setState(() {});
       }
     }
@@ -142,63 +144,80 @@ class _SkyScreenState extends State<SkyScreen> {
     final moon = moonPhaseInfo(t);
     final nextShower = nextMeteorShower(t); final eclipse = nextEclipse(t);
     final stars = a == null ? 0 : a.starClarity;
-    final mainCol = ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 100), children: [
+    const dark = Color(0xFF0B1330);
+    final mainCol = ListView(padding: const EdgeInsets.fromLTRB(18, 8, 18, 120), children: [
       // Kubbe
-      Glass(padding: EdgeInsets.zero, child: ClipRRect(borderRadius: BorderRadius.circular(24), child: SizedBox(height: 360, child: Stack(children: [
-        Positioned.fill(child: GestureDetector(
-          onPanUpdate: (d) { if (_sensor) return; setState(() { _az = (_az - d.delta.dx * _fov / 360 + 360) % 360; _pitch = (_pitch + d.delta.dy * .2).clamp(-10, 90); }); },
-          onTapUp: (d) => _tapSky(d.localPosition, const Size(0, 0)),
-          child: LayoutBuilder(builder: (_, c) => GestureDetector(
-            onTapUp: (d) => _tapSky(d.localPosition, Size(c.maxWidth, c.maxHeight)),
-            child: CustomPaint(size: Size(c.maxWidth, c.maxHeight), painter: _DomePainter(lat: _lat, lon: _lon, t: t, az: _az, pitch: _pitch, fov: _fov, cloud: _xray ? 0 : cloud, iss: _aimShown ? (_aimAz, _aimAlt) : null, sats: _satPoints(t), planetsOn: true)),
-          )),
-        )),
-        Positioned(left: 12, top: 12, right: 12, child: Wrap(spacing: 6, runSpacing: 6, children: [
+      ClipRRect(borderRadius: BorderRadius.circular(34), child: SizedBox(height: 380, child: Stack(children: [
+        Positioned.fill(child: LayoutBuilder(builder: (_, c) => GestureDetector(
+          onScaleStart: (_) => _fov0 = _fov,
+          onScaleUpdate: (d) {
+            if (_sensor) return;
+            setState(() {
+              if (d.pointerCount > 1) { _fov = (_fov0 / d.scale).clamp(40.0, 120.0); return; }
+              _az = (_az - d.focalPointDelta.dx * _fov / 360 + 360) % 360;
+              _pitch = (_pitch + d.focalPointDelta.dy * .2).clamp(-10, 90);
+            });
+          },
+          onTapUp: (d) => _tapSky(d.localPosition, Size(c.maxWidth, c.maxHeight)),
+          child: CustomPaint(size: Size(c.maxWidth, c.maxHeight), painter: _DomePainter(lat: _lat, lon: _lon, t: t, az: _az, pitch: _pitch, fov: _fov, cloud: _xray ? 0 : cloud, iss: _aimShown ? (_aimAz, _aimAlt) : null, sats: _satPoints(t), planetsOn: true)),
+        ))),
+        Positioned(left: 16, top: 16, right: 16, child: Wrap(spacing: 6, runSpacing: 6, children: [
           if (_tonight) const _DarkPill(Icons.schedule_rounded, 'Bu gece 22:00'),
           _DarkPill(cloudy && !_xray ? Icons.cloud_rounded : Icons.auto_awesome, cloudy && !_xray ? 'Gökyüzü kapalı' : 'Netlik %${stars.round()}'),
         ])),
-        if (_aimShown && _aimText != null) Positioned(left: 10, right: 10, bottom: 10, child: Glass(tint: const Color(0xFF0B1A3A).withValues(alpha: .9), padding: const EdgeInsets.all(10), child: Text('🎯 $_aimText', style: const TextStyle(color: Color(0xFF7DF9FF), fontWeight: FontWeight.w800)))),
-      ])))),
-      const SizedBox(height: 12),
-      // Kontroller
-      Glass(child: Column(children: [
+        Positioned(left: 16, bottom: 16, child: _DarkPill(Icons.explore_outlined, '${windDirName(_az)} ${_az.round()}° · yükseklik ${_pitch.round()}°')),
+        Positioned(right: 12, bottom: 12, child: Column(children: [
+          _RoundDark(Icons.add_rounded, 'Yakınlaş', () => setState(() => _fov = (_fov - 15).clamp(40, 120))),
+          const SizedBox(height: 8),
+          _RoundDark(Icons.remove_rounded, 'Uzaklaş', () => setState(() => _fov = (_fov + 15).clamp(40, 120))),
+        ])),
+        if (_aimShown && _aimText != null) Positioned(left: 12, right: 64, bottom: 56, child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: dark.withValues(alpha: .9), borderRadius: BorderRadius.circular(18)),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.gps_fixed_rounded, color: Color(0xFF7DF9FF), size: 18), const SizedBox(width: 8),
+            Expanded(child: Text(_aimText!, style: const TextStyle(fontFamily: 'Inter', color: Color(0xFF7DF9FF), fontWeight: FontWeight.w700, fontSize: 13))),
+          ]),
+        )),
+      ]))),
+      const SizedBox(height: 14),
+      BentoRow(height: 200, left: MoonBlock(now: t, south: _lat < 0), right: _ClarityBlock(clarity: cloudy ? 0.0 : stars.toDouble(), cloudy: cloudy)),
+      const SizedBox(height: 14),
+      Padding(padding: const EdgeInsets.only(bottom: 14), child: ProGate(title: 'Sensörlü 360° Kubbe, Bulutları Kapat & Zaman Makinesi', child: Section('Pro gökyüzü araçları', dot: kPro, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _SwitchRow(Icons.screen_rotation_alt_rounded, kAccent, '360° sensör modu', 'Telefonu gökyüzüne tut, harita seninle döner', _sensor, _toggleSensor),
+        _SwitchRow(Icons.cloud_off_rounded, kSnow, '${L10n.t('x_ray_sky')} (X-Ray)', 'Bulutlar silinir, arkadaki yıldız/gezegen/uydular görünür', _xray, (v) => setState(() => _xray = v)),
+        _SwitchRow(Icons.visibility_rounded, kDanger, L10n.t('red_mode'), 'Gece görüşünü koruyan kırmızı ekran', _red, (v) => setState(() => _red = v)),
+        const Divider(),
         Row(children: [
-          Expanded(child: Text('${windDirName(_az)} ${_az.round()}° · yükseklik ${_pitch.round()}°', style: const TextStyle(fontWeight: FontWeight.w800))),
-          Text('${_now.toLocal().toString().substring(0, 16)}', style: const TextStyle(fontSize: 12, color: kInkSoft)),
+          const IconBadge(Icons.history_toggle_off_rounded, color: kPro, size: 34), const SizedBox(width: 12),
+          Expanded(child: Text('${L10n.t('time_machine')}: ${_hours == 0 ? 'şimdi' : '${_hours > 0 ? '+' : ''}${_hours.round()} saat'}', style: T.body.copyWith(fontWeight: FontWeight.w700))),
+          if (_hours != 0) TextButton(onPressed: () => setState(() => _hours = 0), child: const Text('Şimdiye dön')),
         ]),
-        Slider(min: 40, max: 120, value: _fov, onChanged: (v) => setState(() => _fov = v)),
-        const Text('↔ görüş alanı', style: TextStyle(fontSize: 11, color: kInkSoft)),
-      ])),
-      const SizedBox(height: 12),
-      ProGate(title: 'Sensörlü 360° Kubbe, Bulutları Kapat & Zaman Makinesi', child: Section('Pro gökyüzü araçları', Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('360° sensör modu'), subtitle: const Text('Telefonu gökyüzüne tut, harita seninle döner'), value: _sensor, onChanged: _toggleSensor),
-        SwitchListTile(contentPadding: EdgeInsets.zero, title: Text('☁️ ${L10n.t('x_ray_sky')} (X-Ray)'), subtitle: const Text('Bulutlar silinir, arkadaki yıldız/gezegen/uydular görünür'), value: _xray, onChanged: (v) => setState(() => _xray = v)),
-        SwitchListTile(contentPadding: EdgeInsets.zero, title: Text('🔴 ${L10n.t('red_mode')}'), subtitle: const Text('Gece görüşünü koruyan kırmızı ekran'), value: _red, onChanged: (v) => setState(() => _red = v)),
-        const Divider(),
-        Text('⏳ ${L10n.t('time_machine')}: ${_hours == 0 ? 'şimdi' : '${_hours > 0 ? '+' : ''}${_hours.round()} saat'}', style: const TextStyle(fontWeight: FontWeight.w800)),
         Slider(min: -720, max: 720, divisions: 288, value: _hours, onChanged: (v) => setState(() => _hours = v)),
-        Text('Ay: ${moon.nameTr} · aydınlanma %${(moon.illumination * 100).round()} · yaş ${moon.ageDays.toStringAsFixed(1)} gün', style: const TextStyle(fontSize: 13)),
-        Text(_snowSim(s), style: const TextStyle(fontSize: 13)),
-        if (_hours != 0) TextButton(onPressed: () => setState(() => _hours = 0), child: const Text('Şimdiye dön')),
-      ]))),
-      ProGate(title: 'Uzay Laboratuvarı', child: Section('Uzay laboratuvarı', Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('ISS: ${_issPass == null ? 'geçiş hesaplanıyor…' : 'sonraki geçiş ${_issPass!.start.toLocal().toString().substring(5, 16)} · tepe ${_issPass!.peakAltDeg.round()}° · ${_issPass!.visibleToEye ? 'çıplak gözle görünür' : 'görünmeyebilir'}'}'),
-        Text('Starlink (ilk 400 uydudan) şu an ufuk üstünde: $_starlinkUp'),
-        Text('Uzay çöpü takibi: ${_debris.length} parça listede'),
+        Text('Ay: ${moon.nameTr} · aydınlanma %${(moon.illumination * 100).round()} · yaş ${moon.ageDays.toStringAsFixed(1)} gün', style: T.small),
+        Text(_snowSim(s), style: T.small),
+      ])))),
+      Padding(padding: const EdgeInsets.only(bottom: 14), child: ProGate(title: 'Uzay Laboratuvarı', child: Section('Uzay laboratuvarı', dot: const Color(0xFF00B8D9), Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        InfoRow(Icons.satellite_alt_rounded, _issPass == null ? 'ISS: geçiş hesaplanıyor…' : 'ISS sonraki geçiş ${_issPass!.start.toLocal().toString().substring(5, 16)} · tepe ${_issPass!.peakAltDeg.round()}°',
+            sub: _issPass == null ? null : (_issPass!.visibleToEye ? 'Çıplak gözle görünür' : 'Görünmeyebilir'), color: const Color(0xFF00B8D9)),
+        InfoRow(Icons.blur_on_rounded, 'Starlink (ilk 400 uydudan) şu an ufuk üstünde: $_starlinkUp', color: kInkSoft),
+        InfoRow(Icons.scatter_plot_rounded, 'Uzay çöpü takibi: ${_debris.length} parça listede', color: kInkSoft),
         const Divider(),
-        Text(_sw == null ? (_swErr ?? 'Güneş fırtınası verisi alınıyor…') : '☀️ Kp ${_sw!.kp.toStringAsFixed(1)} · ${_sw!.stormLevelTr} · burada aurora ihtimali %${_sw!.auroraProbAtLat.round()}'),
-        Text('☄️ Sıradaki meteor yağmuru: ${nextShower.shower.name} (${nextShower.peakUtc.toLocal().toString().substring(0, 10)}, saatte ~${nextShower.shower.zhr})'),
-        if (eclipse != null) Text('🌑 Sıradaki tutulma: ${eclipse.kind} · ${eclipse.utcDay.toString().substring(0, 10)} · ${countdownText(eclipse.utcDay.difference(DateTime.now().toUtc()))} (${eclipse.visibleIn})'),
-        for (final c in comets) Text('🌠 ${c.name}: ${c.noteTr}', style: const TextStyle(fontSize: 12)),
+        InfoRow(Icons.wb_sunny_rounded, _sw == null ? (_swErr ?? 'Güneş fırtınası verisi alınıyor…') : 'Kp ${_sw!.kp.toStringAsFixed(1)} · ${_sw!.stormLevelTr}',
+            sub: _sw == null ? null : 'Burada aurora ihtimali %${_sw!.auroraProbAtLat.round()}', color: kSun),
+        InfoRow(Icons.auto_awesome_rounded, 'Sıradaki meteor yağmuru: ${nextShower.shower.name}', sub: '${nextShower.peakUtc.toLocal().toString().substring(0, 10)} · saatte ~${nextShower.shower.zhr}', color: kPro),
+        if (eclipse != null) InfoRow(Icons.brightness_3_rounded, 'Sıradaki tutulma: ${eclipse.kind} · ${eclipse.utcDay.toString().substring(0, 10)}', sub: '${countdownText(eclipse.utcDay.difference(DateTime.now().toUtc()))} · ${eclipse.visibleIn}', color: kInk),
+        for (final c in comets) InfoRow(Icons.flare_rounded, '${c.name}: ${c.noteTr}', color: kSnow),
         const Divider(),
-        for (final l in moonVsMars()) Text(l, style: const TextStyle(fontSize: 12)),
+        for (final l in moonVsMars()) Padding(padding: const EdgeInsets.symmetric(vertical: 2), child: Text(l, style: T.small)),
         const Divider(),
-        Text(starlinkSignalQuality(cloudCover: s?.cloudCover ?? 0, precipMm: s?.precip ?? 0, windMs: s?.windSpeed ?? 0, horizonObstructionPct: 10).noteTr),
-        Text('🌍 Dünya\'nın dönüş hızı burada ${earthRotationSpeedMs(_lat).toStringAsFixed(0)} m/sn · gölge boyu ${_shadow()}'),
-        Text('🧭 ${polarisAltitudeNote(_lat)}', style: const TextStyle(fontSize: 12)),
-        Text(compassCalibrationNote, style: const TextStyle(fontSize: 12, color: kInkSoft)),
-      ]))),
-      Section('88 takımyıldız · dokun, anlatsın', SizedBox(height: 44, child: ListView(scrollDirection: Axis.horizontal, children: [
+        InfoRow(Icons.wifi_tethering_rounded, starlinkSignalQuality(cloudCover: s?.cloudCover ?? 0, precipMm: s?.precip ?? 0, windMs: s?.windSpeed ?? 0, horizonObstructionPct: 10).noteTr, color: kGood),
+        InfoRow(Icons.public_rounded, 'Dünya\'nın dönüş hızı burada ${earthRotationSpeedMs(_lat).toStringAsFixed(0)} m/sn', sub: 'Gölge boyu: ${_shadow()}', color: kAccent),
+        InfoRow(Icons.explore_rounded, polarisAltitudeNote(_lat), color: kWarn),
+        Text(compassCalibrationNote, style: T.small.copyWith(fontSize: 12)),
+      ])))),
+      Section('${constellations.length} takımyıldız', trailing: const Text('dokun, anlatsın', style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: kInkSoft)),
+          SizedBox(height: 44, child: ListView(scrollDirection: Axis.horizontal, children: [
         for (final c in constellations) Padding(padding: const EdgeInsets.only(right: 6), child: ActionChip(label: Text(c.nameTr), onPressed: () => _tell(c))),
       ]))),
     ]);
@@ -254,8 +273,12 @@ class _SkyScreenState extends State<SkyScreen> {
     final clar = WeatherController.I.analysis?.starClarity ?? 0;
     if (night && clar >= 60) Badges.award('star_hunter');
     showModalBottomSheet(context: context, builder: (_) => Padding(padding: const EdgeInsets.all(22), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('✨ ${c.nameTr} (${c.latin})', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)), const SizedBox(height: 8), Text(c.story),
-      const SizedBox(height: 8), FilledButton.tonal(onPressed: () => Voice.speak(txt), child: const Text('🔊 Tekrar anlat')),
+      Row(children: [
+        const IconBadge(Icons.auto_awesome_rounded, color: kPro, size: 40), const SizedBox(width: 12),
+        Expanded(child: Text('${c.nameTr} (${c.latin})', style: T.h2)),
+      ]),
+      const SizedBox(height: 12), Text(c.story, style: T.body),
+      const SizedBox(height: 14), FilledButton.icon(onPressed: () => Voice.speak(txt), icon: const Icon(Icons.volume_up_rounded), label: const Text('Tekrar anlat')),
     ])));
   }
 }
@@ -309,7 +332,13 @@ class _DomePainter extends CustomPainter {
     }
     // Güneş, Ay, gezegenler
     final sun = sunRaDec(t); final so = P(sun.raDeg, sun.decDeg); if (so != null) c.drawCircle(so, 16, Paint()..color = const Color(0xFFFFD23F));
-    final mn = moonRaDec(t); final mo = P(mn.raDeg, mn.decDeg); if (mo != null) { final ph = moonPhaseInfo(t); c.drawCircle(mo, 13, Paint()..color = const Color(0xFFF1EBD2)); c.drawCircle(mo + Offset(13 * (1 - ph.illumination) * 1.4, 0), 12, Paint()..color = day ? const Color(0xFF9CCBFF) : const Color(0xFF16224A)); }
+    final mn = moonRaDec(t); final mo = P(mn.raDeg, mn.decDeg);
+    if (mo != null) {
+      final ph = moonPhaseInfo(t);
+      c.drawCircle(mo, 24, Paint()..shader = RadialGradient(colors: [const Color(0xFFF4ECCF).withValues(alpha: day ? 0 : .25), const Color(0x00F4ECCF)]).createShader(Rect.fromCircle(center: mo, radius: 24)));
+      c.drawCircle(mo, 12, Paint()..color = (day ? Colors.white : const Color(0xFF2B3866)).withValues(alpha: day ? .25 : .9));
+      c.drawPath(moonLitPath(mo, 12, ph.ageDays / 29.530588853, south: lat < 0), Paint()..color = const Color(0xFFF4ECCF));
+    }
     if (planetsOn) {
       for (final name in const ['Merkür', 'Venüs', 'Mars', 'Jüpiter', 'Satürn']) {
         try { final r = planetRaDec(name, t); final o = P(r.raDeg, r.decDeg); if (o != null) { c.drawCircle(o, 4.5, Paint()..color = const Color(0xFFFFB74D)); _label(c, name, o + const Offset(6, -4), const Color(0xFFFFE0B2)); } } catch (_) {}
@@ -336,9 +365,13 @@ class _DomePainter extends CustomPainter {
     for (final e in const [('K', 0.0), ('D', 90.0), ('G', 180.0), ('B', 270.0)]) { final o = _project(e.$2, 0, size, az, pitch, fov); if (o != null) _label(c, e.$1, o + const Offset(-4, 4), Colors.white, bold: true); }
     // Bulut örtüsü (X-Ray kapalıyken)
     if (cloud > .05) {
-      c.drawRect(Offset.zero & size, Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.white.withValues(alpha: .25 + .7 * cloud), const Color(0xFFCFD8E3).withValues(alpha: .2 + .7 * cloud)]).createShader(Offset.zero & size));
+      final hi = day ? Colors.white : const Color(0xFF5A6684), lo = day ? const Color(0xFFCFD8E3) : const Color(0xFF2E3852);
+      c.drawRect(Offset.zero & size, Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [hi.withValues(alpha: .2 + .65 * cloud), lo.withValues(alpha: .2 + .7 * cloud)]).createShader(Offset.zero & size));
       final r = Random(5);
-      for (var i = 0; i < 14; i++) { final o = Offset(r.nextDouble() * size.width, r.nextDouble() * size.height); c.drawCircle(o, 40 + r.nextDouble() * 60, Paint()..shader = RadialGradient(colors: [Colors.white.withValues(alpha: .6 * cloud), Colors.white.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: o, radius: 90))); }
+      for (var i = 0; i < 16; i++) {
+        final o = Offset(r.nextDouble() * size.width, r.nextDouble() * size.height); final rad = 50 + r.nextDouble() * 70;
+        c.drawCircle(o, rad, Paint()..shader = RadialGradient(colors: [hi.withValues(alpha: .55 * cloud), hi.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: o, radius: rad)));
+      }
     }
   }
 
@@ -362,6 +395,65 @@ class _DomePainter extends CustomPainter {
   bool shouldRepaint(covariant _DomePainter o) => true;
 }
 
+
+class _RoundDark extends StatelessWidget {
+  final IconData icon; final String tip; final VoidCallback onTap;
+  const _RoundDark(this.icon, this.tip, this.onTap);
+  @override
+  Widget build(BuildContext context) => Tooltip(message: tip, child: Material(
+        color: const Color(0xFF0B1330).withValues(alpha: .55), shape: const CircleBorder(),
+        child: InkWell(customBorder: const CircleBorder(), onTap: onTap, child: SizedBox(width: 40, height: 40, child: Icon(icon, color: Colors.white, size: 22))),
+      ));
+}
+
+class _SwitchRow extends StatelessWidget {
+  final IconData icon; final Color color; final String title, sub; final bool value; final ValueChanged<bool> onChanged;
+  const _SwitchRow(this.icon, this.color, this.title, this.sub, this.value, this.onChanged);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(children: [
+          IconBadge(icon, color: color, size: 34), const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: T.body.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
+            Text(sub, style: T.small.copyWith(fontSize: 12)),
+          ])),
+          Switch(value: value, onChanged: onChanged),
+        ]),
+      );
+}
+
+/// Yıldız netliği: koyu bento, halka gösterge.
+class _ClarityBlock extends StatelessWidget {
+  final double clarity; final bool cloudy;
+  const _ClarityBlock({required this.clarity, required this.cloudy});
+  @override
+  Widget build(BuildContext context) => Bento(
+        color: kBentoNight,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const BlockHead('Yıldız netliği', dot: Color(0xFFB7C2F2), labelColor: Color(0xFF9DA9CF)),
+          const Spacer(),
+          SizedBox(width: 92, height: 92, child: CustomPaint(painter: _ClarityRing(clarity / 100), child: Center(child: Text('%${clarity.round()}',
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFFF4ECCF)))))),
+          const Spacer(),
+          Text(cloudy ? 'Gökyüzü kapalı' : clarity >= 70 ? 'Yıldız avı için harika' : clarity >= 40 ? 'Parlak yıldızlar görünür' : 'Puslu, az yıldız',
+              maxLines: 2, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFF4ECCF))),
+        ]),
+      );
+}
+
+class _ClarityRing extends CustomPainter {
+  final double v;
+  _ClarityRing(this.v);
+  @override
+  void paint(Canvas c, Size s) {
+    final r = Rect.fromLTWH(5, 5, s.width - 10, s.height - 10);
+    c.drawArc(r, 0, 2 * pi, false, Paint()..color = const Color(0xFFB7C2F2).withValues(alpha: .16)..style = PaintingStyle.stroke..strokeWidth = 8);
+    if (v > 0) c.drawArc(r, -pi / 2, 2 * pi * v.clamp(0.0, 1.0), false, Paint()..color = const Color(0xFFB7C2F2)..style = PaintingStyle.stroke..strokeWidth = 8..strokeCap = StrokeCap.round);
+  }
+  @override
+  bool shouldRepaint(covariant _ClarityRing o) => o.v != v;
+}
 
 class _DarkPill extends StatelessWidget {
   final IconData icon; final String text;
