@@ -25,18 +25,24 @@ class ClimateScreen extends StatefulWidget {
   final WeatherSnapshot s;
   /// Test için hazır normaller; boşsa indirilir/önbellekten.
   final ClimateNormals? normals;
-  const ClimateScreen({super.key, required this.s, this.normals});
+  final SeasonSnow? season;
+  const ClimateScreen({super.key, required this.s, this.normals, this.season});
   @override
   State<ClimateScreen> createState() => _ClimateScreenState();
 }
 
 class _ClimateScreenState extends State<ClimateScreen> {
   ClimateNormals? _n;
+  SeasonSnow? _season;
   bool _failed = false;
 
   @override
   void initState() {
     super.initState();
+    _season = widget.season;
+    if (_season == null) {
+      SeasonSnow.load(widget.s.place).then((v) { if (mounted && v != null) setState(() => _season = v); }).catchError((_) {});
+    }
     _n = widget.normals ?? ClimateService.cached(widget.s.place);
     if (_n == null) {
       ClimateService.load(widget.s.place).then((v) { if (mounted) setState(() { _n = v; _failed = v == null; }); })
@@ -62,6 +68,10 @@ class _ClimateScreenState extends State<ClimateScreen> {
           if (days.length > 1) _WeekBand(days: days, n: n),
           const SizedBox(height: 14),
           _Records(n: n, now: now),
+          if (n.snowSeasonNormal >= 10 && ClimateNormals.seasonDay(now) != null) ...[
+            const SizedBox(height: 14),
+            _SeasonSnowBlock(n: n, season: _season, now: now),
+          ],
           const SizedBox(height: 10),
           Text('Normal: ${n.fromYear}–${n.toYear} arası gerçek ölçümlerin (ERA5 yeniden analizi) bu tarih çevresindeki ortalaması.',
               style: T.small.copyWith(fontSize: 11.5)),
@@ -176,3 +186,89 @@ class _Records extends StatelessWidget {
     ]);
   }
 }
+
+/// Bu kış kar: sezon başından bugüne birikmiş yeni kar, 30 yıllık normal birikimle karşılaştırmalı.
+class _SeasonSnowBlock extends StatelessWidget {
+  final ClimateNormals n; final SeasonSnow? season; final DateTime now;
+  const _SeasonSnowBlock({required this.n, required this.season, required this.now});
+  @override
+  Widget build(BuildContext context) {
+    final normal = n.snowNormalBy(now) ?? 0;
+    final have = season?.total;
+    final diff = have == null ? null : have - normal;
+    return Bento(
+      color: kBentoBlue, padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        BlockHead('Bu kış kar', dot: kSnow, trailing: Text('sezon normali ${n.snowSeasonNormal.round()} cm', style: _st(12, FontWeight.w600, kInkSoft))),
+        const SizedBox(height: 10),
+        Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+          Text(have == null ? '…' : have.round().toString(), style: _st(36, FontWeight.w700, kInk, ls: -1, h: 1)),
+          const SizedBox(width: 6),
+          Text('cm yağdı', style: _st(14, FontWeight.w700, kInkSoft)),
+          const Spacer(),
+          if (diff != null) Text(diff.abs() < 3 ? 'normal kadar' : '${diff > 0 ? '+' : '−'}${diff.abs().round()} cm ${diff > 0 ? 'fazla' : 'az'}',
+              style: _st(14, FontWeight.w800, diff.abs() < 3 ? kGood : diff > 0 ? kSnow : kWarn)),
+        ]),
+        const SizedBox(height: 4),
+        Text('Bu tarihe kadar normalde ${normal.round()} cm birikir (1 Eylül\'den beri yağan yeni kar).', style: _st(12.5, FontWeight.w500, kInkSoft)),
+        const SizedBox(height: 12),
+        SizedBox(height: 150, width: double.infinity, child: CustomPaint(painter: _SnowPainter(n, season, now))),
+        const SizedBox(height: 6),
+        Row(children: [
+          Container(width: 14, height: 3, color: kSnow), const SizedBox(width: 4), Text('bu kış', style: _st(11, FontWeight.w600, kInkSoft)),
+          const SizedBox(width: 12),
+          Container(width: 14, height: 3, color: kInkFaint), const SizedBox(width: 4), Text('30 yıllık normal', style: _st(11, FontWeight.w600, kInkSoft)),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _SnowPainter extends CustomPainter {
+  final ClimateNormals n; final SeasonSnow? season; final DateTime now;
+  _SnowPainter(this.n, this.season, this.now);
+  static const _months = ['Eyl', 'Eki', 'Kas', 'Ara', 'Oca', 'Şub', 'Mar', 'Nis', 'May'];
+  @override
+  void paint(Canvas c, Size s) {
+    const bottom = 18.0;
+    final ch = s.height - bottom, cw = s.width;
+    final top = max(n.snowSeasonNormal, season?.total ?? 0) * 1.1 + 1;
+    double X(int k) => cw * k / 272;
+    double Y(double v) => ch - v / top * ch;
+    // Ay ayraçları
+    final tp = TextPainter(textDirection: TextDirection.ltr);
+    const starts = [0, 30, 61, 91, 122, 153, 181, 212, 242];
+    for (var i = 0; i < starts.length; i++) {
+      c.drawLine(Offset(X(starts[i]), 0), Offset(X(starts[i]), ch), Paint()..color = kLine..strokeWidth = 1);
+      tp.text = TextSpan(text: _months[i], style: _st(10, FontWeight.w600, kInkFaint)); tp.layout();
+      tp.paint(c, Offset(X(starts[i]) + 3, ch + 4));
+    }
+    // Normal birikim (kesikli)
+    final np = Path()..moveTo(X(0), Y(n.snowCum[0]));
+    for (var k = 1; k < 273; k++) { np.lineTo(X(k), Y(n.snowCum[k])); }
+    final dash = Paint()..color = kInkFaint..style = PaintingStyle.stroke..strokeWidth = 2;
+    for (final m in np.computeMetrics()) { for (var t = 0.0; t < m.length; t += 8) { c.drawPath(m.extractPath(t, min(m.length, t + 4)), dash); } }
+    // Bu kış
+    final ss = season;
+    if (ss != null && ss.days.isNotEmpty) {
+      final pts = <Offset>[];
+      for (var i = 0; i < ss.days.length; i++) {
+        final k = ClimateNormals.seasonDay(ss.days[i]);
+        if (k != null) pts.add(Offset(X(k), Y(ss.cum[i])));
+      }
+      if (pts.length > 1) {
+        final p = Path()..moveTo(pts.first.dx, pts.first.dy);
+        for (final o in pts.skip(1)) { p.lineTo(o.dx, o.dy); }
+        final area = Path.from(p)..lineTo(pts.last.dx, ch)..lineTo(pts.first.dx, ch)..close();
+        c.drawPath(area, Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+            colors: [kSnow.withValues(alpha: .25), kSnow.withValues(alpha: 0)]).createShader(Rect.fromLTRB(0, 0, cw, ch)));
+        c.drawPath(p, Paint()..color = kSnow..style = PaintingStyle.stroke..strokeWidth = 3..strokeJoin = StrokeJoin.round);
+        c.drawCircle(pts.last, 5, Paint()..color = Colors.white);
+        c.drawCircle(pts.last, 5, Paint()..color = kSnow..style = PaintingStyle.stroke..strokeWidth = 2.5);
+      }
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _SnowPainter o) => o.season != season || o.n != n;
+}
+

@@ -157,15 +157,21 @@ void main() {
   });
 
   test('iklim normalleri: 30 yıllık seriden mevsim normali ve takvim günü rekoru', () {
-    final times = <String>[]; final mx = <double?>[]; final mn = <double?>[];
+    final times = <String>[]; final mx = <double?>[]; final mn = <double?>[]; final sn = <double?>[];
     for (var d = DateTime.utc(1995); d.year < 2025; d = d.add(const Duration(days: 1))) {
       final k = ClimateNormals.doy(d);
       final base = 12 - 14 * cos(2 * pi * (k - 15) / 365); // Ocak ortası en soğuk
       times.add(d.toIso8601String().substring(0, 10));
       mx.add(base + 5 + (d.year == 2010 && d.month == 11 && d.day == 23 ? 15 : 0));
       mn.add(base - 5);
+      sn.add(d.month == 12 || d.month == 1 ? 1.0 : 0); // Aralık ve Ocak'ta her gün 1 cm
     }
-    final n = ClimateNormals.compute(times, mx, mn)!;
+    final n = ClimateNormals.compute(times, mx, mn, sn)!;
+    expect(n.snowSeasonNormal, closeTo(62, .5)); // 31 + 31 gün
+    expect(n.snowNormalBy(DateTime(2026, 12, 31)), closeTo(31, .5));
+    expect(ClimateNormals.seasonDay(DateTime(2026, 9, 1)), 0);
+    expect(ClimateNormals.seasonDay(DateTime(2027, 5, 31)), 272);
+    expect(ClimateNormals.seasonDay(DateTime(2026, 7, 1)), isNull);
     expect(n.fromYear, 1995); expect(n.toYear, 2024);
     final nov23 = DateTime(2026, 11, 23);
     final expected = 12 - 14 * cos(2 * pi * (ClimateNormals.doy(nov23) - 15) / 365) + 5;
@@ -173,6 +179,9 @@ void main() {
     expect(n.recMaxYear[ClimateNormals.doy(nov23)], 2010);
     final back = ClimateNormals.fromJson(n.toJson());
     expect(back.maxOn(nov23), n.maxOn(nov23));
+    expect(back.snowSeasonNormal, n.snowSeasonNormal);
+    final season = SeasonSnow.fromDaily(['2026-12-01', '2026-12-02', '2026-12-03'], [2, null, 3.5]);
+    expect(season.total, 5.5);
   });
 
   test('hava kalitesi: ayrıştırma ve Avrupa endeksi kademeleri', () {

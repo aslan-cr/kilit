@@ -174,14 +174,19 @@ void main() {
         ? PlaceNow(place: p, temp: -3, tMax: 0, tMin: -8, wind: 4, precip: .4, cloud: 95, code: 73, isDay: true)
         : PlaceNow(place: p, temp: 1, tMax: 4, tMin: -6, wind: 2, precip: 0, cloud: 30, code: 2, isDay: true)), '21_places', size: const Size(412, 900));
     await shot(t, BestTimeScreen(s: s), '22_best_time', size: const Size(412, 1000));
+    final n0 = DateTime.now();
     // İklim: sentetik 30 yıllık seri (yalnızca test; uygulamada ERA5 arşivinden)
-    final ct = <String>[]; final cx = <double?>[]; final cn = <double?>[];
+    final ct = <String>[]; final cx = <double?>[]; final cn = <double?>[]; final cs = <double?>[];
     for (var d = DateTime.utc(1995); d.year < 2025; d = d.add(const Duration(days: 1))) {
       final b0 = 6 - 15 * cos(2 * pi * (ClimateNormals.doy(d) - 20) / 365);
       ct.add(d.toIso8601String().substring(0, 10)); cx.add(b0 + 5 + (d.year == 2010 ? 3 : 0) - (d.year == 2003 ? 6 : 0)); cn.add(b0 - 6 - (d.year == 2003 ? 8 : 0));
+      cs.add(b0 < 1 ? (d.day % 3 == 0 ? 2.4 : 0) : 0);
     }
-    await shot(t, ClimateScreen(s: s, normals: ClimateNormals.compute(ct, cx, cn)), '23_climate', size: const Size(412, 1000));
-    final n0 = DateTime.now();
+    final sd = <String>[]; final sv = <double?>[];
+    for (var d = DateTime(n0.year, n0.month >= 9 ? 9 : 9, 1).subtract(Duration(days: n0.month >= 9 ? 0 : 365)); !d.isAfter(n0); d = d.add(const Duration(days: 1))) {
+      sd.add(d.toIso8601String().substring(0, 10)); sv.add(d.month >= 11 && d.day % 4 == 0 ? 3.0 : 0);
+    }
+    await shot(t, ClimateScreen(s: s, normals: ClimateNormals.compute(ct, cx, cn, cs), season: SeasonSnow.fromDaily(sd, sv)), '23_climate', size: const Size(412, 1400));
     await shot(t, AirScreen(s: s, data: [for (var i = -24; i < 72; i++) AirPoint(DateTime(n0.year, n0.month, n0.day, n0.hour).add(Duration(hours: i)),
         28 + 14 * sin(i / 5) + (i > 30 && i < 40 ? 18 : 0), 9 + 5 * sin(i / 5), 22 + 8 * sin(i / 5), 55 + 20 * sin(i / 7), 14 + 9 * sin(i / 4))]), '24_air', size: const Size(412, 1100));
     await shot(t, const LabScreen(), '03_lab');
