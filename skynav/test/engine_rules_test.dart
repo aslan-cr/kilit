@@ -3,6 +3,7 @@ import 'package:skynav/astro/space_events.dart';
 import 'package:skynav/astro/sky_times.dart';
 import 'package:skynav/astro/star_catalog.dart';
 import 'package:skynav/engine/alerts.dart';
+import 'package:skynav/engine/best_time.dart';
 import 'package:skynav/engine/compare.dart';
 import 'package:skynav/engine/nowcast.dart';
 import 'package:skynav/data/models.dart';
@@ -129,5 +130,25 @@ void main() {
     expect(yesterdayLine(at(6), now), 'Dün bu saatten 4° daha soğuk.');
     expect(yesterdayLine(at(-1), now), 'Dün bu saatten 3° daha sıcak.');
     expect(yesterdayLine(at(2.5), now), isNull);
+  });
+
+  test('en iyi zaman: yağmurdan sonra kuru gündüz yürüyüş, yağış yakınsa araba yıkama yok, açık gecede yıldız', () {
+    // Test saat dilimi UTC; Erzurum'da Aralık'ta Güneş ~04:45–13:50 UTC arası ufkun üstünde.
+    final now = DateTime(2026, 12, 9, 3);
+    final hs = <HourPoint>[
+      for (var i = 0; i < 48; i++) HourPoint(time: now.add(Duration(hours: i)),
+          temp: 12, precip: i < 3 ? 1.0 : (i >= 30 && i < 33 ? 2.0 : 0), snowfall: 0, windSpeed: 3, windDir: 0,
+          cloud: (i >= 15 && i < 24) ? 0 : 80, humidity: 55, dewPoint: 3, weatherCode: i < 3 ? 61 : 2),
+    ];
+    final s = WeatherSnapshot(place: const GeoPoint2(39.9, 41.27), fetchedAt: now, temp: 12, feelsLike: 12, humidity: 55, dewPoint: 3, pressure: 1015,
+        windSpeed: 3, windDir: 0, windGust: 5, cloudCover: 80, cloudHigh: 0, precip: 1, snowfall: 0, visibilityM: 10000, cape: 0, uv: 0,
+        weatherCode: 61, isDay: false, hourly: hs);
+    final b = {for (final e in bestTimes(s, now)) e.key: e};
+    expect(b['walk']!.found, isTrue);
+    expect(b['walk']!.start!.isAfter(now.add(const Duration(hours: 2))), isTrue); // yağmur bittikten sonra
+    expect(b['walk']!.start!.hour, inInclusiveRange(5, 12));
+    expect(b['car']!.found, isFalse); // 27 saat sonra yine yağmur
+    expect(b['stars']!.found, isTrue);
+    expect(b['stars']!.start!.hour, anyOf(inInclusiveRange(15, 23), inInclusiveRange(0, 2)));
   });
 }
