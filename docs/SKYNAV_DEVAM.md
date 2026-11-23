@@ -45,4 +45,14 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - Ana sahne: gerçek yıldızlar (lib/astro/bsc5.dart, Yale BSC V≤5) + gezegenler (planetMagnitude), lib/ui/sky_stars.dart.
 - Yağış: kar derinlik bulanıklığı, yağmur çizgi + sıçrama, fırtınada yıldırım (Lightning sınıfı), vadi sisi (ters CloudLayer).
 - Ekran görüntüsü testi: altın/mavi saat boylamı otomatik; 06h yıldızlı gece, 06i fırtına (çakış anı), 06j sis.
-- Sıradaki: yeni özellikler (gün detay, fotoğrafçı saatleri, Ay doğuş/batış, 72 sa grafik, canlı pencere, uyarılar).
+
+## 1.7.0+11 (aynı oturum)
+- lib/ui/detail_screens.dart: DayDetailScreen (7 günlükte güne dokun), PhotoHoursBlock (ana ekranda da), MoonTimesBlock +
+  MoonDetailScreen (Ay bloğuna dokun), TrendScreen + SeriesChart (basınç/rüzgâr bloğuna dokun; son 48 sa + 24 sa),
+  LiveWindow (sahneye dokun: tam ekran + havaya uygun CC0 kayıt; çıkınca mikserin önceki karışımı geri gelir, "son karışım" ezilmez).
+- lib/astro/sky_times.dart: altın/mavi saat, Ay doğuş/batış, ana evreler (PyEphem ile ±1–2 dk, evreler ±15 dk; testli).
+- lib/engine/alerts.dart: fırtına (WMO 95+), tipi, buzlanma, yoğun kar, rüzgâr fırtınası, mercimek, kar, sıcak; bg_tasks
+  önem sırasıyla, her uyarı 6 saatte bir, tek çalıştırmada tek bildirim. Ayarlar > "Hava uyarıları" (SharedState sn_alerts_off).
+- HourPoint'e uv ve gust eklendi (Open-Meteo hourly wind_gusts_10m).
+- Ekran görüntüleri: 15_day, 16_moon, 17_trend, 18_live (en sonda; ses eklentisi testte yok).
+- Sıradaki fikirler: cihaz geri bildirimi (GPU tanılama satırı, sesler), canlı pencere için sahne ufak animasyonları.

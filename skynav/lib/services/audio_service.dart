@@ -71,9 +71,9 @@ class SleepMixer extends ChangeNotifier {
   static double _curve(double v) => pow(v.clamp(0.0, 1.0), 1.8).toDouble();
 
   /// Kanalın seviyesini ayarlar. false: ses dosyası pakette yok.
-  Future<bool> set(String key, double v) async {
+  Future<bool> set(String key, double v, {bool remember = true}) async {
     level[key] = v.clamp(0.0, 1.0);
-    if (v > .01) { last
+    if (v > .01 && remember) { last
       ..clear()
       ..addAll({for (final e in level.entries) if (e.value > .01) e.key: e.value}); _saveLast(); }
     _startRamp();
@@ -83,8 +83,9 @@ class SleepMixer extends ChangeNotifier {
     return !missing.contains(key);
   }
 
-  Future<void> preset(Map<String, double> mix) async {
-    for (final k in tracks.keys) { await set(k, mix[k] ?? 0); }
+  /// [remember] false: kullanıcının kaydettiği "son karışım" değişmez (ör. canlı pencerenin geçici sesi).
+  Future<void> preset(Map<String, double> mix, {bool remember = true}) async {
+    for (final k in tracks.keys) { await set(k, mix[k] ?? 0, remember: remember); }
   }
 
   Future<void> stopAll() async {
@@ -184,7 +185,7 @@ class SleepMixer extends ChangeNotifier {
               await p.setSource(AssetSource(tracks[key]!));
               made.add(p);
             } catch (_) {
-              await p.dispose();
+              try { await p.dispose(); } catch (_) {}
               if (made.isEmpty) rethrow; // ikinci oynatıcı kurulamazsa tek oynatıcıyla devam
             }
           }
@@ -194,7 +195,7 @@ class SleepMixer extends ChangeNotifier {
           _cur[key] = 0;
           _startRamp();
         } catch (_) {
-          for (final p in made) { await p.dispose(); }
+          for (final p in made) { try { await p.dispose(); } catch (_) {} }
           missing.add(key); level[key] = 0; notifyListeners();
         } finally {
           _locks.remove(key);
@@ -211,11 +212,12 @@ class SleepMixer extends ChangeNotifier {
     final names = [for (final e in level.entries) if (e.value > .01) labels[e.key]!.split(' (').first];
     final l = sleepLeft;
     try {
+      // Kanal yoksa (iOS/test) ya da servis başlatılamazsa sessizce geç: ses yine çalar.
       _native.invokeMethod('mixerService', {
         'on': on,
         'title': names.isEmpty ? 'Uyku mikseri' : names.join(' · '),
         'text': l == null ? 'Gerçek doğa kayıtları çalıyor' : 'Uyku zamanlayıcısı: ${l.inMinutes + 1} dk sonra yavaşça kısılır',
-      });
+      }).catchError((_) => null);
     } catch (_) {}
   }
 }

@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skynav/astro/space_events.dart';
+import 'package:skynav/astro/sky_times.dart';
 import 'package:skynav/astro/star_catalog.dart';
+import 'package:skynav/engine/alerts.dart';
 import 'package:skynav/data/models.dart';
 import 'package:skynav/engine/weather_engine.dart';
 import 'package:skynav/ui/sky_stars.dart';
@@ -65,5 +67,41 @@ void main() {
     expect(SceneSky.along(90, 40), 0);
     expect(SceneSky.along(0, -33), .5);
     expect(SceneSky.along(90, -33), 1);
+  });
+
+  WeatherSnapshot withHours(WeatherSnapshot b, DateTime now, List<(double t, double pr, double sn, int code, double gust)> hs) => WeatherSnapshot(
+      place: b.place, fetchedAt: now, temp: b.temp, feelsLike: b.feelsLike, humidity: b.humidity, dewPoint: b.dewPoint, pressure: b.pressure,
+      windSpeed: b.windSpeed, windDir: b.windDir, windGust: b.windGust, cloudCover: b.cloudCover, cloudHigh: 0, precip: b.precip, snowfall: b.snowfall,
+      visibilityM: 10000, cape: b.cape, uv: 0, weatherCode: 0, isDay: b.isDay,
+      hourly: [for (var i = 0; i < hs.length; i++) HourPoint(time: now.add(Duration(hours: i - 2)), temp: hs[i].$1, precip: hs[i].$2, snowfall: hs[i].$3,
+          windSpeed: 4, windDir: 0, cloud: 80, humidity: 85, dewPoint: hs[i].$1 - 2, weatherCode: hs[i].$4, gust: hs[i].$5)]);
+
+  test('uyarılar: yağmur sonrası don → buzlanma, yoğun kar, gök gürültüsü, sakin havada yok', () {
+    final now = DateTime(2026, 12, 1, 18);
+    final calm = withHours(snap(t: 8), now, [for (var i = 0; i < 14; i++) (8.0, 0.0, 0.0, 2, 6.0)]);
+    expect(weatherAlerts(calm, WeatherEngine.analyze(calm), now), isEmpty);
+    final ice = withHours(snap(t: 2), now, [(3, 1.2, 0, 61, 6), (2, .6, 0, 61, 6), (1, 0, 0, 3, 5), (0, 0, 0, 3, 5), (-1, 0, 0, 3, 5), (-2, 0, 0, 3, 5),
+      for (var i = 0; i < 8; i++) (-3.0, 0.0, 0.0, 3, 5.0)]);
+    expect(weatherAlerts(ice, WeatherEngine.analyze(ice), now).map((e) => e.key), contains('ice'));
+    final snowy = withHours(snap(t: -3), now, [(-3, 0, 0, 3, 5), (-3, 0, 0, 3, 5), for (var i = 0; i < 6; i++) (-4.0, 1.6, 2.2, 75, 8.0), for (var i = 0; i < 6; i++) (-4.0, 0.0, 0.0, 3, 5.0)]);
+    expect(weatherAlerts(snowy, WeatherEngine.analyze(snowy), now).map((e) => e.key), contains('heavySnow'));
+    final storm = withHours(snap(t: 22), now, [for (var i = 0; i < 4; i++) (22.0, 0.0, 0.0, 2, 8.0), (21, 6, 0, 95, 26), for (var i = 0; i < 9; i++) (20.0, 0.0, 0.0, 3, 8.0)]);
+    final keys = weatherAlerts(storm, WeatherEngine.analyze(storm), now).map((e) => e.key).toList();
+    expect(keys.first, 'storm');
+    expect(keys, contains('gale'));
+  });
+
+  test('gök zamanları: fotoğrafçı saatleri, Ay doğuş/batış ve dolunay (PyEphem ile ±2 dk / ±15 dk)', () {
+    final day = DateTime.utc(2026, 11, 22, 21); // Erzurum 23 Kasım yerel gece yarısı
+    final p = PhotoHours.of(39.9, 41.27, day);
+    void near(DateTime? a, DateTime b, int minutes) => expect(a!.difference(b).inMinutes.abs(), lessThanOrEqualTo(minutes), reason: '$a ~ $b');
+    near(p.morningGolden!.start, DateTime.utc(2026, 11, 23, 3, 50), 2);
+    near(p.eveningGolden!.start, DateTime.utc(2026, 11, 23, 13, 12), 2);
+    near(p.eveningBlue!.end, DateTime.utc(2026, 11, 23, 14, 23), 2);
+    final m = moonRiseSet(39.9, 41.27, day);
+    near(m.rise, DateTime.utc(2026, 11, 23, 12, 37), 2);
+    near(m.set, DateTime.utc(2026, 11, 23, 2, 37), 2);
+    near(nextMoonPhase(DateTime.utc(2026, 11, 23, 17), 180), DateTime.utc(2026, 11, 24, 14, 53), 15);
+    near(nextMoonPhase(DateTime.utc(2026, 11, 23, 17), 0), DateTime.utc(2026, 12, 9, 0, 52), 15);
   });
 }

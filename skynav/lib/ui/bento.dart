@@ -161,7 +161,9 @@ class _QuotePainter extends CustomPainter {
 // ── Saatlik: sıcaklık eğrisi + yağış çubukları ─────────────────────────────
 class HourlyBlock extends StatefulWidget {
   final List<HourPoint> hours;
-  const HourlyBlock({super.key, required this.hours});
+  /// true: ilk nokta "Şimdi" (ana ekran); false: tüm noktalar saatle (gün detayı).
+  final bool fromNow;
+  const HourlyBlock({super.key, required this.hours, this.fromNow = true});
   @override
   State<HourlyBlock> createState() => _HourlyBlockState();
 }
@@ -194,7 +196,7 @@ class _HourlyBlockState extends State<HourlyBlock> {
           onHorizontalDragEnd: (_) => setState(() => _sel = null),
           onTapDown: (d) => _pick(d.localPosition, c.maxWidth),
           onTapUp: (_) => Future.delayed(const Duration(milliseconds: 1400), () { if (mounted) setState(() => _sel = null); }),
-          child: SizedBox(height: 150, width: double.infinity, child: CustomPaint(painter: _HourlyPainter(h, _sel))),
+          child: SizedBox(height: 150, width: double.infinity, child: CustomPaint(painter: _HourlyPainter(h, _sel, widget.fromNow))),
         )),
       ]),
     );
@@ -202,8 +204,8 @@ class _HourlyBlockState extends State<HourlyBlock> {
 }
 
 class _HourlyPainter extends CustomPainter {
-  final List<HourPoint> h; final int? sel;
-  _HourlyPainter(this.h, [this.sel]);
+  final List<HourPoint> h; final int? sel; final bool fromNow;
+  _HourlyPainter(this.h, [this.sel, this.fromNow = true]);
 
   void _text(Canvas c, String s, TextStyle st, Offset at, {double align = .5, double? minX, double? maxX}) {
     final tp = TextPainter(text: TextSpan(text: s, style: st), textDirection: TextDirection.ltr)..layout();
@@ -260,7 +262,7 @@ class _HourlyPainter extends CustomPainter {
       c.drawCircle(o, 4, Paint()..color = Colors.white);
       c.drawCircle(o, 4, Paint()..color = kAccent..style = PaintingStyle.stroke..strokeWidth = 2.5);
       _text(c, deg(temps[i]), _st(12, FontWeight.w700, kInk), Offset(o.dx, o.dy - 24));
-      final first = i == 0;
+      final first = i == 0 && fromNow;
       _text(c, first ? 'Şimdi' : h[i].time.hour.toString().padLeft(2, '0'), _st(11, first ? FontWeight.w700 : FontWeight.w600, first ? kAccent : kInkSoft),
           Offset(o.dx, ch - 15), minX: 0, maxX: cw);
     }
@@ -276,13 +278,15 @@ class _HourlyPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _HourlyPainter o) => o.h != h || o.sel != sel;
+  bool shouldRepaint(covariant _HourlyPainter o) => o.h != h || o.sel != sel || o.fromNow != fromNow;
 }
 
 // ── 7 günlük ────────────────────────────────────────────────────────────────
 class DailyBlock extends StatelessWidget {
   final List<DayPoint> days;
-  const DailyBlock({super.key, required this.days});
+  /// Bir güne dokununca (gün detay sayfası).
+  final void Function(int index)? onDay;
+  const DailyBlock({super.key, required this.days, this.onDay});
 
   static Color tempColor(double t) => t <= -8 ? const Color(0xFF3B7DDD) : t <= 0 ? kSnow : t <= 4 ? const Color(0xFF52C4B0)
       : t <= 18 ? const Color(0xFFF2C94C) : t <= 27 ? kSun : kHeat;
@@ -297,7 +301,8 @@ class DailyBlock extends StatelessWidget {
         const SizedBox(height: 10),
         for (var i = 0; i < days.length; i++) ...[
           if (i > 0) const Divider(height: 1, thickness: 1, color: kLine),
-          Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(children: [
+          InkWell(borderRadius: BorderRadius.circular(12), onTap: onDay == null ? null : () { HapticFeedback.selectionClick(); onDay!(i); },
+              child: Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(children: [
             SizedBox(width: 50, child: Text(i == 0 ? 'Bugün' : i == 1 ? 'Yarın' : _trDays[days[i].date.weekday - 1], maxLines: 1,
                 style: _st(15, i == 0 ? FontWeight.w700 : FontWeight.w600, kInk))),
             const SizedBox(width: 10),
@@ -310,7 +315,8 @@ class DailyBlock extends StatelessWidget {
             Expanded(child: _Range(lo: lo, hi: hi, a: days[i].tMin, b: days[i].tMax)),
             const SizedBox(width: 10),
             SizedBox(width: 30, child: Text(deg(days[i].tMax), style: _st(15, FontWeight.w700, kInk))),
-          ])),
+            if (onDay != null) const Icon(Icons.chevron_right_rounded, size: 18, color: kInkFaint),
+          ]))),
         ],
       ]),
     );
@@ -579,8 +585,8 @@ class _UvPainter extends CustomPainter {
 
 // ── Basınç barometresi ─────────────────────────────────────────────────────
 class PressureBlock extends StatelessWidget {
-  final double hpa; final String? trend;
-  const PressureBlock({super.key, required this.hpa, this.trend});
+  final double hpa; final String? trend; final VoidCallback? onTap;
+  const PressureBlock({super.key, required this.hpa, this.trend, this.onTap});
 
   /// Son 3 saatteki gerçek basınç değişimi (saatlik geçmiş veriden). Veri yoksa null.
   static String? trendOf(List<HourPoint> hourly, DateTime now) {
@@ -592,8 +598,9 @@ class PressureBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Bento(
+        onTap: onTap,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const BlockHead('Basınç', dot: kInkSoft),
+          BlockHead('Basınç', dot: kInkSoft, trailing: onTap == null ? null : const _Trail('72 sa')),
           const Spacer(),
           SizedBox(width: 140, height: 118, child: CustomPaint(painter: _BaroPainter(hpa), child: Column(children: [
             const SizedBox(height: 80),
@@ -631,15 +638,16 @@ class _BaroPainter extends CustomPainter {
 
 // ── Ay evresi ──────────────────────────────────────────────────────────────
 class MoonBlock extends StatelessWidget {
-  final DateTime now; final bool south; final double lat, lon;
-  const MoonBlock({super.key, required this.now, this.south = false, this.lat = 39, this.lon = 35});
+  final DateTime now; final bool south; final double lat, lon; final VoidCallback? onTap;
+  const MoonBlock({super.key, required this.now, this.south = false, this.lat = 39, this.lon = 35, this.onTap});
   @override
   Widget build(BuildContext context) {
     final m = moonPhase(now);
     return Bento(
-      color: kBentoNight,
+      color: kBentoNight, onTap: onTap,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const BlockHead('Ay', dot: Color(0xFFF4ECCF), labelColor: Color(0xFF9DA9CF)),
+        BlockHead('Ay', dot: const Color(0xFFF4ECCF), labelColor: const Color(0xFF9DA9CF),
+            trailing: onTap == null ? null : const _Trail('doğuş · evreler', color: Color(0xFF9DA9CF))),
         const Spacer(),
         SizedBox(width: 92, height: 92, child: CustomPaint(painter: _MoonPainter(m.fraction, south, MoonView.at(lat, lon, now)))),
         const Spacer(),

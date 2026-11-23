@@ -10,6 +10,7 @@ import '../services/weather_repository.dart';
 import '../widgets/widget_service.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../services/icon_service.dart';
+import '../services/notify_service.dart';
 import '../services/shared_state.dart';
 import 'badges_screen.dart';
 import 'paywall.dart';
@@ -88,6 +89,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _group([
           _tile(Icons.bolt_rounded, kWarn, 'Turbo mod (1 dk)', sub: 'Kapalıyken pil dostu: 15 dakikada bir · Pro',
               trailing: Switch(value: WeatherController.I.turbo, onChanged: (v) { if (ProService.I.state.isPro) { setState(() => WeatherController.I.turbo = v); } else { Navigator.push(context, MaterialPageRoute(builder: (_) => const Paywall())); } })),
+          _tile(Icons.notifications_active_outlined, kDanger, 'Hava uyarıları', sub: 'Fırtına, buzlanma, yoğun kar, tipi · arka planda 15 dakikada bir',
+              trailing: Switch(value: SharedState.cached?.getBool('sn_alerts_off') != true, onChanged: (v) async {
+                final p = await SharedState.get();
+                await p.setBool('sn_alerts_off', !v);
+                if (v) await Notify.requestPermission();
+                setState(() {});
+              })),
           _tile(Icons.auto_awesome_rounded, kAccent, 'Dinamik ikon', sub: 'Uygulama ikonu havaya göre değişir · uygulamadan çıkınca uygulanır',
               trailing: Switch(value: IconService.enabled, onChanged: (v) async { await IconService.setEnabled(v); setState(() {}); })),
           _tile(Icons.speed_rounded, kGood, 'Hız & yol widget’ı', sub: 'Görünür bildirimle canlı GPS hızı · Pro',

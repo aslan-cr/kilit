@@ -16,7 +16,10 @@ class HeroScene extends StatefulWidget {
   final WeatherSnapshot s; final Analysis a; final Wx wx; final DayPoint? today;
   final bool offline; final VoidCallback? onPlace;
   final double height;
-  const HeroScene({super.key, required this.s, required this.a, required this.wx, this.today, this.offline = false, this.onPlace, this.height = 380});
+  /// Köşe yuvarlaklığı (canlı pencerede 0), [live]: tam ekran canlı pencere, [onOpen]: sahneye dokununca.
+  final double radius; final bool live; final VoidCallback? onOpen;
+  const HeroScene({super.key, required this.s, required this.a, required this.wx, this.today, this.offline = false, this.onPlace, this.height = 380,
+      this.radius = 34, this.live = false, this.onOpen});
   @override
   State<HeroScene> createState() => _HeroSceneState();
 }
@@ -34,10 +37,14 @@ class _HeroSceneState extends State<HeroScene> with SingleTickerProviderStateMix
     final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     final name = s.place.name.isEmpty ? 'Konumum' : s.place.name;
     final H = widget.height;
+    final pad = widget.live ? MediaQuery.paddingOf(context) : EdgeInsets.zero;
     return Semantics(
       label: '$name, ${deg(s.temp)}, ${wxLabel(widget.wx, day: s.isDay)}',
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(34),
+      button: widget.onOpen != null,
+      child: GestureDetector(
+        onTap: widget.onOpen,
+        child: ClipRRect(
+        borderRadius: BorderRadius.circular(widget.radius),
         child: SizedBox(
           height: H,
           child: Stack(fit: StackFit.expand, children: [
@@ -62,23 +69,30 @@ class _HeroSceneState extends State<HeroScene> with SingleTickerProviderStateMix
               ]);
             }),
             // Konum hapı
-            Positioned(left: 18, top: 18, child: _PlacePill(name: name, elevation: s.place.elevation, onTap: widget.onPlace)),
-            if (widget.offline) const Positioned(right: 16, top: 22, child: _OfflineDot()),
+            if (!widget.live) Positioned(left: 18, top: 18, child: _PlacePill(name: name, elevation: s.place.elevation, onTap: widget.onPlace)),
+            if (widget.offline && !widget.live) const Positioned(right: 16, top: 22, child: _OfflineDot()),
+            // Canlı pencereye geçiş ipucu
+            if (widget.onOpen != null) Positioned(right: 14, bottom: 16, child: Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: .2), shape: BoxShape.circle, border: Border.all(color: Colors.white.withValues(alpha: .3))),
+              child: const Icon(Icons.open_in_full_rounded, size: 17, color: Colors.white),
+            )),
             // Sıcaklık
-            Positioned(left: 14, top: 56, child: Text(deg(s.temp), style: const TextStyle(
+            Positioned(left: 14, top: 56 + pad.top, child: Text(deg(s.temp), style: const TextStyle(
               fontFamily: 'InterDisplay', fontSize: 104, fontWeight: FontWeight.w300, height: 1, letterSpacing: -5.2, color: Colors.white,
               shadows: [Shadow(color: Color(0x2E0D1F38), offset: Offset(0, 4), blurRadius: 24)],
             ))),
             // Durum ve hissedilen
-            Positioned(left: 20, right: 20, top: H - 78, child: Text(wxLabel(widget.wx, day: s.isDay), maxLines: 1, overflow: TextOverflow.ellipsis,
+            Positioned(left: 20, right: widget.onOpen != null ? 60 : 20, top: H - 78 - pad.bottom - (widget.live ? 40 : 0), child: Text(wxLabel(widget.wx, day: s.isDay), maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontFamily: 'Inter', fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: -.24, color: Colors.white, height: 1.2))),
-            Positioned(left: 20, right: 20, top: H - 46, child: Text(
+            Positioned(left: 20, right: widget.onOpen != null ? 60 : 20, top: H - 46 - pad.bottom - (widget.live ? 40 : 0), child: Text(
               ['Hissedilen ${deg(s.feelsLike)}', if (widget.today != null) '↑ ${deg(widget.today!.tMax)}   ↓ ${deg(widget.today!.tMin)}'].join('   '),
               maxLines: 1, overflow: TextOverflow.ellipsis,
               style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: .85), height: 1.3),
             )),
           ]),
         ),
+      ),
       ),
     );
   }

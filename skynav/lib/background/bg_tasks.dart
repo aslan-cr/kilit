@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 import '../data/models.dart';
+import '../engine/alerts.dart';
 import '../engine/weather_engine.dart';
 import '../services/icon_service.dart';
 import '../services/notify_service.dart';
@@ -26,17 +27,15 @@ void callbackDispatcher() {
       final s = await OpenMeteoService().fetch(p);
       final a = WeatherEngine.analyze(s, biasCorrection: sp.getDouble('sn_bias') ?? 0);
       await IconService.updateFromBackground(a, s);
-      String? msg; String key = '';
-      if (a.blizzardProb >= 50) { msg = 'Tipi ihtimali %${a.blizzardProb.round()} kanki, dışarıda dikkat!'; key = 'blizzard'; }
-      else if (a.lentilProb >= 50) { msg = 'Mercimek karı ihtimali %${a.lentilProb.round()}!'; key = 'lentil'; }
-      else if (a.snowProb >= 50) { msg = 'Kar ihtimali %${a.snowProb.round()}, yağıyor olabilir kanki.'; key = 'snow'; }
-      else if (s.temp >= 38) { msg = 'Aşırı sıcak: ${s.temp.round()}°. Gölgede kal, su iç kanki.'; key = 'heat'; }
-      else if (s.windGust >= 24) { msg = 'Fırtına hamlesi ${s.windGust.round()} m/s. Savrulacak şeyleri topla kanki.'; key = 'gale'; }
-      if (msg != null) {
-        final last = sp.getInt('sn_alarm_$key') ?? 0;
-        if (DateTime.now().millisecondsSinceEpoch - last > 6 * 3600 * 1000) { // aynı alarmı 6 saatte bir
-          await sp.setInt('sn_alarm_$key', DateTime.now().millisecondsSinceEpoch);
-          await Notify.show('SkyNav uyarı', msg);
+      // Hava uyarıları (önem sırasıyla); her uyarı en fazla 6 saatte bir. Ayarlardan kapatılabilir.
+      if (sp.getBool('sn_alerts_off') != true) {
+        final now = DateTime.now();
+        for (final al in weatherAlerts(s, a, now)) {
+          final last = sp.getInt('sn_alarm_${al.key}') ?? 0;
+          if (now.millisecondsSinceEpoch - last <= 6 * 3600 * 1000) continue;
+          await sp.setInt('sn_alarm_${al.key}', now.millisecondsSinceEpoch);
+          await Notify.show('SkyNav · ${al.title}', al.body);
+          break; // tek çalıştırmada tek bildirim
         }
       }
       return true;

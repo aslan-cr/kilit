@@ -12,6 +12,7 @@ import '../services/weather_repository.dart';
 import 'lab_screen.dart';
 import 'radar_map.dart';
 import 'bento.dart';
+import 'detail_screens.dart';
 import 'hero_scene.dart';
 import 'theme.dart';
 import 'tools_screens.dart';
@@ -62,24 +63,30 @@ class WeatherScreen extends StatelessWidget {
       onRefresh: () => w.refresh(force: true),
       child: ListView(padding: const EdgeInsets.fromLTRB(18, 8, 18, 120), children: _staggered([
         // ── Sahne ──
-        HeroScene(s: s, a: a, wx: nowWx, today: todayPt, offline: s.fromCache || w.offline, onPlace: () => _pickPlace(context)),
+        HeroScene(s: s, a: a, wx: nowWx, today: todayPt, offline: s.fromCache || w.offline, onPlace: () => _pickPlace(context),
+            onOpen: () => LiveWindow.open(context, s, a, nowWx, todayPt)),
         gap,
         SpeakerCard(text: summary, onPlay: () { Sfx.tap(); Voice.speak(summary); }),
         if (hours.isNotEmpty) ...[gap, HourlyBlock(hours: hours)],
-        if (days.isNotEmpty) ...[gap, DailyBlock(days: days)],
+        if (days.isNotEmpty) ...[gap, DailyBlock(days: days, onDay: (i) => DayDetailScreen.open(context, s, days[i], i))],
 
         // ── Bento ──
         gap,
         BentoRow(height: 184,
           left: PrecipRingsBlock(a: a, onTap: () => _infoSheet(context, 'Kar, karla karışık, mercimek karı, tipi', _precipHelp)),
-          right: WindBlock(s: s, onTap: () => _windSheet(context, s)),
+          right: WindBlock(s: s, onTap: () => _push(context, TrendScreen(s: s, windFirst: true))),
         ),
         if (a.blizzardProb > 40) ...[gapS, _Note(Icons.air, Kanki.pick(Kanki.tipiUyari, s.temp.round()), kBlizzard)],
         if (sunrise != null && sunset != null) ...[gap, DaylightBlock(sunrise: sunrise, sunset: sunset, now: now)],
         gap,
+        PhotoHoursBlock(lat: s.place.lat, lon: s.place.lon, day: today),
+        gap,
         BentoRow(height: 170, left: HumidityBlock(s: s), right: UvBlock(uv: s.uv)),
         gap,
-        BentoRow(height: 200, left: PressureBlock(hpa: s.pressure, trend: PressureBlock.trendOf(s.hourly, now)), right: MoonBlock(now: now, south: s.place.lat < 0, lat: s.place.lat, lon: s.place.lon)),
+        BentoRow(height: 200,
+          left: PressureBlock(hpa: s.pressure, trend: PressureBlock.trendOf(s.hourly, now), onTap: () => _push(context, TrendScreen(s: s))),
+          right: MoonBlock(now: now, south: s.place.lat < 0, lat: s.place.lat, lon: s.place.lon, onTap: () => _push(context, MoonDetailScreen(lat: s.place.lat, lon: s.place.lon))),
+        ),
         gap,
         BentoRow(height: 244, left: SoilBlock(s: s), right: FreezeBlock(freezeM: s.freezingLevelM, elevation: s.place.elevation)),
 
@@ -189,18 +196,9 @@ class WeatherScreen extends StatelessWidget {
     ])));
   }
 
-  static Future<void> _windSheet(BuildContext context, WeatherSnapshot s) {
+  static void _push(BuildContext context, Widget page) {
     Sfx.tap();
-    return showModalBottomSheet(context: context, builder: (_) => Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 28), child: Row(children: [
-      SizedBox(width: 132, height: 132, child: CustomPaint(painter: _RosePainter(s.windDir, s.windSpeed))),
-      const SizedBox(width: 18),
-      Expanded(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('${s.windSpeed.toStringAsFixed(1)} m/s', style: T.num.copyWith(fontSize: 28)),
-        Text('${windDirName(s.windDir)} yönünden · ${(s.windSpeed * 3.6).round()} km/s', style: T.small),
-        const SizedBox(height: 10),
-        Pill('Hamle ${s.windGust.round()} m/s · ${(s.windGust * 3.6).round()} km/s', color: s.windGust > 17 ? kDanger : kAccent, icon: Icons.air),
-      ])),
-    ])));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
   static Future<void> _pickPlace(BuildContext context) =>
@@ -384,36 +382,6 @@ class _PlaceSheetState extends State<_PlaceSheet> {
 }
 
 // ── Çizimler ───────────────────────────────────────────────────────────────
-class _RosePainter extends CustomPainter {
-  final double dir, speed; _RosePainter(this.dir, this.speed);
-  @override
-  void paint(Canvas c, Size s) {
-    final ctr = s.center(Offset.zero); final r = min(s.width, s.height) / 2 - 12;
-    c.drawCircle(ctr, r, Paint()..color = kAccent.withValues(alpha: .06));
-    c.drawCircle(ctr, r, Paint()..color = kLine..style = PaintingStyle.stroke..strokeWidth = 1.5);
-    for (var i = 0; i < 36; i++) {
-      final a = i * pi / 18; final len = i % 9 == 0 ? 8.0 : 4.0;
-      c.drawLine(ctr + Offset(sin(a), -cos(a)) * r, ctr + Offset(sin(a), -cos(a)) * (r - len), Paint()..color = kInkFaint..strokeWidth = i % 9 == 0 ? 2 : 1);
-    }
-    final tp = TextPainter(textDirection: TextDirection.ltr);
-    for (final e in [('K', 0.0), ('D', 90.0), ('G', 180.0), ('B', 270.0)]) {
-      tp.text = TextSpan(text: e.$1, style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: e.$1 == 'K' ? kDanger : kInkSoft, fontWeight: FontWeight.w800)); tp.layout();
-      final a = e.$2 * pi / 180; tp.paint(c, ctr + Offset(sin(a), -cos(a)) * (r - 18) - Offset(tp.width / 2, tp.height / 2));
-    }
-    final to = (dir + 180) * pi / 180; // rüzgârın gittiği yön
-    final tip = ctr + Offset(sin(to), -cos(to)) * (r - 6);
-    final tail = ctr - Offset(sin(to), -cos(to)) * (r - 26);
-    c.drawLine(tail, tip, Paint()..color = kAccent..strokeWidth = 4..strokeCap = StrokeCap.round);
-    final head = Path()..moveTo(tip.dx, tip.dy)
-      ..lineTo(tip.dx - 9 * sin(to) + 6 * cos(to), tip.dy + 9 * cos(to) + 6 * sin(to))
-      ..lineTo(tip.dx - 9 * sin(to) - 6 * cos(to), tip.dy + 9 * cos(to) - 6 * sin(to))..close();
-    c.drawPath(head, Paint()..color = kAccent);
-    c.drawCircle(ctr, 5, Paint()..color = Colors.white); c.drawCircle(ctr, 5, Paint()..color = kAccent..style = PaintingStyle.stroke..strokeWidth = 2);
-  }
-  @override
-  bool shouldRepaint(covariant _RosePainter o) => o.dir != dir || o.speed != speed;
-}
-
 class _ProfilePainter extends CustomPainter {
   final WeatherSnapshot s; _ProfilePainter(this.s);
   @override

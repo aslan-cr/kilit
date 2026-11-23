@@ -27,7 +27,7 @@ class OpenMeteoService {
   static const _minutelyVars = ['precipitation', 'snowfall'];
   static final List<String> _hourlyVars = [
     'temperature_2m', 'relative_humidity_2m', 'precipitation', 'snowfall', 'weather_code', 'pressure_msl',
-    'wind_speed_10m', 'wind_direction_10m', 'cloud_cover', 'cloud_cover_high',
+    'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'cloud_cover', 'cloud_cover_high',
     'visibility', 'cape', 'uv_index', 'freezing_level_height', 'snow_depth',
     'soil_temperature_0cm', 'soil_temperature_6cm', 'soil_temperature_18cm', 'soil_temperature_54cm',
     for (final lv in _pressureLevels) ...[
@@ -165,6 +165,7 @@ class OpenMeteoService {
     final pmAll = h('pressure_msl');
     final wsAll = h('wind_speed_10m');
     final wdAll = h('wind_direction_10m');
+    final wgAll = h('wind_gusts_10m');
     final ccAll = h('cloud_cover');
     final chAll = h('cloud_cover_high');
     final visAll = h('visibility');
@@ -207,6 +208,8 @@ class OpenMeteoService {
           dewPoint: _dewPoint(at(tAll, i), at(rhAll, i)),
           weatherCode: at(wcAll, i).round(),
           pressure: opt(pmAll, i) ?? double.nan,
+          uv: opt(uvAll, i) ?? double.nan,
+          gust: opt(wgAll, i) ?? double.nan,
         ),
     ];
 

@@ -24,11 +24,13 @@ class HourPoint {
   final double temp, precip, snowfall, windSpeed, windDir, cloud, humidity, dewPoint;
   /// Deniz seviyesi basıncı (hPa); veri yoksa NaN.
   final double pressure;
+  /// UV indeksi ve rüzgâr hamlesi (m/s); veri yoksa NaN.
+  final double uv, gust;
   final int weatherCode;
   const HourPoint({required this.time, required this.temp, required this.precip,
       required this.snowfall, required this.windSpeed, required this.windDir,
       required this.cloud, required this.humidity, required this.dewPoint, required this.weatherCode,
-      this.pressure = double.nan});
+      this.pressure = double.nan, this.uv = double.nan, this.gust = double.nan});
 }
 
 class DayPoint {

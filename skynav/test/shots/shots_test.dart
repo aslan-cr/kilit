@@ -1,5 +1,6 @@
 // Ekran görüntüsü düzeneği: `flutter test test/shots --dart-define=SHOTS=1`
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -23,6 +24,8 @@ import 'package:skynav/ui/settings_screen.dart';
 import 'package:skynav/ui/road_screen.dart';
 import 'package:skynav/ui/sky_screen.dart';
 import 'package:skynav/ui/clouds.dart';
+import 'package:skynav/ui/detail_screens.dart';
+import 'package:skynav/ui/wx_glyph.dart' show Wx;
 import 'package:skynav/ui/hero_scene.dart' show Lightning;
 import 'package:skynav/ui/scene_shaders.dart';
 import 'package:skynav/ui/sky_bodies.dart';
@@ -48,7 +51,10 @@ WeatherSnapshot fake({PrecipKind k = PrecipKind.snow, bool day = true, double t 
     soil0: -1.2, soil6: -.4, soil18: .8, soil54: 3.1, soil0Past3dAvg: -.6,
     pressureLevels: const {1000: {'temp': -2}, 925: {'temp': -6}, 850: {'temp': -9}, 700: {'temp': -16}, 500: {'temp': -30}, 300: {'temp': -48}},
     // Figma örneğiyle aynı saatlik seri (3 saat geçmiş + 24 saat); basınç son 3 saatte sabit.
-    hourly: [for (var i = -3; i < 24; i++) HourPoint(time: now.add(Duration(hours: i)), temp: t + _ht[(i + 24) % 24] + 2, precip: _hp[(i + 24) % 24], snowfall: _hp[(i + 24) % 24] * .9, windSpeed: 5, windDir: 300, cloud: 70, humidity: 85, dewPoint: t - 3, weatherCode: _hp[(i + 24) % 24] > 0 ? 73 : 3, pressure: 1012 + i * .1)],
+    // Basınç son 3 saatte sabit; daha eskisi (72 sa grafiği için) yavaşça yükselen bir dalga.
+    hourly: [for (var i = -48; i < 48; i++) HourPoint(time: now.add(Duration(hours: i)), temp: t + _ht[(i + 48) % 24] + 2, precip: _hp[(i + 48) % 24], snowfall: _hp[(i + 48) % 24] * .9,
+        windSpeed: 5 + 2 * sin(i / 5), windDir: 300, cloud: 70, humidity: 85, dewPoint: t - 3, weatherCode: _hp[(i + 48) % 24] > 0 ? 73 : 3,
+        pressure: i >= -3 ? 1012 + i * .1 : 1012 - .3 - 4 * sin((i + 3) / 14), gust: 9 + 3 * sin(i / 5), uv: max(0, 2.2 * sin(((i + now.hour + 48) % 24 - 7) / 10 * pi)))],
     daily: [for (var i = 0; i < 7; i++) DayPoint(date: now.add(Duration(days: i)), tMax: t + 3 + i, tMin: t - 5 + i * .5, precipSum: i.isEven ? 3 : 0, snowSum: i.isEven ? 4 : 0, windMax: 9, weatherCode: i.isEven ? 73 : 2,
         sunrise: DateTime(now.year, now.month, now.day, 7, 48), sunset: DateTime(now.year, now.month, now.day, 17, 19))],
     ensembleMembers: 82, ensembleSnowProb: 74, ensembleRainProb: 12, modelTemp24h: const {'ecmwf': -2.4, 'gfs': -1.8, 'icon': -2.9, 'gem': -2.1}, modelPrecip24h: const {'ecmwf': 4.1, 'gfs': 3.2, 'icon': 5.0, 'gem': 3.6},
@@ -119,7 +125,7 @@ void main() {
     ]))), '00_widgets', size: const Size(412, 600));
     await shot(t, const Onboarding(onDone: _noop), '01_onboarding');
     await shot(t, const AppShell(), '02_weather');
-    await shot(t, const AppShell(), '02b_weather_full', size: const Size(412, 4600));
+    await shot(t, const AppShell(), '02b_weather_full', size: const Size(412, 4900));
     // Saatlik grafikte parmakla gezinme
     final hb = find.byType(HourlyBlock);
     final g = await t.startGesture(t.getCenter(hb) + const Offset(-60, 40));
@@ -132,6 +138,10 @@ void main() {
       File('$outDir/02c_scrub.png').writeAsBytesSync(bytes!.buffer.asUint8List());
     });
     await g.up(); await t.pump(const Duration(seconds: 2));
+    // Yeni sayfalar: gün detayı, Ay, basınç/rüzgâr grafikleri, canlı pencere
+    await shot(t, DayDetailScreen(s: s, day: s.daily[1], index: 1), '15_day', size: const Size(412, 1900));
+    await shot(t, MoonDetailScreen(lat: s.place.lat, lon: s.place.lon), '16_moon', size: const Size(412, 1150));
+    await shot(t, TrendScreen(s: s), '17_trend', size: const Size(412, 1050));
     await shot(t, const LabScreen(), '03_lab');
     await shot(t, const Paywall(), '04_paywall');
     await shot(t, const SettingsScreen(), '05_settings');
@@ -176,6 +186,9 @@ void main() {
     await shot(t, const SleepMixerScreen(), '12_mixer');
     await shot(t, const SosScreen(), '13_sos');
     await shot(t, const TimeCapsuleScreen(), '14_capsule');
+    // Canlı pencere en sonda: ses eklentisi test ortamında yok, hata sonraki görüntüleri kesmesin
+    WeatherController.I.debugSet(s, an);
+    await shot(t, LiveWindow(s: s, a: an, wx: Wx.snow, today: s.daily.first), '18_live');
   });
 }
 void _noop() {}
