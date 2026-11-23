@@ -7,6 +7,7 @@ import '../engine/compare.dart';
 import '../engine/formulas.dart';
 import '../game/badges.dart';
 import '../services/audio_service.dart';
+import '../services/climate_service.dart';
 import '../services/geocode_service.dart';
 import '../services/location_service.dart';
 import '../services/voice_service.dart';
@@ -15,6 +16,7 @@ import 'lab_screen.dart';
 import 'radar_map.dart';
 import 'bento.dart';
 import 'best_time_screen.dart';
+import 'climate_screen.dart';
 import 'detail_screens.dart';
 import 'places_screen.dart';
 import 'plain.dart';
@@ -173,11 +175,14 @@ class _ExploreGrid extends StatelessWidget {
     final moon = moonPhase(now);
     final planets = planetsTonight(s.place.lat, s.place.lon, now);
     final trend = PressureBlock.trendOf(s.hourly, now);
+    // İklim normallerini sessizce önceden indir (bir kez; sonra hep önbellekte)
+    if (ClimateService.cached(s.place) == null) ClimateService.load(s.place).catchError((_) => null);
     final tiles = <(IconData, String, String, Color, Color, Widget)>[
       (Icons.nightlight_round, 'Gök & Ay', '${moon.name} · ${planets.isEmpty ? 'gezegen yok' : '${planets.length} gezegen'}', kBentoNight, const Color(0xFFF4ECCF), SkyMoonPage(s: s, a: a)),
       (Icons.bookmarks_rounded, 'Yerlerim', '${LocationService.places().length} kayıtlı yer · yan yana', const Color(0xFFE6EEFF), const Color(0xFF4F6BED),
           PlacesScreen(onAdd: () => WeatherScreen.pickPlace(context))),
       (Icons.schedule_rounded, 'En iyi zaman', bestTimeTeaser(s, now), kBentoMint, kGood, BestTimeScreen(s: s)),
+      (Icons.thermostat_auto_rounded, 'İklim', climateTeaser(s, now) ?? '30 yıllık normaller, rekorlar', const Color(0xFFFFF4E0), kWarn, ClimateScreen(s: s)),
       (Icons.show_chart_rounded, 'Grafikler', 'Basınç ${trend ?? 'sabit'} · 72 saat', kBentoBlue, kAccent, TrendScreen(s: s)),
       (Icons.landscape_rounded, 'Pro analiz', 'Dağ desteği +%${a.mountainBonusPct.round()}', const Color(0xFFEFEAFE), kPro, ProPage(s: s, a: a)),
       (Icons.radar_rounded, 'Radar & uydu', 'Canlı yağış haritası', const Color(0xFFE3F4F4), const Color(0xFF1E9C9C), const RadarPage()),

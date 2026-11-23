@@ -1,8 +1,10 @@
+import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skynav/astro/space_events.dart';
 import 'package:skynav/astro/sky_times.dart';
 import 'package:skynav/astro/star_catalog.dart';
 import 'package:skynav/engine/alerts.dart';
+import 'package:skynav/services/climate_service.dart';
 import 'package:skynav/engine/best_time.dart';
 import 'package:skynav/engine/compare.dart';
 import 'package:skynav/engine/nowcast.dart';
@@ -150,5 +152,24 @@ void main() {
     expect(b['car']!.found, isFalse); // 27 saat sonra yine yağmur
     expect(b['stars']!.found, isTrue);
     expect(b['stars']!.start!.hour, anyOf(inInclusiveRange(15, 23), inInclusiveRange(0, 2)));
+  });
+
+  test('iklim normalleri: 30 yıllık seriden mevsim normali ve takvim günü rekoru', () {
+    final times = <String>[]; final mx = <double?>[]; final mn = <double?>[];
+    for (var d = DateTime.utc(1995); d.year < 2025; d = d.add(const Duration(days: 1))) {
+      final k = ClimateNormals.doy(d);
+      final base = 12 - 14 * cos(2 * pi * (k - 15) / 365); // Ocak ortası en soğuk
+      times.add(d.toIso8601String().substring(0, 10));
+      mx.add(base + 5 + (d.year == 2010 && d.month == 11 && d.day == 23 ? 15 : 0));
+      mn.add(base - 5);
+    }
+    final n = ClimateNormals.compute(times, mx, mn)!;
+    expect(n.fromYear, 1995); expect(n.toYear, 2024);
+    final nov23 = DateTime(2026, 11, 23);
+    final expected = 12 - 14 * cos(2 * pi * (ClimateNormals.doy(nov23) - 15) / 365) + 5;
+    expect((n.maxOn(nov23) - expected).abs(), lessThan(1.0)); // 31 günlük yumuşatma
+    expect(n.recMaxYear[ClimateNormals.doy(nov23)], 2010);
+    final back = ClimateNormals.fromJson(n.toJson());
+    expect(back.maxOn(nov23), n.maxOn(nov23));
   });
 }

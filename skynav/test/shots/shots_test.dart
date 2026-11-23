@@ -29,6 +29,8 @@ import 'package:skynav/ui/detail_screens.dart';
 import 'package:skynav/ui/plain.dart';
 import 'package:skynav/ui/places_screen.dart';
 import 'package:skynav/ui/best_time_screen.dart';
+import 'package:skynav/ui/climate_screen.dart';
+import 'package:skynav/services/climate_service.dart';
 import 'package:skynav/ui/wx_glyph.dart' show Wx;
 import 'package:skynav/ui/hero_scene.dart' show Lightning;
 import 'package:skynav/ui/scene_shaders.dart';
@@ -160,6 +162,13 @@ void main() {
         ? PlaceNow(place: p, temp: -3, tMax: 0, tMin: -8, wind: 4, precip: .4, cloud: 95, code: 73, isDay: true)
         : PlaceNow(place: p, temp: 1, tMax: 4, tMin: -6, wind: 2, precip: 0, cloud: 30, code: 2, isDay: true)), '21_places', size: const Size(412, 900));
     await shot(t, BestTimeScreen(s: s), '22_best_time', size: const Size(412, 1000));
+    // İklim: sentetik 30 yıllık seri (yalnızca test; uygulamada ERA5 arşivinden)
+    final ct = <String>[]; final cx = <double?>[]; final cn = <double?>[];
+    for (var d = DateTime.utc(1995); d.year < 2025; d = d.add(const Duration(days: 1))) {
+      final b0 = 6 - 15 * cos(2 * pi * (ClimateNormals.doy(d) - 20) / 365);
+      ct.add(d.toIso8601String().substring(0, 10)); cx.add(b0 + 5 + (d.year == 2010 ? 3 : 0) - (d.year == 2003 ? 6 : 0)); cn.add(b0 - 6 - (d.year == 2003 ? 8 : 0));
+    }
+    await shot(t, ClimateScreen(s: s, normals: ClimateNormals.compute(ct, cx, cn)), '23_climate', size: const Size(412, 1000));
     await shot(t, const LabScreen(), '03_lab');
     await shot(t, const Paywall(), '04_paywall');
     await shot(t, const SettingsScreen(), '05_settings');

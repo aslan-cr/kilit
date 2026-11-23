@@ -73,3 +73,10 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - Canlı pencere: ivmeölçerle paralaks (HeroScene.tilt).
 - Yol haritası görev listesinde (#9).
 
+## 2.0.0+14
+- Keşfet > Yerlerim (lib/ui/places_screen.dart, OpenMeteoService.fetchLite, PlaceNow): kayıtlı yerlerin anlık havası kartlarda.
+- Keşfet > En iyi zaman (lib/engine/best_time.dart, lib/ui/best_time_screen.dart): 6 etkinlik, kışa uygun eşikler, engel nedeni.
+- Keşfet > İklim (lib/services/climate_service.dart, lib/ui/climate_screen.dart): ERA5 30 yıl (archive-api.open-meteo.com),
+  konum başına (0,1°) bir kez indirilir → Store.cache 'clim_v1_*'; normalden fark, hafta bandı, takvim günü rekorları.
+  Sandbox'ta archive API kapalı: canlı indirme cihazda doğrulanmadı, hesap testli.
+
