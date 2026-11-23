@@ -14,7 +14,7 @@ class MountainSpec {
   final ScenePalette pal; final double light, snow, ground; final Offset sun; final double seed; final Color snowLit;
   const MountainSpec({required this.pal, required this.light, required this.snow, required this.ground, required this.sun, this.seed = 1.3, this.snowLit = const Color(0xFFFCFDFF)});
   @override
-  bool operator ==(Object o) => o is MountainSpec && o.pal == pal && o.light == light && o.snow == snow && o.ground == ground && o.sun == sun && o.seed == seed && o.snowLit == snowLit;
+  bool operator ==(Object other) => other is MountainSpec && other.pal == pal && other.light == light && other.snow == snow && other.ground == ground && other.sun == sun && other.seed == seed && other.snowLit == snowLit;
   @override
   int get hashCode => Object.hash(pal, light, snow, ground, sun, seed, snowLit);
 }

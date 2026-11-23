@@ -76,7 +76,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
             Row(children: [
               const Icon(Icons.emoji_events_rounded, color: kWarn, size: 20), const SizedBox(width: 6),
               Expanded(child: Text(_race0!.$5, style: T.body.copyWith(fontWeight: FontWeight.w800))),
-              TextButton.icon(onPressed: () => Share.share(_result!), icon: const Icon(Icons.share_rounded, size: 18), label: const Text('Paylaş')),
+              TextButton.icon(onPressed: () => SharePlus.instance.share(ShareParams(text: _result!)), icon: const Icon(Icons.share_rounded, size: 18), label: const Text('Paylaş')),
             ]),
           ] else if (_result != null) ...[const SizedBox(height: 10), Text(_result!, style: T.small)],
         ])),

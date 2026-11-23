@@ -150,7 +150,7 @@ class _DiscountCard extends StatelessWidget {
               Expanded(child: SelectableText(code!, style: const TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 2, color: kInk))),
               FilledButton.icon(
                 style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-                onPressed: () => Share.share('SkyNav’ı dene kanki, kodumla ikimiz de 1 hafta Pro kazanırız: $code'),
+                onPressed: () => SharePlus.instance.share(ShareParams(text: 'SkyNav’ı dene kanki, kodumla ikimiz de 1 hafta Pro kazanırız: $code')),
                 icon: const Icon(Icons.ios_share_rounded, size: 18), label: const Text('Paylaş'),
               ),
             ]),

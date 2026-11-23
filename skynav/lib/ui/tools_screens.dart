@@ -255,7 +255,7 @@ class _TimeCapsuleScreenState extends State<TimeCapsuleScreen> {
               Text(c['t'].toString().substring(0, 16).replaceAll('T', ' '), style: T.small.copyWith(fontSize: 12)),
               if ((c['note'] ?? '').toString().isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text('${c['note']}', style: T.body.copyWith(fontSize: 14))),
             ])),
-            IconButton(icon: const Icon(Icons.share_rounded, color: kInkSoft), onPressed: () => Share.share('SkyNav zaman kapsülü: ${c['place']} ${(c['temp'] as num).round()}° — ${c['note']}')),
+            IconButton(icon: const Icon(Icons.share_rounded, color: kInkSoft), onPressed: () => SharePlus.instance.share(ShareParams(text: 'SkyNav zaman kapsülü: ${c['place']} ${(c['temp'] as num).round()}° — ${c['note']}'))),
           ]))),
         ]),
       );
@@ -304,7 +304,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
                 FilledButton(style: FilledButton.styleFrom(backgroundColor: _rec ? const Color(0xFFC62828) : kAccent), onPressed: () async {
                   if (_rec) { _last = await _c!.stopVideoRecording(); setState(() => _rec = false); } else { await _c!.startVideoRecording(); setState(() => _rec = true); }
                 }, child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(_rec ? Icons.stop_rounded : Icons.fiber_manual_record_rounded, size: 20), const SizedBox(width: 6), Text(_rec ? 'Kaydı bitir' : 'Kayda başla')])),
-                if (_last != null) Padding(padding: const EdgeInsets.only(left: 8), child: OutlinedButton(onPressed: () => Share.shareXFiles([_last!]), child: const Text('Paylaş'))),
+                if (_last != null) Padding(padding: const EdgeInsets.only(left: 8), child: OutlinedButton(onPressed: () => SharePlus.instance.share(ShareParams(files: [_last!])), child: const Text('Paylaş'))),
               ])),
             ]),
     );

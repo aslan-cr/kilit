@@ -21,8 +21,8 @@ class CloudSpec {
       this.sun = const Offset(.82, .18), this.wind = const Offset(.02, 0), this.scale = 150, this.horizon = .8, this.seed = 3.7});
 
   @override
-  bool operator ==(Object o) => o is CloudSpec && o.cover == cover && o.lit == lit && o.shade == shade && o.opacity == opacity && o.weight == weight
-      && o.sun == sun && o.wind == wind && o.scale == scale && o.horizon == horizon && o.seed == seed && o.offset == offset;
+  bool operator ==(Object other) => other is CloudSpec && other.cover == cover && other.lit == lit && other.shade == shade && other.opacity == opacity && other.weight == weight
+      && other.sun == sun && other.wind == wind && other.scale == scale && other.horizon == horizon && other.seed == seed && other.offset == offset;
   @override
   int get hashCode => Object.hash(cover, lit, shade, opacity, weight, sun, wind, scale, horizon, seed, offset);
 }

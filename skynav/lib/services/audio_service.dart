@@ -62,7 +62,7 @@ class SleepMixer extends ChangeNotifier {
   bool _service = false;
 
   bool get playing => level.values.any((v) => v > .01);
-  Duration? get sleepLeft => sleepAt == null ? null : sleepAt!.difference(DateTime.now());
+  Duration? get sleepLeft => sleepAt?.difference(DateTime.now());
 
   // Eski çağrılarla uyum
   static Future<bool> setVolume(String key, double v) => I.set(key, v);
