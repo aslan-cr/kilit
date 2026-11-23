@@ -210,7 +210,7 @@ const List<Constellation> constellations = [
   Constellation(
     'Draco', 'Dra', 'Ejderha',
     'Ejderha, Hesperides\'in altın elmalarını koruyan devasa yılandır ve Herakles tarafından öldürülmüştür. Hera, sadık koruyucusunu onurlandırmak için onu göklere yerleştirmiştir. Büyük Ayı ile Küçük Ayı arasına kıvrılır ve Thuban, eski çağlarda kutup yıldızıydı.',
-    255.0, 67.0,
+    227.0, 67.0,
     [['Eltanin', 'Rastaban'], ['Thuban', 'Eltanin']],
   ),
   Constellation(
@@ -254,7 +254,7 @@ const List<Constellation> constellations = [
   Constellation(
     'Hydra', 'Hya', 'Hidra',
     'Hidra, Herakles\'in ikinci görevinde yenmeye çalıştığı çok başlı yılandır; her kesilen başın yerine yenisi çıkardı. Hera\'nın gönderdiği yengeç de bu savaşa katılmıştır. Gökyüzündeki en uzun takımyıldız olarak uzanır ve Alphard, bu yılanın kalbi sayılır.',
-    165.0, -20.0, [],
+    174.0, -14.0, [],
   ),
   Constellation(
     'Hydrus', 'Hyi', 'Su Yılanı',
@@ -274,7 +274,7 @@ const List<Constellation> constellations = [
   Constellation(
     'Leo', 'Leo', 'Aslan',
     'Aslan, Herakles\'in ilk görevinde öldürdüğü Nemea Aslanı\'dır. Derisi kılıçla delinemeyen bu canavarı Herakles boğarak yenmiştir. Regulus, Aslan\'ın kalbi gibi parlar ve gökyüzünün ilkbahar yıldızlarındandır.',
-    170.0, 15.0,
+    160.0, 13.0,
     [['Regulus', 'Algieba'], ['Algieba', 'Zosma'], ['Zosma', 'Denebola']],
   ),
   Constellation(

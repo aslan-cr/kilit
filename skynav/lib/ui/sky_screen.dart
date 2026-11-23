@@ -206,7 +206,7 @@ class _SkyScreenState extends State<SkyScreen> {
         InfoRow(Icons.wb_sunny_rounded, _sw == null ? (_swErr ?? 'Güneş fırtınası verisi alınıyor…') : 'Kp ${_sw!.kp.toStringAsFixed(1)} · ${_sw!.stormLevelTr}',
             sub: _sw == null ? null : 'Burada aurora ihtimali %${_sw!.auroraProbAtLat.round()}', color: kSun),
         InfoRow(Icons.auto_awesome_rounded, 'Sıradaki meteor yağmuru: ${nextShower.shower.name}', sub: '${nextShower.peakUtc.toLocal().toString().substring(0, 10)} · saatte ~${nextShower.shower.zhr}', color: kPro),
-        if (eclipse != null) InfoRow(Icons.brightness_3_rounded, 'Sıradaki tutulma: ${eclipse.kind} · ${eclipse.utcDay.toString().substring(0, 10)}', sub: '${countdownText(eclipse.utcDay.difference(DateTime.now().toUtc()))} · ${eclipse.visibleIn}', color: kInk),
+        if (eclipse != null) InfoRow(Icons.brightness_3_rounded, 'Sıradaki tutulma: ${eclipse.kind} (${eclipse.type}) · ${eclipse.utcDay.toString().substring(0, 10)}', sub: '${countdownText(eclipse.utcDay.difference(DateTime.now().toUtc()))} · ${eclipse.visibleIn}', color: kInk),
         for (final c in comets) InfoRow(Icons.flare_rounded, '${c.name}: ${c.noteTr}', color: kSnow),
         const Divider(),
         for (final l in moonVsMars()) Padding(padding: const EdgeInsets.symmetric(vertical: 2), child: Text(l, style: T.small)),

@@ -1,6 +1,7 @@
 // Hava durumu analiz motoru. Saf Dart; UI metinleri dışarıda, burada sayısal karar ve kısa notlar üretilir.
 import 'dart:math' as math;
 
+import '../astro/astro_math.dart' show moonRaDec, raDecToAltAz;
 import '../data/models.dart';
 import 'formulas.dart';
 
@@ -21,7 +22,8 @@ class WeatherEngine {
 
     // --- Yağış tipi koşulları ---
     final precipping = s.precip > 0.05 || s.snowfall > 0.05;
-    final flBelow = fl == null || fl < elev;
+    // Kar tanesi donma seviyesinin altındaki ~300 m'lik ılık katmanı erimeden geçebilir.
+    final flBelow = fl == null || fl < elev + 300;
     final snowCond = tc <= 0.5 && wb <= 0 && flBelow;
     final mixedCond = (tc > 0.5 && tc <= 2.5) || (wb >= -0.5 && wb <= 1.5);
     final snowy = precipping && snowCond;
@@ -35,8 +37,10 @@ class WeatherEngine {
 
     // --- Tipi ---
     final windy = wind >= 10 || gust >= 17;
-    final snowMountains = s.mountains.where((m) => (m.snowDepthM ?? 0) > 0.05).toList();
-    final drift = snowMountains.isNotEmpty && wind >= 8;
+    // Savrulan kar (yağış olmasa da): kuru kar gerekir (≤ −1 °C), rüzgâr ≥ 9 m/s, kar ya bulunduğun yerde
+    // ya da rüzgârın geldiği yöndeki yakın (≤ 30 km) karlı dağda olmalı.
+    final upwindSnow = s.mountains.any((m) => (m.snowDepthM ?? 0) > 0.05 && m.distanceKm <= 30 && angleDiff(s.windDir, m.bearingDeg) <= 60);
+    final drift = tc <= -1 && wind >= 9 && ((s.snowDepthM ?? 0) > 0.05 || upwindSnow);
     final blizzardCond = (windy && snowy) || drift;
 
     final windEff = math.max(wind, gust * 0.8);
@@ -112,12 +116,16 @@ class WeatherEngine {
       final humPen = _pct((s.humidity - 60) / 40 * 100);
       final visPen = _pct((10000 - s.visibilityM) / 10000 * 100);
       final dustPen = _pct(s.aqDust / 80 * 100);
+      // Ay ışığı yalnızca Ay ufkun üstündeyken gökyüzünü aydınlatır.
+      final mr = moonRaDec(s.fetchedAt.toUtc());
+      final moonAlt = raDecToAltAz(mr.raDeg, mr.decDeg, s.place.lat, s.place.lon, s.fetchedAt.toUtc()).alt;
+      final moonUp = clampD((moonAlt + 2) / 12, 0, 1);
       var q = 100.0 - s.cloudCover;
       q -= 0.3 * s.cloudHigh +
           0.25 * humPen +
           0.2 * visPen +
           0.15 * dustPen +
-          30 * moon.illumination +
+          30 * moon.illumination * moonUp +
           12; // ışık kirliliği: sabit orta varsayım
       starClarity = _pct(q);
     }

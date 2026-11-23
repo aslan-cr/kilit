@@ -141,72 +141,31 @@ class Eclipse {
 /// 2026-2029 arası tutulmalar. Yalnızca güvenilir bilinen kayıtlar eklenmiştir;
 /// 2030-2032 ve belirsiz tarihler bilinçli olarak dahil edilmemiştir.
 final List<Eclipse> eclipses = [
-  Eclipse(
-    utcDay: DateTime.utc(2026, 2, 17),
-    kind: 'Güneş',
-    type: 'halka',
-    visibleIn: 'Antarktika ve Güney Okyanusu',
-  ),
-  Eclipse(
-    utcDay: DateTime.utc(2026, 3, 3),
-    kind: 'Ay',
-    type: 'tam',
-    visibleIn: 'Amerika, Avrupa ve Afrika (bölgeye göre)',
-  ),
-  Eclipse(
-    utcDay: DateTime.utc(2026, 8, 12),
-    kind: 'Güneş',
-    type: 'tam',
-    visibleIn: 'Grönland, İzlanda, İspanya, Kuzey Afrika',
-  ),
-  Eclipse(
-    utcDay: DateTime.utc(2026, 8, 28),
-    kind: 'Ay',
-    type: 'kısmi',
-    visibleIn: 'Avrupa, Afrika, Asya (bölgeye göre)',
-  ),
-  Eclipse(
-    utcDay: DateTime.utc(2027, 2, 6),
-    kind: 'Güneş',
-    type: 'halka',
-    visibleIn: 'Güney Atlantik ve Güney Afrika çevresi',
-  ),
-  Eclipse(
-    utcDay: DateTime.utc(2027, 2, 20),
-    kind: 'Ay',
-    type: 'tam',
-    visibleIn: 'Amerika, Avrupa ve Afrika (bölgeye göre)',
-  ),
-  Eclipse(
-    utcDay: DateTime.utc(2027, 8, 2),
-    kind: 'Güneş',
-    type: 'tam',
-    visibleIn: 'Fas, İspanya, Cezayir, Mısır, Yemen çevresi',
-  ),
-  Eclipse(
-    utcDay: DateTime.utc(2028, 1, 26),
-    kind: 'Güneş',
-    type: 'halka',
-    visibleIn: 'Bölgesel (yerel kaynağa bakın)',
-  ),
-  Eclipse(
-    utcDay: DateTime.utc(2028, 7, 22),
-    kind: 'Güneş',
-    type: 'tam',
-    visibleIn: 'Avustralya ve Pasifik çevresi (bölgesel)',
-  ),
-  Eclipse(
-    utcDay: DateTime.utc(2029, 1, 14),
-    kind: 'Ay',
-    type: 'tam',
-    visibleIn: 'Amerika, Avrupa ve Afrika (bölgeye göre)',
-  ),
-  Eclipse(
-    utcDay: DateTime.utc(2029, 6, 12),
-    kind: 'Ay',
-    type: 'tam',
-    visibleIn: 'Bölgesel (yerel kaynağa bakın)',
-  ),
+  // Tarihler ve türler PyEphem ile Güneş/Ay konumlarından hesaplanarak doğrulandı (2026–2030).
+  Eclipse(utcDay: DateTime.utc(2026,2,17), kind: 'Güneş', type: 'halka', visibleIn: 'Antarktika (kısmi: Güney Afrika ve Güney Amerika ucu)'),
+  Eclipse(utcDay: DateTime.utc(2026,3,3), kind: 'Ay', type: 'tam', visibleIn: 'Doğu Asya, Avustralya, Pasifik ve Kuzey Amerika'),
+  Eclipse(utcDay: DateTime.utc(2026,8,12), kind: 'Güneş', type: 'tam', visibleIn: 'Grönland, İzlanda ve İspanya (kısmi: Avrupa, Kuzey Afrika)'),
+  Eclipse(utcDay: DateTime.utc(2026,8,28), kind: 'Ay', type: 'kısmi', visibleIn: 'Amerika, Avrupa ve Afrika'),
+  Eclipse(utcDay: DateTime.utc(2027,2,6), kind: 'Güneş', type: 'halka', visibleIn: 'Şili, Arjantin, Güney Atlantik ve Batı Afrika'),
+  Eclipse(utcDay: DateTime.utc(2027,2,20), kind: 'Ay', type: 'yarı gölge', visibleIn: 'Amerika, Avrupa, Afrika ve Asya (Türkiye\'den görünür, çok sönük)'),
+  Eclipse(utcDay: DateTime.utc(2027,7,18), kind: 'Ay', type: 'yarı gölge', visibleIn: 'Asya, Avustralya ve Pasifik (çok zayıf)'),
+  Eclipse(utcDay: DateTime.utc(2027,8,2), kind: 'Güneş', type: 'tam', visibleIn: 'Fas, İspanya, Cezayir, Libya, Mısır, Suudi Arabistan, Yemen (Türkiye\'den kısmi)'),
+  Eclipse(utcDay: DateTime.utc(2027,8,17), kind: 'Ay', type: 'yarı gölge', visibleIn: 'Pasifik ve Amerika'),
+  Eclipse(utcDay: DateTime.utc(2028,1,12), kind: 'Ay', type: 'kısmi', visibleIn: 'Amerika, Avrupa ve Afrika (çok küçük)'),
+  Eclipse(utcDay: DateTime.utc(2028,1,26), kind: 'Güneş', type: 'halka', visibleIn: 'Ekvador, Peru, Brezilya, Portekiz ve İspanya'),
+  Eclipse(utcDay: DateTime.utc(2028,7,6), kind: 'Ay', type: 'kısmi', visibleIn: 'Avrupa, Afrika, Asya ve Avustralya'),
+  Eclipse(utcDay: DateTime.utc(2028,7,22), kind: 'Güneş', type: 'tam', visibleIn: 'Avustralya ve Yeni Zelanda'),
+  Eclipse(utcDay: DateTime.utc(2028,12,31), kind: 'Ay', type: 'tam', visibleIn: 'Avrupa, Afrika, Asya ve Avustralya (Türkiye\'den görünür, yılbaşı akşamı)'),
+  Eclipse(utcDay: DateTime.utc(2029,1,14), kind: 'Güneş', type: 'kısmi', visibleIn: 'Kuzey Amerika'),
+  Eclipse(utcDay: DateTime.utc(2029,6,12), kind: 'Güneş', type: 'kısmi', visibleIn: 'Kuzey Kutbu çevresi, kuzey Avrupa ve Asya'),
+  Eclipse(utcDay: DateTime.utc(2029,6,26), kind: 'Ay', type: 'tam', visibleIn: 'Amerika, Avrupa ve Afrika'),
+  Eclipse(utcDay: DateTime.utc(2029,7,11), kind: 'Güneş', type: 'kısmi', visibleIn: 'Şili ve Arjantin\'in güneyi'),
+  Eclipse(utcDay: DateTime.utc(2029,12,5), kind: 'Güneş', type: 'kısmi', visibleIn: 'Güney Amerika\'nın güneyi ve Antarktika'),
+  Eclipse(utcDay: DateTime.utc(2029,12,20), kind: 'Ay', type: 'tam', visibleIn: 'Amerika, Avrupa, Afrika ve Asya (Türkiye\'den görünür)'),
+  Eclipse(utcDay: DateTime.utc(2030,6,1), kind: 'Güneş', type: 'halka', visibleIn: 'Cezayir, Tunus, Yunanistan, Türkiye, Rusya, Çin ve Japonya'),
+  Eclipse(utcDay: DateTime.utc(2030,6,15), kind: 'Ay', type: 'kısmi', visibleIn: 'Avrupa, Afrika ve Asya'),
+  Eclipse(utcDay: DateTime.utc(2030,11,25), kind: 'Güneş', type: 'tam', visibleIn: 'Namibya, Güney Afrika ve Avustralya'),
+  Eclipse(utcDay: DateTime.utc(2030,12,9), kind: 'Ay', type: 'yarı gölge', visibleIn: 'Amerika, Avrupa, Afrika ve Asya'),
 ];
 
 /// [from] gününden itibaren (aynı UTC günü dahil) bir sonraki tutulma; yoksa null.
