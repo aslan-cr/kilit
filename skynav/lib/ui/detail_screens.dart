@@ -148,11 +148,11 @@ class _WindDay extends StatelessWidget {
           SizedBox(width: 52, height: 52, child: CustomPaint(painter: WindRosePainter(dir, day.windMax, compact: true))),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+            FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
               Text(Plain.on ? '${(day.windMax * 3.6).round()}' : day.windMax.toStringAsFixed(day.windMax < 10 ? 1 : 0), style: _st(28, FontWeight.w700, kInk, ls: -.6)),
               const SizedBox(width: 4),
               Text(Plain.t('m/s', 'km/s'), style: _st(13, FontWeight.w700, kInkSoft)),
-            ]),
+            ])),
             Text(Plain.t('${(day.windMax * 3.6).round()} km/s', 'en sert rüzgâr'), style: _st(12, FontWeight.w600, kInkSoft)),
           ])),
         ]),
@@ -179,7 +179,7 @@ class _UvDay extends StatelessWidget {
         BlockHead(Plain.t('UV en yüksek', 'Güneş yakıcılığı'), dot: kSun),
         const Spacer(),
         Text(peak == null ? '–' : uv.toStringAsFixed(1), style: _st(28, FontWeight.w700, kInk, ls: -.6)),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         LayoutBuilder(builder: (_, c) => SizedBox(height: 8, child: Stack(children: [
           Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(4),
               gradient: const LinearGradient(colors: [kGood, Color(0xFFE5B814), kWarn, kHeat, kPro]))),

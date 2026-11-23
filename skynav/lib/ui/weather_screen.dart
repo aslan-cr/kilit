@@ -319,7 +319,7 @@ class ToolsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _page('Araçlar', [
         GridView.count(
-          padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.35,
+          padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.25,
           children: [
             _ToolTile(Icons.science_outlined, 'Yaşam Laboratuvarı', '30 hesaplayıcı', kGood, const LabScreen()),
             _ToolTile(Icons.bedtime_outlined, 'Uyku Mikseri', 'Gerçek doğa sesleri', const Color(0xFF5B5BD6), const SleepMixerScreen()),

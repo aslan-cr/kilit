@@ -115,6 +115,11 @@ class _SkyNavAppState extends State<SkyNavApp> with WidgetsBindingObserver {
         title: 'SkyNav',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
+        // Büyük sistem yazısı desteklenir ama bento kutular taşmasın diye 1,25 kat ile sınırlı
+        builder: (context, child) {
+          final mq = MediaQuery.of(context);
+          return MediaQuery(data: mq.copyWith(textScaler: mq.textScaler.clamp(minScaleFactor: .9, maxScaleFactor: 1.25)), child: child!);
+        },
         home: _ready ? const AppShell() : Onboarding(onDone: () async { await Store.put('onboarding_done', true); setState(() => _ready = true); _boot(); }),
       );
 }

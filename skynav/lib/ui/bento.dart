@@ -788,7 +788,7 @@ class SoilBlock extends StatelessWidget {
           ),
         ])),
         const Spacer(),
-        Text(avg == null ? state : '$state · 3 gün ort. ${_sg(avg)}', maxLines: 2, style: _st(11, FontWeight.w600, kInkSoft, h: 1.35)),
+        Text(avg == null ? state : '$state · 3 gün ort. ${_sg(avg)}', maxLines: _bigText(context) ? 1 : 2, overflow: TextOverflow.ellipsis, style: _st(11, FontWeight.w600, kInkSoft, h: 1.35)),
       ]),
     );
   }
@@ -875,7 +875,10 @@ class MiniBento extends StatelessWidget {
           const Spacer(),
           FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: Text(value, maxLines: 1, style: _st(24, FontWeight.w700, kInk, ls: -.48))),
           const SizedBox(height: 4),
-          Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis, style: _st(12, FontWeight.w600, kInkSoft, h: 1.3)),
+          Text(sub, maxLines: _bigText(context) ? 1 : 2, overflow: TextOverflow.ellipsis, style: _st(12, FontWeight.w600, kInkSoft, h: 1.3)),
         ]),
       );
 }
+
+/// Sistem yazısı büyütülmüş mü (sabit yükseklikli kutularda alt yazı tek satıra iner).
+bool _bigText(BuildContext context) => MediaQuery.textScalerOf(context).scale(10) > 11;

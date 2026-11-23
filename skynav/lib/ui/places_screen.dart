@@ -82,7 +82,7 @@ class _PlacesScreenState extends State<PlacesScreen> {
           const SizedBox(height: 12),
           GridView.count(
             padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: .86,
+            mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: .76,
             children: cards,
           ),
           const SizedBox(height: 14),
@@ -136,7 +136,8 @@ class _PlaceCard extends StatelessWidget {
           else ...[
             WxGlyph(wx, day: n.isDay, size: 44),
             const SizedBox(height: 4),
-            Text(deg(n.temp), style: white.copyWith(fontFamily: 'InterDisplay', fontSize: 44, fontWeight: FontWeight.w300, height: 1, letterSpacing: -1.5)),
+            FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+                child: Text(deg(n.temp), style: white.copyWith(fontFamily: 'InterDisplay', fontSize: 44, fontWeight: FontWeight.w300, height: 1, letterSpacing: -1.5))),
           ],
           const Spacer(),
           if (n != null) ...[
