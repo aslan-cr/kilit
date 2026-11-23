@@ -91,3 +91,9 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - Büyük yazı: main.dart builder textScaler 0,9–1,25; test/shots/large_text_test.dart (gerçek fontla, 360 genişlik; SCALE/W dart-define).
 - flutter analyze: 0 sorun (SharePlus.instance.share'e geçildi). Böyle kalsın.
 
+## 2.3.0+17
+- KULLANICI HATASI: "Ağrı yazıyorum çıkmıyor" → lib/services/geocode_service.dart yeniden: Open-Meteo Geocoding (tr) + Photon (lang default),
+  paralel, birleştir (2 km), düz harfle yeniden dene, GeocodeOffline. _PlaceSheet: yazarken arama (450 ms), mesajlar, add modu (Yerlerim).
+  Test: test/geocode_test.dart (MockClient). Sandbox'ta iki host da kapalı → canlı doğrulama cihazda.
+- Keşfet: _ExplorePager (2×2 sayfalar, yana kaydırma, noktalar).
+
