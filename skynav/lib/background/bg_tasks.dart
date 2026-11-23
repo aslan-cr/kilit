@@ -4,6 +4,7 @@ import 'package:workmanager/workmanager.dart';
 import '../data/models.dart';
 import '../engine/alerts.dart';
 import '../engine/brief.dart';
+import '../engine/nowcast.dart';
 import '../engine/weather_engine.dart';
 import '../services/icon_service.dart';
 import '../services/notify_service.dart';
@@ -37,6 +38,17 @@ void callbackDispatcher() {
           await sp.setInt('sn_alarm_${al.key}', now.millisecondsSinceEpoch);
           await Notify.show('SkyNav · ${al.title}', al.body);
           break; // tek çalıştırmada tek bildirim
+        }
+      }
+      // Yağış başlıyor: 15 dakikalık tahminde 30 dk içinde yağış (3 saatte en fazla bir kez)
+      if (sp.getBool('sn_rainsoon_off') != true) {
+        final n = Nowcast.of(s.nowcast, DateTime.now());
+        if (!n.wetNow && n.startsIn != null && n.startsIn! <= 30) {
+          final last = sp.getInt('sn_alarm_rainsoon') ?? 0;
+          if (DateTime.now().millisecondsSinceEpoch - last > 3 * 3600 * 1000) {
+            await sp.setInt('sn_alarm_rainsoon', DateTime.now().millisecondsSinceEpoch);
+            await Notify.show('SkyNav · ${n.snow ? 'Kar' : 'Yağmur'} geliyor', '${n.headline}. ${n.snow ? 'Yollar kayganlaşabilir kanki.' : 'Şemsiyeni al kanki.'}');
+          }
         }
       }
       // Sabah özeti: 07:00–10:00 arası günde bir kez (Ayarlar'dan kapatılabilir)

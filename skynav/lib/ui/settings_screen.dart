@@ -103,6 +103,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (v) await Notify.requestPermission();
                 setState(() {});
               })),
+          _tile(Icons.umbrella_rounded, kSnow, 'Yağış geliyor bildirimi', sub: 'Yağmur ya da kar 30 dakika içinde başlayacaksa haber verir',
+              trailing: Switch(value: SharedState.cached?.getBool('sn_rainsoon_off') != true, onChanged: (v) async {
+                final p = await SharedState.get();
+                await p.setBool('sn_rainsoon_off', !v);
+                if (v) await Notify.requestPermission();
+                setState(() {});
+              })),
           _tile(Icons.wb_twilight_rounded, kSun, 'Sabah özeti', sub: 'Her sabah 07–10 arası: bugünün havası ve kısa öneri',
               trailing: Switch(value: SharedState.cached?.getBool('sn_brief_off') != true, onChanged: (v) async {
                 final p = await SharedState.get();

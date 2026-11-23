@@ -27,6 +27,32 @@ class WidgetService {
       );
       await HomeWidget.updateWidget(qualifiedAndroidName: _weather);
     } catch (_) {}
+    await _renderExtras(s, a);
+  }
+
+  static const _hourly = 'com.skynav.skynav.SkyHourlyWidget';
+  static const _moon = 'com.skynav.skynav.SkyMoonWidget';
+  static const _mini = 'com.skynav.skynav.SkyMiniWidget';
+
+  /// Ana ekrana yalnızca eklenmiş widget'ların görüntüsünü üretir (bilinemezse hepsini).
+  static Future<void> _renderExtras(WeatherSnapshot s, Analysis a) async {
+    Set<String>? placed;
+    try {
+      placed = {for (final w in await HomeWidget.getInstalledWidgets()) if (w.androidClassName != null) w.androidClassName!};
+    } catch (_) {}
+    bool want(String cls) => placed == null || placed.any((p) => p.endsWith(cls.split('.').last));
+    final now = DateTime.now();
+    final place = s.place.name.isEmpty ? 'Konumum' : s.place.name;
+    Future<void> one(String cls, String key, Widget face, Size size) async {
+      if (!want(cls)) return;
+      try {
+        await HomeWidget.renderFlutterWidget(face, key: key, logicalSize: size, pixelRatio: 3);
+        await HomeWidget.updateWidget(qualifiedAndroidName: cls);
+      } catch (_) {}
+    }
+    await one(_hourly, 'hourly_img', HourlyWidgetFace(s: s, place: place, now: now), const Size(320, 160));
+    await one(_moon, 'moon_img', MoonWidgetFace(lat: s.place.lat, lon: s.place.lon, now: now), const Size(160, 160));
+    await one(_mini, 'mini_img', MiniWidgetFace(s: s, a: a, place: place, today: _today(s), now: now), const Size(160, 160));
   }
 
   static DayPoint? _today(WeatherSnapshot s) {

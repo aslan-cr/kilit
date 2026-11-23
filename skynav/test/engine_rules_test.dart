@@ -4,6 +4,7 @@ import 'package:skynav/astro/space_events.dart';
 import 'package:skynav/astro/sky_times.dart';
 import 'package:skynav/astro/star_catalog.dart';
 import 'package:skynav/engine/alerts.dart';
+import 'package:skynav/astro/sky_calendar.dart';
 import 'package:skynav/engine/brief.dart';
 import 'package:skynav/services/climate_service.dart';
 import 'package:skynav/services/air_service.dart';
@@ -206,5 +207,15 @@ void main() {
     final b = morningBrief(s, now);
     expect(b, startsWith('Bugün −7° / 1°, sabah yoğun karlı, öğleden sonra açık.'));
     expect(b, contains('yollar kaygan'));
+  });
+
+  test('gökyüzü takvimi: Geminidler, dolunay ve yeni ay sıralı', () {
+    final ev = skyCalendar(DateTime(2026, 11, 24), 39.9, 41.27, days: 60);
+    for (var i = 1; i < ev.length; i++) { expect(!ev[i].at.isBefore(ev[i - 1].at), isTrue); }
+    final gem = ev.firstWhere((e) => e.title.startsWith('Geminidler'));
+    expect(gem.at.month, 12); expect(gem.at.day, 14);
+    expect(gem.quality, greaterThan(50)); // 2026: Ay yeni aya yakın, radyant yüksekte
+    expect(ev.where((e) => e.kind == 'full').length, greaterThanOrEqualTo(2));
+    expect(ev.any((e) => e.kind == 'new'), isTrue);
   });
 }

@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../astro/sky_times.dart';
+import '../astro/sky_calendar.dart';
 import '../astro/tonight.dart';
 import '../data/models.dart';
 import '../engine/formulas.dart' show moonPhase, windDirName;
@@ -425,6 +426,38 @@ class TonightSkyBlock extends StatelessWidget {
           ])),
         const SizedBox(height: 6),
         Text('Saatler: gök kararıp gezegen ufkun 10° üstüne çıktığı aralık.', style: _st(11.5, FontWeight.w500, _nightSoft.withValues(alpha: .8))),
+      ]),
+    );
+  }
+}
+
+/// Gökyüzü takvimi: önümüzdeki 4 ayın meteor yağmurları, tutulmalar, dolunay ve yeni aylar.
+class SkyCalendarBlock extends StatelessWidget {
+  final double lat, lon; final DateTime now;
+  const SkyCalendarBlock({super.key, required this.lat, required this.lon, required this.now});
+  @override
+  Widget build(BuildContext context) {
+    final ev = skyCalendar(now, lat, lon).take(8).toList();
+    IconData icon(String k) => switch (k) { 'meteor' => Icons.auto_awesome, 'eclipse' => Icons.brightness_4_rounded, 'full' => Icons.brightness_1_rounded, _ => Icons.brightness_1_outlined };
+    Color col(SkyEvent e) => e.kind == 'meteor' ? (e.quality >= 60 ? kGood : e.quality >= 30 ? kWarn : kInkSoft) : e.kind == 'eclipse' ? kPro : kBlizzard;
+    return Bento(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const BlockHead('Gökyüzü takvimi', dot: Color(0xFFB7C2F2)),
+        const SizedBox(height: 8),
+        for (final e in ev) Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(width: 34, height: 34, decoration: BoxDecoration(color: col(e).withValues(alpha: .12), shape: BoxShape.circle),
+              child: Icon(icon(e.kind), size: 18, color: col(e))),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Text(e.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(14.5, FontWeight.w800, kInk))),
+              Text(_dateShort(e.at), style: _st(12.5, FontWeight.w700, kInkSoft)),
+            ]),
+            const SizedBox(height: 2),
+            Text(e.detail, maxLines: 2, overflow: TextOverflow.ellipsis, style: _st(12, FontWeight.w500, kInkSoft, h: 1.3)),
+          ])),
+        ])),
       ]),
     );
   }

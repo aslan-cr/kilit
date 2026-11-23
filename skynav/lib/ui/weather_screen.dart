@@ -309,6 +309,8 @@ class SkyMoonPage extends StatelessWidget {
       gap,
       MoonTimesBlock(lat: s.place.lat, lon: s.place.lon, day: today),
       gap,
+      SkyCalendarBlock(lat: s.place.lat, lon: s.place.lon, now: now),
+      gap,
       PhotoHoursBlock(lat: s.place.lat, lon: s.place.lon, day: today),
       gap,
       Bento(onTap: () { Sfx.tap(); Navigator.push(context, MaterialPageRoute(builder: (_) => MoonDetailScreen(lat: s.place.lat, lon: s.place.lon))); },

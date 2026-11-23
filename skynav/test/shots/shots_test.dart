@@ -133,7 +133,15 @@ void main() {
       const Row(mainAxisSize: MainAxisSize.min, children: [
         SpeedWidgetFace(speedKmh: 54, road: 'Karlı', gText: 'G 0.2', warn: 'Yol kaygan, yavaş git kanki.', level: 1),
       ]),
-    ]))), '00_widgets', size: const Size(412, 600));
+      const SizedBox(height: 16),
+      HourlyWidgetFace(s: s, place: 'Erzurum', now: DateTime.now()),
+      const SizedBox(height: 16),
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        MiniWidgetFace(s: s, a: an, place: 'Erzurum', today: s.daily.first, now: DateTime.now()),
+        const SizedBox(width: 16),
+        MoonWidgetFace(lat: s.place.lat, lon: s.place.lon, now: DateTime.now()),
+      ]),
+    ]))), '00_widgets', size: const Size(412, 1000));
     await shot(t, const Onboarding(onDone: _noop), '01_onboarding');
     await shot(t, const AppShell(), '02_weather');
     await shot(t, const AppShell(), '02b_weather_full', size: const Size(412, 4900));

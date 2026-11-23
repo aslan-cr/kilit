@@ -97,3 +97,11 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
   Test: test/geocode_test.dart (MockClient). Sandbox'ta iki host da kapalı → canlı doğrulama cihazda.
 - Keşfet: _ExplorePager (2×2 sayfalar, yana kaydırma, noktalar).
 
+## 2.4.0+18 — kullanıcı: "birkaç tane daha ana ekran şeyi ekle" (= ana ekran widget'ı)
+- Yeni widget'lar: SkyNav Saatlik (4×2), SkyNav Ay (2×2), SkyNav Mini (2×2). Kotlin: ImageWidgets.kt (open class ImageWidget(key)
+  + 3 alt sınıf, SkyWeatherWidget ile aynı kalıp), res/xml/sky_{hourly,moon,mini}_widget_info.xml, widget_strings.xml, manifest receiver.
+  Dart: widget_faces.dart (HourlyWidgetFace, MoonWidgetFace, MiniWidgetFace), WidgetService._renderExtras (yalnızca eklenmiş
+  widget'lar; HomeWidget.getInstalledWidgets). KOTLIN CI'DA DERLENİYOR — kırılırsa ImageWidgets.kt'ye bak.
+- Gökyüzü takvimi: lib/astro/sky_calendar.dart (meteor tepe gecesi koşulu: radyant yüksekliği × Ay ışığı), SkyCalendarBlock (Gök & Ay).
+- Yağış geliyor bildirimi: bg_tasks (Nowcast, 30 dk içinde, 3 saatte bir; SharedState sn_rainsoon_off).
+

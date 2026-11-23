@@ -2,4 +2,7 @@
 <resources>
   <string name="widget_weather_desc">Hava, kar ve gökyüzü radarı (ücretsiz)</string>
   <string name="widget_speed_desc">Canlı araç hızı ve yol koşulları (Pro)</string>
+  <string name="widget_hourly_desc">Önümüzdeki saatler: sıcaklık ve yağış</string>
+  <string name="widget_moon_desc">Ay evresi, doğuş ve batış</string>
+  <string name="widget_mini_desc">Küçük hava: sıcaklık ve yağış notu</string>
 </resources>
