@@ -350,3 +350,28 @@ String polarisAltitudeNote(double latDeg) {
   return 'Kutup yıldızı (Polaris) ufuktan yaklaşık $lat° yükseklikte görünür; '
       'bu yükseklik gözlemcinin enlemine eşittir (kutba yakın ~0.7° sapma hariç).';
 }
+
+/// Gezegenin görünür parlaklığı (kadir). Güneş ve Dünya'ya uzaklık ile faz açısından,
+/// Astronomical Almanac (Mallama & Hilton 2018 öncesi klasik) yaklaşık formülleri.
+/// Satürn'de halka eğimi hesaba katılmaz (±0,7 kadir). PyEphem ile karşılaştırıldı.
+double planetMagnitude(String name, DateTime t) {
+  final key = _planetKey(name);
+  final orbit = _planetOrbits[key];
+  if (orbit == null) throw ArgumentError.value(name, 'name', 'Bilinmeyen gezegen');
+  final d = _days(t);
+  final p = _helioEcliptic(orbit, d);
+  final e = _helioEcliptic(_earthOrbit, d);
+  double len(List<double> v) => math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+  final r = len(p), big = len(e);
+  final delta = len([p[0] - e[0], p[1] - e[1], p[2] - e[2]]);
+  final cosI = _clampD((r * r + delta * delta - big * big) / (2 * r * delta), -1, 1);
+  final i = _d(math.acos(cosI));
+  final base = 5 * math.log(r * delta) / math.ln10;
+  return switch (key) {
+    'mercury' => -0.42 + base + 0.0380 * i - 0.000273 * i * i + 0.000002 * i * i * i,
+    'venus' => -4.40 + base + 0.0009 * i + 0.000239 * i * i - 0.00000065 * i * i * i,
+    'mars' => -1.52 + base + 0.016 * i,
+    'jupiter' => -9.40 + base + 0.005 * i,
+    _ => -8.88 + base + 0.044 * i,
+  };
+}
