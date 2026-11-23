@@ -56,3 +56,9 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - HourPoint'e uv ve gust eklendi (Open-Meteo hourly wind_gusts_10m).
 - Ekran görüntüleri: 15_day, 16_moon, 17_trend, 18_live (en sonda; ses eklentisi testte yok).
 - Sıradaki fikirler: cihaz geri bildirimi (GPU tanılama satırı, sesler), canlı pencere için sahne ufak animasyonları.
+
+## 1.8.0+12
+- Ayarlar > Görünüm > "Anlaşılır dil" (lib/ui/plain.dart, Hive 'plain_lang'): Plain.t(bilimsel, gündelik), Plain.wind (km/s),
+  Plain.windFrom, Plain.dust, Plain.stormRisk, Plain.level. Açılıp kapanınca tüm ekranlar yerinde yenilenir.
+  Yeni teknik metin eklerken Plain.t ile gündelik karşılığını da yaz. Ekran görüntüsü: 02d_plain_full, 17b_trend_plain.
+
