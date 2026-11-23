@@ -6,6 +6,7 @@ import '../engine/formulas.dart';
 import 'clouds.dart';
 import 'scene_shaders.dart';
 import 'sky_bodies.dart';
+import 'sky_stars.dart';
 import 'wx_glyph.dart';
 
 /// Ana ekranın üst sahnesi (Figma "Sahne", 376×380): kodla çizilmiş manzara.
@@ -45,7 +46,7 @@ class _HeroSceneState extends State<HeroScene> with SingleTickerProviderStateMix
               final W = box.maxWidth;
               final sl = skyLight(s, W, H);
               final look = SceneLook.of(s, widget.wx, sun: Offset(sl.pos.dx / W, sl.pos.dy / H));
-              final night = !s.isDay && s.cloudCover < 70;
+              final night = starsOn(s, DateTime.now());
               Widget layer(_Part part, {bool anim = true}) => RepaintBoundary(child: still || !anim
                   ? CustomPaint(size: Size.infinite, painter: _ScenePainter(s, widget.a, widget.wx, 12, _parts, part))
                   : AnimatedBuilder(animation: _c, builder: (_, __) => CustomPaint(size: Size.infinite, painter: _ScenePainter(s, widget.a, widget.wx, _c.value * 3600, _parts, part))));
@@ -86,12 +87,15 @@ class _HeroSceneState extends State<HeroScene> with SingleTickerProviderStateMix
   final rd = s.isDay ? sunRaDec(t) : moonRaDec(t);
   final aa = raDecToAltAz(rd.raDeg, rd.decDeg, s.place.lat, s.place.lon, t);
   final k = H / 380;
-  final south = s.place.lat < 0;
-  final along = ((south ? 360 - aa.az : aa.az) - 90) / 180; // 0 doğu, 1 batı
+  final along = SceneSky.along(aa.az, s.place.lat); // kuzeyde güneye, güneyde kuzeye bakış
   final x = W * (.60 + .26 * along.clamp(0.0, 1.0));
-  final y = H * .40 - (H * .40 - 50 * k) * (aa.alt / 35).clamp(0.0, 1.0);
+  final y = H * .40 - (H * .40 - 76 * k) * (aa.alt / 35).clamp(0.0, 1.0); // en yüksekte bile konum hapının altında
   return (pos: Offset(x, y), visible: aa.alt > -1.5);
 }
+
+/// Gece göğünde en az en parlak yıldızlar/gezegenler görünüyor mu (alacakaranlık, Ay, bulut).
+bool starsOn(WeatherSnapshot s, DateTime t) =>
+    s.cloudCover < 95 && SceneSky.limitAt(s.place.lat, s.place.lon, t, cloud: s.cloudCover) > -1.2;
 
 /// Sıcaklığı gerçek eksi işaretiyle yazar: −2°.
 String deg(double v) { final r = v.round(); return '${r < 0 ? '−' : ''}${r.abs()}°'; }
@@ -191,10 +195,8 @@ class ScenePalette {
 /// Her karede yeniden üretilmesin diye sabit parçacık tohumları.
 class _Particles {
   final List<(double, double, double, double)> drops; // x, y, derinlik, faz (0-1)
-  final List<(double, double, double)> stars; // x, y, boy
   _Particles(Random r)
-      : drops = [for (var i = 0; i < 170; i++) (r.nextDouble(), r.nextDouble(), r.nextDouble(), r.nextDouble())],
-        stars = [for (var i = 0; i < 90; i++) (r.nextDouble(), r.nextDouble() * .55, .3 + r.nextDouble() * 1.2)];
+      : drops = [for (var i = 0; i < 170; i++) (r.nextDouble(), r.nextDouble(), r.nextDouble(), r.nextDouble())];
 }
 
 /// Ana ekran widget'ı gibi küçük yüzeyler için hareketsiz sahne.
@@ -243,13 +245,13 @@ class _ScenePainter extends CustomPainter {
     c.drawRect(rect, Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
         colors: [pal.skyTop, pal.skyBottom], stops: [0, pal.skyStop]).createShader(rect));
 
-    // Yıldızlar (açık gece)
-    if (night && s.cloudCover < 70) {
-      final vis = (1 - s.cloudCover / 70).clamp(.2, 1.0);
-      for (var i = 0; i < p.stars.length; i++) {
-        final (x, y, r) = p.stars[i];
-        final tw = .4 + .6 * (.5 + .5 * sin(t * 1.6 + i * 1.7));
-        c.drawCircle(Offset(x * W, y * H), r, Paint()..color = Colors.white.withValues(alpha: .8 * tw * vis));
+    // Gerçek gece göğü: o an görünen parlak yıldızlar ve gezegenler (alacakaranlık, Ay ışığı ve buluta göre sönük olanlar kaybolur)
+    if (s.cloudCover < 95) {
+      final now = DateTime.now();
+      final lim = SceneSky.limitAt(s.place.lat, s.place.lon, now, cloud: s.cloudCover);
+      if (lim > -4.5) {
+        SceneSky.paint(c, sz, SceneSky.at(s.place.lat, s.place.lon, now),
+            horizonY: H * .64, t: t, lim: lim, fade: 1 - s.cloudCover / 100 * .55, scale: (k * .5 + .5).clamp(.6, 1.2));
       }
     }
 

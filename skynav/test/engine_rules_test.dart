@@ -3,6 +3,7 @@ import 'package:skynav/astro/space_events.dart';
 import 'package:skynav/astro/star_catalog.dart';
 import 'package:skynav/data/models.dart';
 import 'package:skynav/engine/weather_engine.dart';
+import 'package:skynav/ui/sky_stars.dart';
 
 WeatherSnapshot snap({double t = 0, double wind = 2, double precip = 0, double snowfall = 0, double? fl, double snowDepth = 0, List<Mountain> mountains = const [], double windDir = 0, double cloud = 20, double hum = 70}) =>
     WeatherSnapshot(
@@ -46,5 +47,23 @@ void main() {
       expect(s.raDeg, inInclusiveRange(0, 360), reason: s.name);
       expect(s.decDeg, inInclusiveRange(-90, 90), reason: s.name);
     }
+  });
+
+  test('sahne gökyüzü: gerçek yıldız ve gezegenler, alacakaranlık ve Ay ışığı', () {
+    final dark = DateTime.utc(2026, 12, 9, 21); // Erzurum, aysız gece
+    expect(SceneSky.limitAt(39.9, 41.27, dark), greaterThan(4.5));
+    expect(SceneSky.limitAt(39.9, 41.27, DateTime.utc(2026, 12, 9, 9)), lessThan(-4)); // öğlen: yalnızca Venüs olabilir
+    expect(SceneSky.limitAt(39.9, 41.27, DateTime.utc(2026, 11, 24, 21)), lessThan(3.6)); // dolunay yüksekte
+    final dots = SceneSky.at(39.9, 41.27, dark);
+    expect(dots.where((d) => d.mag < 5).length, greaterThan(150));
+    final jup = dots.where((d) => d.name == 'jupiter');
+    expect(jup, isNotEmpty);
+    expect(jup.first.mag, lessThan(-1.5));
+    for (final d in dots) { expect(d.alt, greaterThan(0)); expect(d.along, inInclusiveRange(-.02, 1.02)); }
+    // Kuzeyde güneye, güneyde kuzeye bakış: tam karşı ortada, doğu kuzeyde solda.
+    expect(SceneSky.along(180, 40), .5);
+    expect(SceneSky.along(90, 40), 0);
+    expect(SceneSky.along(0, -33), .5);
+    expect(SceneSky.along(90, -33), 1);
   });
 }

@@ -107,7 +107,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _tile(Icons.gavel_rounded, kInkSoft, 'Kullanım Şartları', onTap: () => _show('Kullanım Şartları', termsText)),
           _tile(Icons.shield_outlined, kInkSoft, 'Veri Kullanımı & İzinler', onTap: () => _show('Veri Kullanımı & İzinler', dataText)),
           _tile(Icons.app_settings_alt_outlined, kAccent, 'Uygulama izinlerini değiştir', onTap: openAppSettings),
-          _tile(Icons.copyright_rounded, kInkSoft, 'Kaynaklar ve lisanslar', sub: 'Ay haritası, doğa sesleri, yazı tipi, haritalar', onTap: () => _show('Kaynaklar ve lisanslar', creditsText)),
+          _tile(Icons.copyright_rounded, kInkSoft, 'Kaynaklar ve lisanslar', sub: 'Ay haritası, yıldızlar, doğa sesleri, yazı tipi, haritalar', onTap: () => _show('Kaynaklar ve lisanslar', creditsText)),
         ]),
 
         if (_devUnlocked) ...[
@@ -163,6 +163,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 const creditsText = '''Ay görüntüsü: Solar System Scope (solarsystemscope.com) Ay dokusu, NASA Lunar Reconnaissance Orbiter (LRO) verisine dayanır. Lisans: CC BY 4.0. Uygulamada küreye sarılıp gerçek evreye göre aydınlatılır.
 
 Doğa sesleri: Freesound.org kullanıcıları ali-k, greysound, florianreichelt, cagancelik. Lisans: CC0 (kamu malı). Gerçek kayıtlardır, sentetik ses yoktur.
+
+Yıldızlar: Yale Parlak Yıldız Kataloğu, 5. baskı (Hoffleit & Warren 1991, Harvard/CDS), kamu malı. Ana sahnedeki yıldızlar ve gezegenler o an gökte gerçekten bulundukları yerde ve parlaklıkta çizilir.
 
 Yazı tipi: Inter, Rasmus Andersson. Lisans: SIL Open Font License 1.1.
 

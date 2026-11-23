@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skynav/astro/astro_math.dart' show sunAltitude;
 import 'package:skynav/data/models.dart';
 import 'package:skynav/engine/weather_engine.dart';
 import 'package:skynav/services/store.dart';
@@ -52,6 +53,18 @@ WeatherSnapshot fake({PrecipKind k = PrecipKind.snow, bool day = true, double t 
     ensembleMembers: 82, ensembleSnowProb: 74, ensembleRainProb: 12, modelTemp24h: const {'ecmwf': -2.4, 'gfs': -1.8, 'icon': -2.9, 'gem': -2.1}, modelPrecip24h: const {'ecmwf': 4.1, 'gfs': 3.2, 'icon': 5.0, 'gem': 3.6},
     aqPm10: 18, mountains: const [Mountain(lat: 40, lon: 41.1, elevation: 3140, distanceKm: 25, bearingDeg: 300, snowDepthM: .8, tempC: -12)],
   );
+}
+
+/// Enlem 39.9'da güneşin şu an [alt] yükseklikte ve batmakta olduğu boylam.
+double _lonForSun(double alt) {
+  final now = DateTime.now().toUtc();
+  var best = 0.0, err = 1e9;
+  for (var lon = -180.0; lon < 180; lon += .25) {
+    final a = sunAltitude(39.9, lon, now);
+    final setting = sunAltitude(39.9, lon, now.add(const Duration(minutes: 10))) < a;
+    if (setting && (a - alt).abs() < err) { err = (a - alt).abs(); best = lon; }
+  }
+  return best;
 }
 
 const _ht = <double>[-4, -4, -3, -3, -2, -1, 0, 1, 1, 0, -1, -2, -3, -3, -4, -5, -5, -6, -6, -5, -5, -4, -4, -3];
@@ -128,9 +141,11 @@ void main() {
         cloudCover: cloud, cloudHigh: 10, precip: precip, snowfall: 0, visibilityM: 15000, cape: code >= 95 ? 1400 : 100, uv: day ? 5 : 0, freezingLevelM: 2600, snowDepthM: snowDepth,
         weatherCode: code, isDay: day, hourly: s.hourly, daily: s.daily);
     for (final (name, v) in [('06b_clear', variant(19, 25, 1, 0, true)), ('06c_rain', variant(9, 95, 63, 2.4, true, wind: 9)), ('06d_hot', variant(34, 10, 0, 0, true)), ('06e_overcast', variant(12, 92, 3, 0, true)),
-        // Gün batımı / mavi saat testi için güneşin şu an alçakta olduğu boylamlar (çalıştırma saatine göre ayarla)
-        ('06f_golden', variant(4, 30, 1, 0, true, snowDepth: .1, at: const GeoPoint2(39.9, 15.6, elevation: 1850, name: 'Gün batımı'))),
-        ('06g_bluehour', variant(2, 20, 0, 0, false, snowDepth: .1, at: const GeoPoint2(39.9, 24.0, elevation: 1850, name: 'Mavi saat')))]) {
+        // Gün batımı / mavi saat: güneşin şu an tam o yükseklikte battığı boylam (çalıştırma saatinden bağımsız)
+        ('06f_golden', variant(4, 30, 1, 0, true, snowDepth: .1, at: GeoPoint2(39.9, _lonForSun(3), elevation: 1850, name: 'Gün batımı'))),
+        ('06g_bluehour', variant(2, 20, 0, 0, false, snowDepth: .1, at: GeoPoint2(39.9, _lonForSun(-3.5), elevation: 1850, name: 'Mavi saat'))),
+        // Karanlık, açık gece: gerçek yıldızlar ve gezegenler
+        ('06h_starry', variant(-4, 5, 0, 0, false, snowDepth: .1, at: GeoPoint2(39.9, _lonForSun(-35), elevation: 1850, name: 'Yıldızlı gece')))]) {
       WeatherController.I.debugSet(v, WeatherEngine.analyze(v));
       await shot(t, const AppShell(), name, size: const Size(412, 560));
     }
