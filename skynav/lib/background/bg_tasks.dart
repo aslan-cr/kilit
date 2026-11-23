@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 import '../data/models.dart';
 import '../engine/alerts.dart';
+import '../engine/brief.dart';
 import '../engine/weather_engine.dart';
 import '../services/icon_service.dart';
 import '../services/notify_service.dart';
@@ -36,6 +37,16 @@ void callbackDispatcher() {
           await sp.setInt('sn_alarm_${al.key}', now.millisecondsSinceEpoch);
           await Notify.show('SkyNav · ${al.title}', al.body);
           break; // tek çalıştırmada tek bildirim
+        }
+      }
+      // Sabah özeti: 07:00–10:00 arası günde bir kez (Ayarlar'dan kapatılabilir)
+      final t = DateTime.now();
+      if (sp.getBool('sn_brief_off') != true && t.hour >= 7 && t.hour < 10) {
+        final day = '${t.year}-${t.month}-${t.day}';
+        if (sp.getString('sn_brief_day') != day) {
+          await sp.setString('sn_brief_day', day);
+          final text = morningBrief(s, t);
+          if (text.isNotEmpty) await Notify.show('Günaydın${p.name.isEmpty ? '' : ' · ${p.name}'}', text);
         }
       }
       return true;

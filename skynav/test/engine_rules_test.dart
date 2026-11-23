@@ -4,6 +4,7 @@ import 'package:skynav/astro/space_events.dart';
 import 'package:skynav/astro/sky_times.dart';
 import 'package:skynav/astro/star_catalog.dart';
 import 'package:skynav/engine/alerts.dart';
+import 'package:skynav/engine/brief.dart';
 import 'package:skynav/services/climate_service.dart';
 import 'package:skynav/services/air_service.dart';
 import 'package:skynav/engine/best_time.dart';
@@ -182,5 +183,19 @@ void main() {
     expect(pts.length, 2); // endeksi olmayan saat atlanır
     expect(pts.last.pm10, 55);
     expect(Aqi.label(18), 'İyi'); expect(Aqi.label(35), 'Makul'); expect(Aqi.label(64), 'Kötü'); expect(Aqi.label(120), 'Aşırı kötü');
+  });
+
+  test('sabah özeti: gidişat ve öneri', () {
+    final now = DateTime(2026, 12, 9, 7, 30);
+    final d0 = DateTime(2026, 12, 9);
+    final hs = [for (var i = 0; i < 24; i++) HourPoint(time: d0.add(Duration(hours: i)), temp: -3, precip: i >= 6 && i < 12 ? .8 : 0,
+        snowfall: i >= 6 && i < 12 ? .9 : 0, windSpeed: 3, windDir: 0, cloud: i >= 12 ? 10 : 90, humidity: 80, dewPoint: -5, weatherCode: i >= 6 && i < 12 ? 73 : 1)];
+    final s = WeatherSnapshot(place: const GeoPoint2(39.9, 41.27), fetchedAt: now, temp: -3, feelsLike: -6, humidity: 80, dewPoint: -5, pressure: 1015,
+        windSpeed: 3, windDir: 0, windGust: 5, cloudCover: 90, cloudHigh: 0, precip: .8, snowfall: .9, visibilityM: 4000, cape: 0, uv: 0,
+        weatherCode: 73, isDay: true, hourly: hs,
+        daily: [DayPoint(date: d0, tMax: 1, tMin: -7, precipSum: 4.8, snowSum: 5.4, windMax: 4, weatherCode: 73)]);
+    final b = morningBrief(s, now);
+    expect(b, startsWith('Bugün −7° / 1°, sabah yoğun karlı, öğleden sonra açık.'));
+    expect(b, contains('yollar kaygan'));
   });
 }

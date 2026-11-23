@@ -103,6 +103,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (v) await Notify.requestPermission();
                 setState(() {});
               })),
+          _tile(Icons.wb_twilight_rounded, kSun, 'Sabah özeti', sub: 'Her sabah 07–10 arası: bugünün havası ve kısa öneri',
+              trailing: Switch(value: SharedState.cached?.getBool('sn_brief_off') != true, onChanged: (v) async {
+                final p = await SharedState.get();
+                await p.setBool('sn_brief_off', !v);
+                if (v) await Notify.requestPermission();
+                setState(() {});
+              })),
           _tile(Icons.auto_awesome_rounded, kAccent, 'Dinamik ikon', sub: 'Uygulama ikonu havaya göre değişir · uygulamadan çıkınca uygulanır',
               trailing: Switch(value: IconService.enabled, onChanged: (v) async { await IconService.setEnabled(v); setState(() {}); })),
           _tile(Icons.speed_rounded, kGood, 'Hız & yol widget’ı', sub: 'Görünür bildirimle canlı GPS hızı · Pro',
