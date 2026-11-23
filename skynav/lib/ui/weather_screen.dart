@@ -228,7 +228,7 @@ Widget _page(String title, List<Widget> children) => Scaffold(
 /// Gök & Ay: bugünün Ay saatleri, bu gece görünen gezegenler, fotoğrafçı saatleri, yıldız netliği.
 class SkyMoonPage extends StatelessWidget {
   final WeatherSnapshot s; final Analysis a;
-  const SkyMoonPage({required this.s, required this.a});
+  const SkyMoonPage({super.key, required this.s, required this.a});
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -267,7 +267,7 @@ class SkyMoonPage extends StatelessWidget {
 /// Pro analiz: çevre dağlar ve sis, hava modelleri, atmosfer kesiti.
 class ProPage extends StatelessWidget {
   final WeatherSnapshot s; final Analysis a;
-  const ProPage({required this.s, required this.a});
+  const ProPage({super.key, required this.s, required this.a});
   @override
   Widget build(BuildContext context) => _page('Pro analiz', [
         ProGate(title: 'Çevre dağlar, sis radarı ve yerel gerçeklik', child: _ProAnalysis(s: s, a: a)),
@@ -283,14 +283,14 @@ class ProPage extends StatelessWidget {
 }
 
 class RadarPage extends StatelessWidget {
-  const RadarPage();
+  const RadarPage({super.key});
   @override
   Widget build(BuildContext context) => _page('Radar & uydu', const [RadarMapCard()]);
 }
 
 /// Gözlem (tahmini eğit) ve şimşek ölçer.
 class ObservePage extends StatelessWidget {
-  const ObservePage();
+  const ObservePage({super.key});
   @override
   Widget build(BuildContext context) {
     final w = WeatherController.I;
@@ -315,7 +315,7 @@ class ObservePage extends StatelessWidget {
 }
 
 class ToolsPage extends StatelessWidget {
-  const ToolsPage();
+  const ToolsPage({super.key});
   @override
   Widget build(BuildContext context) => _page('Araçlar', [
         GridView.count(

@@ -771,6 +771,7 @@ class _LiveWindowState extends State<LiveWindow> {
       final b = _shot.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (b == null) return;
       final dpr = min(MediaQuery.devicePixelRatioOf(context), 2.5);
+      final padTop = MediaQuery.paddingOf(context).top;
       final img = await b.toImage(pixelRatio: dpr);
       final rec = ui.PictureRecorder();
       final c = Canvas(rec);
@@ -780,7 +781,7 @@ class _LiveWindowState extends State<LiveWindow> {
       final tp = TextPainter(textDirection: TextDirection.ltr, text: TextSpan(text: 'SkyNav · $name',
           style: TextStyle(fontFamily: 'Inter', fontSize: 13 * dpr, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: .85),
               shadows: const [Shadow(color: Color(0x66000000), blurRadius: 6)])))..layout();
-      tp.paint(c, Offset(img.width - tp.width - 18 * dpr, 18 * dpr + MediaQuery.paddingOf(context).top * dpr));
+      tp.paint(c, Offset(img.width - tp.width - 18 * dpr, 18 * dpr + padTop * dpr));
       final out = await rec.endRecording().toImage(img.width, img.height);
       final png = await out.toByteData(format: ui.ImageByteFormat.png);
       img.dispose(); out.dispose();
