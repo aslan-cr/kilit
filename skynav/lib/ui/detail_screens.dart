@@ -1,7 +1,12 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../astro/sky_times.dart';
 import '../astro/tonight.dart';
@@ -726,6 +731,8 @@ class _LiveWindowState extends State<LiveWindow> {
   late final Map<String, double> _before = Map.of(SleepMixer.I.level);
   late final _amb = LiveWindow.ambience(widget.wx, widget.s);
   final _tilt = ValueNotifier(Offset.zero);
+  final _shot = GlobalKey();
+  bool _sharing = false;
   StreamSubscription<AccelerometerEvent>? _acc;
   double? _bx, _bz;
   bool _sound = true;
@@ -756,14 +763,52 @@ class _LiveWindowState extends State<LiveWindow> {
     super.dispose();
   }
 
+  /// Manzarayı resim olarak paylaş: sahne + köşede küçük "SkyNav · yer" imzası.
+  Future<void> _share() async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    try {
+      final b = _shot.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (b == null) return;
+      final dpr = min(MediaQuery.devicePixelRatioOf(context), 2.5);
+      final img = await b.toImage(pixelRatio: dpr);
+      final rec = ui.PictureRecorder();
+      final c = Canvas(rec);
+      c.drawImage(img, Offset.zero, Paint());
+      final s = widget.s;
+      final name = s.place.name.isEmpty ? 'Konumum' : s.place.name;
+      final tp = TextPainter(textDirection: TextDirection.ltr, text: TextSpan(text: 'SkyNav · $name',
+          style: TextStyle(fontFamily: 'Inter', fontSize: 13 * dpr, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: .85),
+              shadows: const [Shadow(color: Color(0x66000000), blurRadius: 6)])))..layout();
+      tp.paint(c, Offset(img.width - tp.width - 18 * dpr, 18 * dpr + MediaQuery.paddingOf(context).top * dpr));
+      final out = await rec.endRecording().toImage(img.width, img.height);
+      final png = await out.toByteData(format: ui.ImageByteFormat.png);
+      img.dispose(); out.dispose();
+      if (png == null) return;
+      final dir = await getTemporaryDirectory();
+      final f = File('${dir.path}/skynav_manzara.png');
+      await f.writeAsBytes(png.buffer.asUint8List());
+      await SharePlus.instance.share(ShareParams(files: [XFile(f.path, mimeType: 'image/png')],
+          text: '$name: ${deg(s.temp)}, ${wxLabel(widget.wx, day: s.isDay).toLowerCase()} · SkyNav'));
+    } catch (_) {
+      // paylaşım iptal ya da desteklenmiyor
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(fit: StackFit.expand, children: [
-        HeroScene(s: widget.s, a: widget.a, wx: widget.wx, today: widget.today, height: mq.size.height, radius: 0, live: true, tilt: _tilt),
-        Positioned(top: mq.padding.top + 12, right: 16, child: _GlassButton(icon: Icons.close_rounded, onTap: () => Navigator.pop(context))),
+        RepaintBoundary(key: _shot, child: HeroScene(s: widget.s, a: widget.a, wx: widget.wx, today: widget.today, height: mq.size.height, radius: 0, live: true, tilt: _tilt)),
+        Positioned(top: mq.padding.top + 12, right: 16, child: Row(children: [
+          _GlassButton(icon: _sharing ? Icons.hourglass_top_rounded : Icons.ios_share_rounded, onTap: _share),
+          const SizedBox(width: 10),
+          _GlassButton(icon: Icons.close_rounded, onTap: () => Navigator.pop(context)),
+        ])),
         Positioned(bottom: mq.padding.bottom + 24, right: 16, child: _GlassButton(
           icon: _sound ? Icons.volume_up_rounded : Icons.volume_off_rounded,
           label: _sound ? _amb.label : 'Sessiz',
