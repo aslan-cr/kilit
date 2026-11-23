@@ -7,7 +7,8 @@ import '../services/audio_service.dart';
 import '../services/auth_service.dart';
 import '../services/notify_service.dart';
 import '../services/store.dart';
-import 'sky_background.dart';
+import 'hero_scene.dart' show ScenePalette;
+import 'scene_shaders.dart';
 import 'theme.dart';
 
 class Onboarding extends StatefulWidget {
@@ -62,7 +63,7 @@ class _OnboardingState extends State<Onboarding> {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Stack(children: [
-          const Positioned.fill(child: SkyBackground(state: SkyState(cloud: 35))),
+          const Positioned.fill(child: ColoredBox(color: kIce)),
           SafeArea(child: Column(children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
@@ -98,7 +99,11 @@ class _OnboardingState extends State<Onboarding> {
       );
 
   Widget _policyPage() => _page0([
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
+        // Süs sahnesi: gün batımında karlı zirveler (veri göstermez)
+        const DecorScene(pal: ScenePalette.goldenHour, height: 168, cover: .32, cloudLit: Color(0xFFFFDCC0), cloudShade: Color(0xFF8E6F88), cloudWeight: .2,
+            sun: Offset(.76, .44), light: .9, snowLit: Color(0xFFFFC9B5)),
+        const SizedBox(height: 20),
         const Text('Gökyüzü cebinde,\nkanki.', style: TextStyle(fontFamily: 'Inter', fontSize: 34, fontWeight: FontWeight.w800, height: 1.1, letterSpacing: -1, color: kInk)),
         const SizedBox(height: 10),
         const Text('Hava, yol ve yıldızlar tek uygulamada. Reklam yok, zorlama yok.', style: T.body),

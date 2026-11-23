@@ -3,7 +3,8 @@ import 'package:share_plus/share_plus.dart';
 import '../pro/billing_service.dart';
 import '../pro/pro_service.dart';
 import '../services/audio_service.dart';
-import 'sky_background.dart';
+import 'hero_scene.dart' show ScenePalette;
+import 'scene_shaders.dart';
 import 'theme.dart';
 
 class Paywall extends StatefulWidget {
@@ -20,7 +21,7 @@ class _PaywallState extends State<Paywall> {
         extendBodyBehindAppBar: true,
         appBar: AppBar(),
         body: Stack(children: [
-          const Positioned.fill(child: SkyBackground(state: SkyState(cloud: 20))),
+          const Positioned.fill(child: ColoredBox(color: kIce)),
           ListenableBuilder(
             listenable: Listenable.merge([ProService.I, BillingService.I]),
             builder: (_, __) {
@@ -29,28 +30,24 @@ class _PaywallState extends State<Paywall> {
               final l = BillingService.I.labels(d.active);
               return ListView(padding: EdgeInsets.fromLTRB(18, MediaQuery.of(context).padding.top + 52, 18, 32), children: [
                 // ── Vitrin ──
-                Container(
-                  padding: const EdgeInsets.all(22),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
-                    gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF7B5CFA), Color(0xFF2F80ED)]),
-                    boxShadow: [BoxShadow(color: const Color(0xFF4F6BF0).withValues(alpha: .35), blurRadius: 30, offset: const Offset(0, 14), spreadRadius: -8)],
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Container(width: 46, height: 46, decoration: BoxDecoration(color: Colors.white.withValues(alpha: .18), borderRadius: BorderRadius.circular(15)),
-                          child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 26)),
+                DecorScene(pal: ScenePalette.clearNight, night: true, height: 236, cover: .28, light: .4, sun: const Offset(.6, .3),
+                    cloudLit: const Color(0xFF9EA8C6), cloudShade: const Color(0xFF2E3754), cloudWeight: .4,
+                    child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        Container(width: 44, height: 44, decoration: BoxDecoration(color: Colors.white.withValues(alpha: .18), borderRadius: BorderRadius.circular(15)),
+                            child: const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 26)),
+                        const Spacer(),
+                        Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.white.withValues(alpha: .18), borderRadius: BorderRadius.circular(20)),
+                            child: Text(st.label, style: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12.5))),
+                      ]),
                       const Spacer(),
-                      Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.white.withValues(alpha: .18), borderRadius: BorderRadius.circular(20)),
-                          child: Text(st.label, style: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12.5))),
-                    ]),
-                    const SizedBox(height: 18),
-                    const Text('SkyNav Pro', style: TextStyle(fontFamily: 'Inter', fontSize: 30, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -.8)),
-                    const SizedBox(height: 6),
-                    Text('Zorunlu değil kanki. Reklam yok, temel özellikler hep ücretsiz. Pro, geliştirici masrafını çıkarmaya destek olur ve ileri modülleri açar.',
-                        style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Colors.white.withValues(alpha: .9), height: 1.4, fontWeight: FontWeight.w500)),
-                  ]),
-                ),
+                      const Text('SkyNav Pro', style: TextStyle(fontFamily: 'Inter', fontSize: 30, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -.8,
+                          shadows: [Shadow(color: Color(0x660B1330), blurRadius: 12)])),
+                      const SizedBox(height: 4),
+                      Text('Zorunlu değil kanki. Reklam yok, temel özellikler hep ücretsiz. Pro, geliştirici masrafını çıkarmaya destek olur ve ileri modülleri açar.',
+                          style: TextStyle(fontFamily: 'Inter', fontSize: 13.5, color: Colors.white.withValues(alpha: .92), height: 1.4, fontWeight: FontWeight.w500,
+                              shadows: const [Shadow(color: Color(0x880B1330), blurRadius: 10)])),
+                    ]))),
                 const SizedBox(height: 18),
                 const _Perk(Icons.ac_unit_rounded, kSnow, 'Hava Pro', '50+ senaryo, dağ radarı, sis radarı, model kıyaslaması, 1 dk Turbo mod'),
                 const _Perk(Icons.navigation_rounded, kGood, 'Yol Pro', 'Buz ve tipiye göre akıllı varış süresi, kayma sensörü, hız widget’ı'),

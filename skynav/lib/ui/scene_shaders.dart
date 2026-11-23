@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../data/models.dart';
 import 'clouds.dart';
 import 'hero_scene.dart' show ScenePalette;
+import 'sky_bodies.dart';
 import 'wx_glyph.dart';
 
 /// Dağ sahnesinin ayarları (havaya göre): palet, ışık, kar, güneş konumu.
@@ -143,4 +144,48 @@ class SceneLook {
           snowLit: golden ? const Color(0xFFFFC9B5) : const Color(0xFFFCFDFF)),
     );
   }
+}
+
+/// Süs sahnesi (veri göstermez): tanıtım ve Pro ekranlarının başlığı. Aynı gök, bulut ve dağ çizicileri.
+class DecorScene extends StatelessWidget {
+  final ScenePalette pal; final double cover; final bool night; final double light; final double height; final Widget? child;
+  final Color cloudLit, cloudShade; final double cloudWeight; final Offset sun; final Color snowLit;
+  const DecorScene({super.key, required this.pal, this.cover = .35, this.night = false, this.light = 1, this.height = 180, this.child,
+      this.cloudLit = Colors.white, this.cloudShade = const Color(0xFFB4C4D6), this.cloudWeight = 0, this.sun = const Offset(.8, .3), this.snowLit = const Color(0xFFFCFDFF)});
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: SizedBox(height: height, child: Stack(fit: StackFit.expand, children: [
+          CustomPaint(painter: _DecorSky(pal, sun, night, cover)),
+          CloudLayer(spec: CloudSpec(cover: cover, lit: cloudLit, shade: cloudShade, weight: cloudWeight, sun: sun, scale: 140 * height / 380 + 40, horizon: .8, seed: 6.4, wind: const Offset(-.012, 0))),
+          MountainLayer(spec: MountainSpec(pal: pal, light: light, snow: 1, ground: 0, sun: sun, seed: 2.1, snowLit: snowLit)),
+          const DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0x00000000), Color(0x55050F1F)], stops: [.45, 1]))),
+          if (child != null) child!,
+        ])),
+      );
+}
+
+class _DecorSky extends CustomPainter {
+  final ScenePalette pal; final Offset sun; final bool night; final double cover;
+  _DecorSky(this.pal, this.sun, this.night, this.cover);
+  @override
+  void paint(Canvas c, Size s) {
+    final r = Offset.zero & s;
+    c.drawRect(r, Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [pal.skyTop, pal.skyBottom], stops: [0, pal.skyStop]).createShader(r));
+    final o = Offset(sun.dx * s.width, sun.dy * s.height), k = s.height / 380;
+    if (night) {
+      if (!MoonRenderer.paint(c, o, 24 * k + 6, MoonView.at(39, 35, DateTime.now()).withAlt(40))) {
+        c.drawCircle(o, 24 * k + 6, Paint()..color = const Color(0xFFF4ECCF));
+      }
+      final rnd = Random(3);
+      for (var i = 0; i < 60; i++) {
+        c.drawCircle(Offset(rnd.nextDouble() * s.width, rnd.nextDouble() * s.height * .5), .4 + rnd.nextDouble(), Paint()..color = Colors.white.withValues(alpha: .4 + rnd.nextDouble() * .5));
+      }
+    } else {
+      paintSun(c, o, 22 * k + 4, alt: 4, cover: cover);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _DecorSky o) => false;
 }

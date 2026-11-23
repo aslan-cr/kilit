@@ -9,7 +9,8 @@ import '../data/phrases.dart';
 import '../services/audio_service.dart';
 import '../services/store.dart';
 import '../services/weather_repository.dart';
-import 'sky_background.dart';
+import 'app_icons.dart';
+import 'bento.dart';
 import 'theme.dart';
 
 /// Şimşek Mesafe Ölçer: çakmayı gördüğünde başlat, gök gürültüsünü duyunca durdur (ses ≈ 343 m/sn).
@@ -63,26 +64,44 @@ class _SleepMixerScreenState extends State<SleepMixerScreen> {
   void dispose() { SleepMixer.stopAll(); super.dispose(); }
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Doğa Kayıtlı Uyku Mikseri')),
-        body: Stack(children: [
-          const Positioned.fill(child: SkyBackground(state: SkyState(cloud: 20, isDay: false))),
-          ListView(padding: const EdgeInsets.all(16), children: [
-            Glass(child: Column(children: [
-              const Text('Gerçek doğa kayıtları (CC0). Sentetik ses yok.', style: TextStyle(color: kInkSoft)),
-              for (final k in SleepMixer.tracks.keys) ListTile(
-                title: Text(SleepMixer.labels[k]!),
-                subtitle: _missing.contains(k)
-                    ? const Text('Ses dosyası pakette yok (assets/audio/CREDITS.md)', style: TextStyle(color: Color(0xFFC62828), fontSize: 12))
-                    : Slider(value: _vol[k]!, onChanged: (v) async {
-                        setState(() => _vol[k] = v);
-                        final ok = await SleepMixer.setVolume(k, v);
-                        if (!ok) setState(() { _missing.add(k); _vol[k] = 0; });
-                      }),
-              ),
+        backgroundColor: kIce,
+        appBar: AppBar(title: const Text('Uyku Mikseri')),
+        body: ListView(padding: const EdgeInsets.fromLTRB(18, 4, 18, 28), children: [
+          Bento(color: kBentoNight, padding: const EdgeInsets.all(18), child: Row(children: [
+            const IconBadge(Icons.bedtime_rounded, color: Color(0xFFF4ECCF), size: 46), const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Gerçek doğa kayıtları', style: T.h2.copyWith(color: const Color(0xFFF4ECCF))),
+              const SizedBox(height: 2),
+              Text('Freesound, CC0. Sentetik ses yok. Sesleri karıştır, uykuna dal.', style: T.small.copyWith(color: const Color(0xFF9DA9CF))),
             ])),
-          ]),
+          ])),
+          const SizedBox(height: 14),
+          for (final k in SleepMixer.tracks.keys) Padding(padding: const EdgeInsets.only(bottom: 12), child: _track(k)),
         ]),
       );
+
+  Widget _track(String k) {
+    final (icon, color) = mixerIcon(k);
+    final on = _vol[k]! > 0;
+    return Bento(
+      color: on ? Color.lerp(Colors.white, color, .07)! : Colors.white,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+      child: Column(children: [
+        Row(children: [
+          IconBadge(icon, color: color, size: 40), const SizedBox(width: 12),
+          Expanded(child: Text(noEmoji(SleepMixer.labels[k]!), style: T.body.copyWith(fontWeight: FontWeight.w700))),
+          Text(on ? '%${(_vol[k]! * 100).round()}' : 'kapalı', style: T.small.copyWith(fontWeight: FontWeight.w700, color: on ? color : kInkFaint)),
+        ]),
+        _missing.contains(k)
+            ? Padding(padding: const EdgeInsets.fromLTRB(52, 4, 0, 8), child: Text('Ses dosyası pakette yok (assets/audio/CREDITS.md)', style: T.small.copyWith(color: kDanger, fontSize: 12)))
+            : SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: color, thumbColor: color, inactiveTrackColor: color.withValues(alpha: .15)), child: Slider(value: _vol[k]!, onChanged: (v) async {
+                setState(() => _vol[k] = v);
+                final ok = await SleepMixer.setVolume(k, v);
+                if (!ok) setState(() { _missing.add(k); _vol[k] = 0; });
+              })),
+      ]),
+    );
+  }
 }
 
 class SosScreen extends StatefulWidget {
@@ -116,14 +135,32 @@ class _SosScreenState extends State<SosScreen> {
   void dispose() { _cancel = true; super.dispose(); }
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Acil Durum SOS Feneri')),
-        body: Center(child: Padding(padding: const EdgeInsets.all(24), child: Glass(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('🆘', style: TextStyle(fontSize: 60)),
-          const Text('Fener SOS ritmiyle (… --- …) yanıp söner. Gerçek acil durumda 112\'yi ara.', textAlign: TextAlign.center),
-          if (_err != null) Text(_err!, style: const TextStyle(color: Color(0xFFC62828))),
-          const SizedBox(height: 14),
-          FilledButton(style: FilledButton.styleFrom(backgroundColor: _on ? const Color(0xFFC62828) : kAccent), onPressed: () { if (_on) { _cancel = true; } else { _run(); } }, child: Text(_on ? 'Durdur' : 'Başlat')),
-        ])))),
+        backgroundColor: kIce,
+        appBar: AppBar(title: const Text('SOS Feneri')),
+        body: ListView(padding: const EdgeInsets.fromLTRB(18, 4, 18, 28), children: [
+          Bento(padding: const EdgeInsets.all(22), child: Column(children: [
+            AnimatedContainer(duration: const Duration(milliseconds: 300), width: 120, height: 120,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: (_on ? kDanger : kDanger.withValues(alpha: .1)),
+                    boxShadow: _on ? [BoxShadow(color: kDanger.withValues(alpha: .45), blurRadius: 40, spreadRadius: 4)] : null),
+                child: Icon(Icons.sos_rounded, size: 64, color: _on ? Colors.white : kDanger)),
+            const SizedBox(height: 18),
+            Text(_on ? 'Fener SOS veriyor' : 'Işıkla yardım çağrısı', style: T.h2),
+            const SizedBox(height: 6),
+            const Text('Fener SOS ritmiyle (… --- …) yanıp söner.', textAlign: TextAlign.center, style: T.small),
+            if (_err != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_err!, style: T.small.copyWith(color: kDanger))),
+            const SizedBox(height: 18),
+            SizedBox(width: double.infinity, child: FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: _on ? kInk : kDanger),
+              onPressed: () { if (_on) { _cancel = true; } else { _run(); } },
+              icon: Icon(_on ? Icons.stop_rounded : Icons.flashlight_on_rounded), label: Text(_on ? 'Durdur' : 'Başlat'),
+            )),
+          ])),
+          const SizedBox(height: 12),
+          Bento(color: const Color(0xFFFFF1E2), child: Row(children: [
+            const IconBadge(Icons.call_rounded, color: kDanger, size: 40), const SizedBox(width: 12),
+            Expanded(child: Text('Gerçek acil durumda önce 112\'yi ara kanki.', style: T.body.copyWith(fontWeight: FontWeight.w700))),
+          ])),
+        ]),
       );
 }
 
@@ -148,18 +185,34 @@ class _TimeCapsuleScreenState extends State<TimeCapsuleScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Hava Durumu Zaman Kapsülü')),
-        body: ListView(padding: const EdgeInsets.all(16), children: [
-          Glass(child: Column(children: [
-            TextField(controller: _note, decoration: const InputDecoration(hintText: 'Bugünü bir cümleyle anlat…')),
+        backgroundColor: kIce,
+        appBar: AppBar(title: const Text('Zaman Kapsülü')),
+        body: ListView(padding: const EdgeInsets.fromLTRB(18, 4, 18, 28), children: [
+          Bento(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const BlockHead('Bugünü sakla', dot: kWarn),
             const SizedBox(height: 8),
-            FilledButton(onPressed: _save, child: const Text('Kapsüle koy')),
+            const Text('Şu anki hava kapsüle girer; yanına bir cümle ekle, yıllar sonra aç.', style: T.small),
+            const SizedBox(height: 12),
+            TextField(controller: _note, maxLines: 2, decoration: InputDecoration(hintText: 'Bugünü bir cümleyle anlat…', filled: true, fillColor: kIce,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none))),
+            const SizedBox(height: 10),
+            SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: _save, icon: const Icon(Icons.inventory_2_rounded), label: const Text('Kapsüle koy'))),
           ])),
-          for (final c in _items) Padding(padding: const EdgeInsets.only(top: 10), child: Glass(child: ListTile(
-            title: Text('${c['place'] ?? ''} · ${(c['temp'] as num).round()}° · ${c['kind']}'),
-            subtitle: Text('${c['t'].toString().substring(0, 16)}\n${c['note']}'),
-            trailing: IconButton(icon: const Icon(Icons.share), onPressed: () => Share.share('SkyNav zaman kapsülü: ${c['place']} ${(c['temp'] as num).round()}° — ${c['note']}')),
-          ))),
+          if (_items.isNotEmpty) ...[const SizedBox(height: 18), BlockHead('Kapsüller', dot: kWarn, trailing: Text('${_items.length}', style: T.small.copyWith(fontWeight: FontWeight.w700))), const SizedBox(height: 10)],
+          for (final c in _items) Padding(padding: const EdgeInsets.only(bottom: 12), child: Bento(padding: const EdgeInsets.fromLTRB(16, 14, 8, 14), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(width: 56, padding: const EdgeInsets.symmetric(vertical: 8), decoration: BoxDecoration(color: kBentoPeach, borderRadius: BorderRadius.circular(14)),
+                child: Column(children: [
+                  Text('${(c['temp'] as num).round()}°', style: T.num.copyWith(fontSize: 18)),
+                  Text(c['t'].toString().substring(0, 4), style: T.small.copyWith(fontSize: 11)),
+                ])),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${c['place'] ?? ''}', style: T.body.copyWith(fontWeight: FontWeight.w700)),
+              Text(c['t'].toString().substring(0, 16).replaceAll('T', ' '), style: T.small.copyWith(fontSize: 12)),
+              if ((c['note'] ?? '').toString().isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text('${c['note']}', style: T.body.copyWith(fontSize: 14))),
+            ])),
+            IconButton(icon: const Icon(Icons.share_rounded, color: kInkSoft), onPressed: () => Share.share('SkyNav zaman kapsülü: ${c['place']} ${(c['temp'] as num).round()}° — ${c['note']}')),
+          ]))),
         ]),
       );
 }
@@ -199,11 +252,14 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
           ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_err ?? 'Kamera hazırlanıyor…', textAlign: TextAlign.center)))
           : Stack(children: [
               Positioned.fill(child: CameraPreview(_c!)),
-              Positioned(left: 12, right: 12, bottom: 90, child: Glass(child: Text(s == null ? 'SkyNav Hava Kanalı' : '📺 ${s.place.name}: ${s.temp.round()}° · ${a?.kind.name} · rüzgâr ${s.windSpeed.toStringAsFixed(1)} m/s', style: const TextStyle(fontWeight: FontWeight.w800)))),
+              Positioned(left: 12, right: 12, bottom: 90, child: Glass(child: Row(children: [
+                const IconBadge(Icons.live_tv_rounded, color: kDanger, size: 36), const SizedBox(width: 10),
+                Expanded(child: Text(s == null ? 'SkyNav Hava Kanalı' : '${s.place.name}: ${s.temp.round()}° · ${a?.kind.name} · rüzgâr ${s.windSpeed.toStringAsFixed(1)} m/s', style: T.body.copyWith(fontWeight: FontWeight.w800))),
+              ]))),
               Positioned(left: 0, right: 0, bottom: 20, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 FilledButton(style: FilledButton.styleFrom(backgroundColor: _rec ? const Color(0xFFC62828) : kAccent), onPressed: () async {
                   if (_rec) { _last = await _c!.stopVideoRecording(); setState(() => _rec = false); } else { await _c!.startVideoRecording(); setState(() => _rec = true); }
-                }, child: Text(_rec ? '⏹ Kaydı bitir' : '⏺ Kayda başla')),
+                }, child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(_rec ? Icons.stop_rounded : Icons.fiber_manual_record_rounded, size: 20), const SizedBox(width: 6), Text(_rec ? 'Kaydı bitir' : 'Kayda başla')])),
                 if (_last != null) Padding(padding: const EdgeInsets.only(left: 8), child: OutlinedButton(onPressed: () => Share.shareXFiles([_last!]), child: const Text('Paylaş'))),
               ])),
             ]),

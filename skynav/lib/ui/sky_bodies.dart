@@ -14,6 +14,9 @@ class MoonView {
   final double alt;        // ufuk yüksekliği (°)
   const MoonView({required this.illum, required this.phaseAngle, required this.bright, required this.rot, required this.alt});
 
+  /// Aynı evre, farklı yükseklik (ör. süs sahnesi ya da blokta ufuk renginden bağımsız görünüm).
+  MoonView withAlt(double a) => MoonView(illum: illum, phaseAngle: phaseAngle, bright: bright, rot: rot, alt: a);
+
   /// Konum ve saatten: evre, aydınlık kenarın açısı (Meeus 48.5) ve paralaktik açı.
   static MoonView at(double lat, double lon, DateTime t) {
     final u = t.toUtc();

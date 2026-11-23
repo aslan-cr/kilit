@@ -12,6 +12,8 @@ import 'package:skynav/services/location_service.dart';
 import 'package:skynav/services/weather_repository.dart';
 import 'package:skynav/ui/app_shell.dart';
 import 'package:skynav/ui/lab_screen.dart';
+import 'package:skynav/ui/badges_screen.dart';
+import 'package:skynav/ui/tools_screens.dart';
 import 'package:skynav/ui/map3d_screen.dart';
 import 'package:skynav/ui/plane_radar_screen.dart';
 import 'package:skynav/ui/onboarding.dart';
@@ -19,7 +21,6 @@ import 'package:skynav/ui/paywall.dart';
 import 'package:skynav/ui/settings_screen.dart';
 import 'package:skynav/ui/road_screen.dart';
 import 'package:skynav/ui/sky_screen.dart';
-import 'package:skynav/ui/sky_background.dart';
 import 'package:skynav/ui/clouds.dart';
 import 'package:skynav/ui/scene_shaders.dart';
 import 'package:skynav/ui/sky_bodies.dart';
@@ -120,8 +121,8 @@ void main() {
       WeatherController.I.debugSet(v, WeatherEngine.analyze(v));
       await shot(t, const AppShell(), name, size: const Size(412, 560));
     }
-    await shot(t, const Scaffold(body: Stack(children: [Positioned.fill(child: SkyBackground(state: SkyState(cloud: 30))), SafeArea(child: RoadScreen())])), '07_road');
-    await shot(t, const Scaffold(body: Stack(children: [Positioned.fill(child: SkyBackground(state: SkyState(cloud: 30))), SafeArea(child: RoadScreen())])), '07b_road_full', size: const Size(412, 1500));
+    await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: RoadScreen())), '07_road');
+    await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: RoadScreen())), '07b_road_full', size: const Size(412, 1500));
     await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: SkyScreen())), '08_sky');
     await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: SkyScreen())), '08b_sky_full', size: const Size(412, 1500));
     final clear = fake(k: PrecipKind.none, day: false, t: 6);
@@ -130,6 +131,10 @@ void main() {
     await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: SkyScreen())), '08c_sky_clear');
     await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: Map3DScreen())), '09_map3d');
     await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: PlaneRadarScreen())), '10_planes');
+    await shot(t, const BadgesScreen(), '11_badges');
+    await shot(t, const SleepMixerScreen(), '12_mixer');
+    await shot(t, const SosScreen(), '13_sos');
+    await shot(t, const TimeCapsuleScreen(), '14_capsule');
   });
 }
 void _noop() {}
