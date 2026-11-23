@@ -86,3 +86,8 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - Sabah özeti: lib/engine/brief.dart + bg_tasks (07–10, günde bir; SharedState sn_brief_off / sn_brief_day).
 - Canlı pencere paylaşma (share_plus SharePlus.instance.share + path_provider temp).
 
+## 2.2.0+16
+- İklim > Bu kış kar: ClimateNormals.snowCum (sezon 1 Eyl–31 May, 273 gün), SeasonSnow (historical-forecast-api). Önbellek clim_v2.
+- Büyük yazı: main.dart builder textScaler 0,9–1,25; test/shots/large_text_test.dart (gerçek fontla, 360 genişlik; SCALE/W dart-define).
+- flutter analyze: 0 sorun (SharePlus.instance.share'e geçildi). Böyle kalsın.
+
