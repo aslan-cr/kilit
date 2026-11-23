@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../data/models.dart';
 import '../engine/formulas.dart';
+import '../engine/nowcast.dart';
 import 'hero_scene.dart' show deg, moonLitPath;
 import 'plain.dart';
 import 'sky_bodies.dart';
@@ -280,6 +281,72 @@ class _HourlyPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _HourlyPainter o) => o.h != h || o.sel != sel || o.fromNow != fromNow;
+}
+
+// ── Önümüzdeki 2 saat: 15 dakikalık yağış ─────────────────────────────────
+class NowcastBlock extends StatelessWidget {
+  final List<NowPoint> pts; final DateTime now;
+  const NowcastBlock({super.key, required this.pts, required this.now});
+
+  /// Gösterilmeye değer mi (pencerede yağış var).
+  static bool worth(List<NowPoint> pts, DateTime now) => Nowcast.of(pts, now).any;
+
+  @override
+  Widget build(BuildContext context) {
+    final n = Nowcast.of(pts, now);
+    final w = pts.where((p) => p.time.add(const Duration(minutes: 15)).isAfter(now) && p.time.isBefore(now.add(const Duration(hours: 2)))).toList();
+    return Bento(
+      color: kBentoBlue, padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const BlockHead('Önümüzdeki 2 saat', dot: kSnow, trailing: _Trail('15 dakikalık tahmin')),
+        const SizedBox(height: 10),
+        Row(children: [
+          Container(width: 34, height: 34, decoration: BoxDecoration(color: Colors.white.withValues(alpha: .8), shape: BoxShape.circle),
+              child: Icon(n.snow ? Icons.ac_unit_rounded : Icons.water_drop_rounded, size: 19, color: kSnow)),
+          const SizedBox(width: 10),
+          Expanded(child: Text(n.headline, style: _st(16, FontWeight.w700, kInk, h: 1.25))),
+        ]),
+        const SizedBox(height: 14),
+        SizedBox(height: 74, width: double.infinity, child: CustomPaint(painter: _NowBars(w, now))),
+      ]),
+    );
+  }
+}
+
+class _NowBars extends CustomPainter {
+  final List<NowPoint> w; final DateTime now;
+  _NowBars(this.w, this.now);
+  @override
+  void paint(Canvas c, Size s) {
+    if (w.isEmpty) return;
+    const labelH = 18.0;
+    final ch = s.height - labelH, n = w.length;
+    final slot = s.width / n;
+    // Ölçek: en az orta yağmur (≈ 1,9 mm/15 dk) tavanı; hafif yağış çubuğu da görünür kalsın.
+    final top = w.map((p) => p.precip).fold<double>(.5, (a, b) => b > a ? b : a);
+    for (var i = 0; i < n; i++) {
+      final p = w[i];
+      final x = i * slot + slot * .14, bw = slot * .72;
+      c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x, 0, bw, ch), const Radius.circular(6)), Paint()..color = Colors.white.withValues(alpha: .55));
+      if (p.precip >= Nowcast.wet) {
+        final h = max(6.0, (p.precip / top).clamp(0.0, 1.0) * ch);
+        final col = p.snowfall > 0 ? kSnow : const Color(0xFF3B8EE8);
+        c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x, ch - h, bw, h), const Radius.circular(6)),
+            Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [col.withValues(alpha: .65), col])
+                .createShader(Rect.fromLTWH(x, ch - h, bw, h)));
+      }
+    }
+    final tp = TextPainter(textDirection: TextDirection.ltr);
+    for (var i = 0; i < n; i += 2) {
+      final m = (w[i].time.difference(now).inMinutes / 15).round() * 15;
+      tp.text = TextSpan(text: i == 0 ? 'Şimdi' : '+${m.clamp(0, 999)} dk', style: _st(10.5, i == 0 ? FontWeight.w800 : FontWeight.w600, i == 0 ? kAccent : kInkSoft));
+      tp.layout();
+      final cx = i * slot + slot / 2;
+      tp.paint(c, Offset((cx - tp.width / 2).clamp(0.0, s.width - tp.width), ch + 5));
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _NowBars o) => o.w != w;
 }
 
 // ── 7 günlük ────────────────────────────────────────────────────────────────

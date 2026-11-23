@@ -62,3 +62,14 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
   Plain.windFrom, Plain.dust, Plain.stormRisk, Plain.level. Açılıp kapanınca tüm ekranlar yerinde yenilenir.
   Yeni teknik metin eklerken Plain.t ile gündelik karşılığını da yaz. Ekran görüntüsü: 02d_plain_full, 17b_trend_plain.
 
+## 1.9.0+13 — kullanıcı: "3.0'a kadar devam et", "her şey alt alta olmasın, yeni menüler"
+- Ana ekran: sahne, spiker, (yağış varsa) 2 saatlik şimdi-tahmini, saatlik, 7 günlük, **Keşfet menüsü** (bento kutular),
+  sonra Figma ölçüm blokları. Eskiden alttaki uzun liste artık sayfalarda: SkyMoonPage (Gök & Ay: bu gece gökte,
+  gece gökyüzü, Ay saatleri, fotoğrafçı saatleri), TrendScreen, ProPage, RadarPage, ObservePage, ToolsPage (weather_screen.dart).
+  YENİ ÖZELLİKLERİ ANA LİSTEYE ALT ALTA EKLEME: Keşfet'e kutu + kendi sayfası.
+- lib/engine/nowcast.dart + NowPoint (minutely_15; değer önceki 15 dk toplamı → dilim başlangıcıyla saklanır), NowcastBlock.
+- lib/astro/tonight.dart: bu gece görünen gezegenler (PyEphem ±10 dk/1°), TonightSkyBlock.
+- lib/engine/compare.dart: dünle kıyas (spiker cümlesine eklenir).
+- Canlı pencere: ivmeölçerle paralaks (HeroScene.tilt).
+- Yol haritası görev listesinde (#9).
+

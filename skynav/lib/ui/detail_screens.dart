@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import '../astro/sky_times.dart';
+import '../astro/tonight.dart';
 import '../data/models.dart';
 import '../engine/formulas.dart' show moonPhase, windDirName;
 import '../services/audio_service.dart';
@@ -337,6 +340,44 @@ class _MoonDisc extends CustomPainter {
   bool shouldRepaint(covariant _MoonDisc o) => o.f != f;
 }
 
+/// Bu gece çıplak gözle görülecek gezegenler: ne zaman, nerede, ne kadar parlak (gerçek konumlardan).
+class TonightSkyBlock extends StatelessWidget {
+  final double lat, lon, cloud; final DateTime now;
+  const TonightSkyBlock({super.key, required this.lat, required this.lon, required this.now, this.cloud = 0});
+
+  static const _colors = {'mercury': Color(0xFFD9CBB4), 'venus': Color(0xFFFFF3D6), 'mars': Color(0xFFFF9C74), 'jupiter': Color(0xFFF3D9AE), 'saturn': Color(0xFFE9CF8C)};
+
+  @override
+  Widget build(BuildContext context) {
+    final ps = planetsTonight(lat, lon, now);
+    return Bento(
+      color: kBentoNight, padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        BlockHead('Bu gece gökte', dot: _nightInk, labelColor: _nightSoft,
+            trailing: Text(cloud > 75 ? 'bulutlar örtüyor' : cloud > 40 ? 'bulut aralarından' : 'açık gök', style: _st(12, FontWeight.w600, _nightSoft))),
+        const SizedBox(height: 10),
+        if (ps.isEmpty)
+          Text('Bu gece çıplak gözle görülen gezegen yok kanki; yıldızlara bak.', style: _st(13.5, FontWeight.w600, _nightSoft))
+        else
+          for (final p in ps) Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: Row(children: [
+            Container(width: 14, height: 14, decoration: BoxDecoration(shape: BoxShape.circle, color: _colors[p.key],
+                boxShadow: [BoxShadow(color: (_colors[p.key] ?? _nightInk).withValues(alpha: .6), blurRadius: p.mag < -1 ? 10 : 5)])),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${p.name} · ${p.brightness}', style: _st(15, FontWeight.w800, _nightInk)),
+              const SizedBox(height: 2),
+              Text('En iyi ${_hm(p.best)} · ${TonightPlanet.where(p.bestAz)} · ${p.bestAlt.round()}° yukarıda',
+                  style: _st(12.5, FontWeight.w600, _nightSoft)),
+            ])),
+            Text('${_hm(p.start)}–${_hm(p.end)}', style: _st(13, FontWeight.w700, _nightInk)),
+          ])),
+        const SizedBox(height: 6),
+        Text('Saatler: gök kararıp gezegen ufkun 10° üstüne çıktığı aralık.', style: _st(11.5, FontWeight.w500, _nightSoft.withValues(alpha: .8))),
+      ]),
+    );
+  }
+}
+
 /// Ana ekrandaki Ay bloğuna dokununca: bugünün doğuş/batışı, önümüzdeki ana evreler ve 7 günlük Ay saatleri.
 class MoonDetailScreen extends StatelessWidget {
   final double lat, lon;
@@ -637,6 +678,9 @@ class LiveWindow extends StatefulWidget {
 class _LiveWindowState extends State<LiveWindow> {
   late final Map<String, double> _before = Map.of(SleepMixer.I.level);
   late final _amb = LiveWindow.ambience(widget.wx, widget.s);
+  final _tilt = ValueNotifier(Offset.zero);
+  StreamSubscription<AccelerometerEvent>? _acc;
+  double? _bx, _bz;
   bool _sound = true;
 
   @override
@@ -644,12 +688,22 @@ class _LiveWindowState extends State<LiveWindow> {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _play();
+    // Telefon eğimi: ilk duruş referans; yumuşatılmış, −1…1 aralığında
+    try {
+      _acc = accelerometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen((e) {
+        _bx ??= e.x; _bz ??= e.z;
+        final t = Offset(((e.x - _bx!) / 4).clamp(-1.0, 1.0), ((e.z - _bz!) / 4).clamp(-1.0, 1.0));
+        _tilt.value = Offset.lerp(_tilt.value, t, .12)!;
+      }, onError: (_) {});
+    } catch (_) {}
   }
 
   void _play() => SleepMixer.I.preset({_amb.key: .7}, remember: false);
 
   @override
   void dispose() {
+    _acc?.cancel();
+    _tilt.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SleepMixer.I.preset(_before, remember: false);
     super.dispose();
@@ -661,7 +715,7 @@ class _LiveWindowState extends State<LiveWindow> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(fit: StackFit.expand, children: [
-        HeroScene(s: widget.s, a: widget.a, wx: widget.wx, today: widget.today, height: mq.size.height, radius: 0, live: true),
+        HeroScene(s: widget.s, a: widget.a, wx: widget.wx, today: widget.today, height: mq.size.height, radius: 0, live: true, tilt: _tilt),
         Positioned(top: mq.padding.top + 12, right: 16, child: _GlassButton(icon: Icons.close_rounded, onTap: () => Navigator.pop(context))),
         Positioned(bottom: mq.padding.bottom + 24, right: 16, child: _GlassButton(
           icon: _sound ? Icons.volume_up_rounded : Icons.volume_off_rounded,

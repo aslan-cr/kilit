@@ -181,8 +181,17 @@ class OpenMeteoService {
     // Şu an yağış/kar: 15 dakikalık seri (en yakın dilim), yoksa current.
     final minutely = asMap(f['minutely_15']);
     final mi = idxAtOrBefore(strList(minutely['time']), nowIso);
-    final minPr = opt(numList(minutely['precipitation']), mi);
-    final minSn = opt(numList(minutely['snowfall']), mi);
+    final mTimes = strList(minutely['time']);
+    final mPrAll = numList(minutely['precipitation']);
+    final mSnAll = numList(minutely['snowfall']);
+    final minPr = opt(mPrAll, mi);
+    final minSn = opt(mSnAll, mi);
+    // minutely_15 değeri o zamandan ÖNCEKİ 15 dakikanın toplamıdır: dilimin başlangıcıyla sakla.
+    // Şu anı içeren dilimden başlayarak ~3 saat.
+    final nowcast = <NowPoint>[
+      for (var i = mi + 1; i < math.min(mTimes.length, mi + 13); i++)
+        NowPoint(DateTime.parse(mTimes[i]).subtract(const Duration(minutes: 15)), opt(mPrAll, i) ?? 0, opt(mSnAll, i) ?? 0),
+    ];
 
     final pressureLevels = <int, Map<String, double>>{
       for (final lv in _pressureLevels)
@@ -285,6 +294,7 @@ class OpenMeteoService {
       pressureLevels: pressureLevels,
       hourly: hours,
       daily: days,
+      nowcast: nowcast,
       ensembleMembers: ens.members,
       ensembleSnowProb: ens.snowProb,
       ensembleRainProb: ens.rainProb,

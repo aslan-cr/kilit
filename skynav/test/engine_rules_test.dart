@@ -3,6 +3,8 @@ import 'package:skynav/astro/space_events.dart';
 import 'package:skynav/astro/sky_times.dart';
 import 'package:skynav/astro/star_catalog.dart';
 import 'package:skynav/engine/alerts.dart';
+import 'package:skynav/engine/compare.dart';
+import 'package:skynav/engine/nowcast.dart';
 import 'package:skynav/data/models.dart';
 import 'package:skynav/engine/weather_engine.dart';
 import 'package:skynav/ui/sky_stars.dart';
@@ -103,5 +105,29 @@ void main() {
     near(m.set, DateTime.utc(2026, 11, 23, 2, 37), 2);
     near(nextMoonPhase(DateTime.utc(2026, 11, 23, 17), 180), DateTime.utc(2026, 11, 24, 14, 53), 15);
     near(nextMoonPhase(DateTime.utc(2026, 11, 23, 17), 0), DateTime.utc(2026, 12, 9, 0, 52), 15);
+  });
+
+  test('şimdi-tahmini: başlıyor, diniyor, sürüyor, yok', () {
+    final now = DateTime(2026, 12, 1, 18, 7);
+    List<NowPoint> pts(List<double> pr, {double snow = 0}) =>
+        [for (var i = 0; i < pr.length; i++) NowPoint(DateTime(2026, 12, 1, 18).add(Duration(minutes: 15 * i)), pr[i], pr[i] > 0 ? snow : 0)];
+    final starts = Nowcast.of(pts([0, 0, 0, .4, .5, .2, 0, 0, 0]), now);
+    expect(starts.startsIn, 40); // 18:45 dilimi, şimdi 18:07 → 38 dk → 40
+    expect(starts.headline, contains('Yağmur'));
+    final ends = Nowcast.of(pts([.3, .3, 0, 0, 0, 0, 0, 0, 0], snow: .4), now);
+    expect(ends.wetNow, isTrue);
+    expect(ends.snow, isTrue);
+    expect(ends.endsIn, 25);
+    expect(Nowcast.of(pts([.6, .7, .8, .9, 1, 1, 1, 1, 1]), now).headline, contains('sürüyor'));
+    expect(Nowcast.of(pts(List.filled(9, 0)), now).any, isFalse);
+  });
+
+  test('dünle kıyas: geçmiş saatlik veriden', () {
+    final now = DateTime(2026, 12, 1, 18, 10);
+    final base = snap(t: 2);
+    WeatherSnapshot at(double yesterday) => withHours(base, now.subtract(const Duration(hours: 22)), [for (var i = 0; i < 30; i++) (i == 0 ? yesterday : 5.0, 0.0, 0.0, 3, 5.0)]);
+    expect(yesterdayLine(at(6), now), 'Dün bu saatten 4° daha soğuk.');
+    expect(yesterdayLine(at(-1), now), 'Dün bu saatten 3° daha sıcak.');
+    expect(yesterdayLine(at(2.5), now), isNull);
   });
 }

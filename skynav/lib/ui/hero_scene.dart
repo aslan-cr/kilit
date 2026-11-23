@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../astro/astro_math.dart' show sunAltitude, sunRaDec, moonRaDec, raDecToAltAz;
@@ -18,8 +19,10 @@ class HeroScene extends StatefulWidget {
   final double height;
   /// Köşe yuvarlaklığı (canlı pencerede 0), [live]: tam ekran canlı pencere, [onOpen]: sahneye dokununca.
   final double radius; final bool live; final VoidCallback? onOpen;
+  /// Canlı pencerede telefon eğimi (−1…1): katmanlar derinliklerine göre kayar (paralaks).
+  final ValueListenable<Offset>? tilt;
   const HeroScene({super.key, required this.s, required this.a, required this.wx, this.today, this.offline = false, this.onPlace, this.height = 380,
-      this.radius = 34, this.live = false, this.onOpen});
+      this.radius = 34, this.live = false, this.onOpen, this.tilt});
   @override
   State<HeroScene> createState() => _HeroSceneState();
 }
@@ -58,13 +61,18 @@ class _HeroSceneState extends State<HeroScene> with SingleTickerProviderStateMix
               Widget layer(_Part part, {bool anim = true}) => RepaintBoundary(child: still || !anim
                   ? CustomPaint(size: Size.infinite, painter: _ScenePainter(s, widget.a, widget.wx, 12, _parts, part))
                   : AnimatedBuilder(animation: _c, builder: (_, __) => CustomPaint(size: Size.infinite, painter: _ScenePainter(s, widget.a, widget.wx, _c.value * 3600, _parts, part))));
+              // Paralaks: uzak gök az, bulutlar orta, dağlar çok kayar; kenar görünmesin diye hafif büyütülür.
+              final tilt = widget.tilt;
+              Widget par(double px, Widget child) => tilt == null ? child : ValueListenableBuilder<Offset>(
+                  valueListenable: tilt, child: child,
+                  builder: (_, o, c) => Transform.translate(offset: o * px, child: Transform.scale(scale: 1.08, child: c)));
               return Stack(fit: StackFit.expand, children: [
-                layer(_Part.back, anim: night),
-                CloudLayer(spec: look.clouds, animate: !still),
-                MountainLayer(spec: look.mountains),
+                par(5, layer(_Part.back, anim: night)),
+                par(9, CloudLayer(spec: look.clouds, animate: !still)),
+                par(15, MountainLayer(spec: look.mountains)),
                 // Vadide süzülen sis: aynı bulut programı, ters çevrilmiş (yoğun taraf aşağıda, uzakta yassı)
-                if (fog > .08) Positioned(left: 0, right: 0, top: H * .36, bottom: 0, child: IgnorePointer(child: Transform.flip(flipY: true,
-                    child: CloudLayer(spec: fogSpec(s, widget.wx, fog, H / 380), animate: !still, resolution: .35)))),
+                if (fog > .08) Positioned(left: 0, right: 0, top: H * .36, bottom: 0, child: IgnorePointer(child: par(15, Transform.flip(flipY: true,
+                    child: CloudLayer(spec: fogSpec(s, widget.wx, fog, H / 380), animate: !still, resolution: .35))))),
                 layer(_Part.front),
               ]);
             }),

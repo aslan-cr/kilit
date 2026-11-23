@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../astro/tonight.dart';
 import '../data/models.dart';
 import '../data/phrases.dart';
+import '../engine/compare.dart';
 import '../engine/formulas.dart';
 import '../game/badges.dart';
 import '../services/audio_service.dart';
@@ -53,7 +55,8 @@ class WeatherScreen extends StatelessWidget {
     final today = DateTime(now.year, now.month, now.day);
     final days = s.daily.where((d) => !DateTime(d.date.year, d.date.month, d.date.day).isBefore(today)).take(7).toList();
     final todayPt = days.isNotEmpty ? days.first : null;
-    final summary = _summary(s, a);
+    final y = yesterdayLine(s, now);
+    final summary = y == null ? _summary(s, a) : '${_summary(s, a)} $y';
     final nowWx = wxFromNow(s, a);
 
     final sunrise = todayPt?.sunrise, sunset = todayPt?.sunset;
@@ -68,8 +71,13 @@ class WeatherScreen extends StatelessWidget {
             onOpen: () => LiveWindow.open(context, s, a, nowWx, todayPt)),
         gap,
         SpeakerCard(text: summary, onPlay: () { Sfx.tap(); Voice.speak(summary); }),
+        if (NowcastBlock.worth(s.nowcast, now)) ...[gap, NowcastBlock(pts: s.nowcast, now: now)],
         if (hours.isNotEmpty) ...[gap, HourlyBlock(hours: hours)],
         if (days.isNotEmpty) ...[gap, DailyBlock(days: days, onDay: (i) => DayDetailScreen.open(context, s, days[i], i))],
+
+        // ── Keşfet: her konu kendi sayfasında (ana ekran alt alta uzamasın) ──
+        const SectionLabel('Keşfet'),
+        _ExploreGrid(s: s, a: a, now: now),
 
         // ── Bento ──
         gap,
@@ -79,8 +87,6 @@ class WeatherScreen extends StatelessWidget {
         ),
         if (a.blizzardProb > 40) ...[gapS, _Note(Icons.air, Kanki.pick(Kanki.tipiUyari, s.temp.round()), kBlizzard)],
         if (sunrise != null && sunset != null) ...[gap, DaylightBlock(sunrise: sunrise, sunset: sunset, now: now)],
-        gap,
-        PhotoHoursBlock(lat: s.place.lat, lon: s.place.lon, day: today),
         gap,
         BentoRow(height: 170, left: HumidityBlock(s: s), right: UvBlock(uv: s.uv)),
         gap,
@@ -123,64 +129,6 @@ class WeatherScreen extends StatelessWidget {
           ])),
         ],
 
-        // ── Gece gökyüzü ──
-        gap,
-        Bento(color: kBentoNight, child: Row(children: [
-          SizedBox(width: 64, height: 64, child: CustomPaint(painter: _RingPainter(s.cloudCover > 75 ? 0 : a.starClarity / 100, const Color(0xFFB7C2F2)),
-              child: Center(child: Icon(Icons.auto_awesome, color: s.cloudCover > 75 ? const Color(0xFF6B76A0) : const Color(0xFFF4ECCF))))),
-          const SizedBox(width: 16),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const BlockHead('Gece gökyüzü', dot: Color(0xFFF4ECCF), labelColor: Color(0xFF9DA9CF)),
-            const SizedBox(height: 6),
-            Text(s.cloudCover > 75 ? 'Yıldız görünümü %0' : 'Yıldız netliği %${a.starClarity.round()}', style: T.h2.copyWith(color: const Color(0xFFF4ECCF))),
-            const SizedBox(height: 4),
-            Text(s.cloudCover > 75 ? 'Gökyüzü kapalı, bugün yıldız yok kanki.' : Kanki.yildizAcik(a.starClarity), style: T.small.copyWith(color: const Color(0xFF9DA9CF))),
-          ])),
-        ])),
-
-        const SectionLabel('Pro analiz'),
-        ProGate(title: 'Çevre dağlar, sis radarı ve yerel gerçeklik', child: _ProAnalysis(s: s, a: a)),
-        const SizedBox(height: 12),
-        ProGate(title: Plain.t('Süper bilgisayarlar & 50+ senaryo', 'Dünyanın hava modelleri ne diyor'), child: _Models(s: s, a: a)),
-        const SizedBox(height: 12),
-        ProGate(title: Plain.t('Atmosfer kesiti (1000–300 hPa)', 'Gökyüzünde yukarı çıktıkça sıcaklık'), child: Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(Plain.t('Atmosfer kesiti', 'Yukarıdaki hava'), style: T.h2), const SizedBox(height: 4),
-          Text(Plain.t('Yükseldikçe sıcaklık. Mavi çizgi 0 °C.', 'Yere yakından 9 km yukarıya sıcaklık. Mavi çizginin solu donuyor demek.'), style: T.small), const SizedBox(height: 12),
-          SizedBox(height: 180, child: CustomPaint(painter: _ProfilePainter(s), size: Size.infinite)),
-        ]))),
-
-        SectionLabel('Gözlem — beni eğit', trailing: Pill('Karne %${w.accuracy.round()}', color: kGood, icon: Icons.verified_outlined)),
-        Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Dışarıda gerçekte ne var? Dokun, tahminlerimi düzelteyim.', style: T.small),
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            for (final e in const [('Mercimek karı', PrecipKind.lentilSnow, Wx.lentil), ('Kar başladı', PrecipKind.snow, Wx.snow), ('Tipi var', PrecipKind.blizzard, Wx.blizzard), ('Kar tuttu', PrecipKind.snow, Wx.snow)])
-              ActionChip(avatar: WxGlyph(e.$3, size: 22), label: Text(e.$1), onPressed: () {
-                Sfx.tap(); w.observe(e.$2);
-                if (e.$2 == PrecipKind.lentilSnow) Badges.award('first_lentil');
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Teşekkürler kanki, tahminimi buna göre ayarladım.')));
-              }),
-          ]),
-        ])),
-
-        const SectionLabel('Şimşek'),
-        const LightningMeter(),
-
-        const SectionLabel('Radar & uydu'),
-        const RadarMapCard(),
-
-        const SectionLabel('Araçlar'),
-        GridView.count(
-          padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.35,
-          children: [
-            _ToolTile(Icons.science_outlined, 'Yaşam Laboratuvarı', '30 hesaplayıcı', kGood, const LabScreen()),
-            _ToolTile(Icons.bedtime_outlined, 'Uyku Mikseri', 'Gerçek doğa sesleri', const Color(0xFF5B5BD6), const SleepMixerScreen()),
-            _ToolTile(Icons.flashlight_on_outlined, 'SOS Feneri', 'Işıkla yardım çağrısı', kDanger, const SosScreen()),
-            _ToolTile(Icons.inventory_2_outlined, 'Zaman Kapsülü', 'Bugünü sakla', kWarn, const TimeCapsuleScreen()),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(height: 92, child: _ToolTile(Icons.videocam_outlined, 'Hava Kanalı', 'Kendi yayınını yap', kPro, const BroadcastScreen(), wide: true)),
       ])),
     );
   }
@@ -208,6 +156,167 @@ class WeatherScreen extends StatelessWidget {
 
   static Future<void> _pickPlace(BuildContext context) =>
       showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => const _PlaceSheet());
+}
+
+// ── Keşfet menüsü ──────────────────────────────────────────────────────────
+/// Ana ekranın menüsü: her kutu canlı bir bilgi gösterir ve kendi sayfasını açar.
+class _ExploreGrid extends StatelessWidget {
+  final WeatherSnapshot s; final Analysis a; final DateTime now;
+  const _ExploreGrid({required this.s, required this.a, required this.now});
+
+  @override
+  Widget build(BuildContext context) {
+    final w = WeatherController.I;
+    final moon = moonPhase(now);
+    final planets = planetsTonight(s.place.lat, s.place.lon, now);
+    final trend = PressureBlock.trendOf(s.hourly, now);
+    final tiles = <(IconData, String, String, Color, Color, Widget)>[
+      (Icons.nightlight_round, 'Gök & Ay', '${moon.name} · ${planets.isEmpty ? 'gezegen yok' : '${planets.length} gezegen'}', kBentoNight, const Color(0xFFF4ECCF), SkyMoonPage(s: s, a: a)),
+      (Icons.show_chart_rounded, 'Grafikler', 'Basınç ${trend ?? 'sabit'} · 72 saat', kBentoBlue, kAccent, TrendScreen(s: s)),
+      (Icons.landscape_rounded, 'Pro analiz', 'Dağ desteği +%${a.mountainBonusPct.round()}', const Color(0xFFEFEAFE), kPro, ProPage(s: s, a: a)),
+      (Icons.radar_rounded, 'Radar & uydu', 'Canlı yağış haritası', kBentoMint, kGood, const RadarPage()),
+      (Icons.flash_on_rounded, 'Gözlem & şimşek', 'Karne %${w.accuracy.round()} · beni eğit', kBentoPeach, kWarn, const ObservePage()),
+      (Icons.handyman_outlined, 'Araçlar', 'Laboratuvar, mikser, SOS…', kBentoSand, const Color(0xFF8D6E63), const ToolsPage()),
+    ];
+    return GridView.count(
+      padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.42,
+      children: [
+        for (final (icon, title, sub, bg, fg, page) in tiles)
+          Bento(
+            color: bg, padding: const EdgeInsets.all(14),
+            onTap: () { Sfx.tap(); Navigator.push(context, MaterialPageRoute(builder: (_) => page)); },
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(width: 38, height: 38, decoration: BoxDecoration(color: bg == kBentoNight ? const Color(0x22FFFFFF) : Colors.white.withValues(alpha: .85), shape: BoxShape.circle),
+                    child: Icon(icon, size: 20, color: fg)),
+                const Spacer(),
+                Icon(Icons.chevron_right_rounded, size: 20, color: bg == kBentoNight ? const Color(0xFF9DA9CF) : kInkFaint),
+              ]),
+              const Spacer(),
+              Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: T.body.copyWith(fontWeight: FontWeight.w800, fontSize: 15.5, color: bg == kBentoNight ? const Color(0xFFF4ECCF) : kInk)),
+              const SizedBox(height: 2),
+              Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: T.small.copyWith(fontSize: 12, color: bg == kBentoNight ? const Color(0xFF9DA9CF) : kInkSoft)),
+            ]),
+          ),
+      ],
+    );
+  }
+}
+
+Widget _page(String title, List<Widget> children) => Scaffold(
+      backgroundColor: kIce,
+      appBar: AppBar(title: Text(title)),
+      body: ListView(padding: const EdgeInsets.fromLTRB(18, 4, 18, 40), children: children),
+    );
+
+/// Gök & Ay: bugünün Ay saatleri, bu gece görünen gezegenler, fotoğrafçı saatleri, yıldız netliği.
+class SkyMoonPage extends StatelessWidget {
+  final WeatherSnapshot s; final Analysis a;
+  const SkyMoonPage({required this.s, required this.a});
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    const gap = SizedBox(height: 14);
+    return _page('Gök & Ay', [
+      TonightSkyBlock(lat: s.place.lat, lon: s.place.lon, now: now, cloud: s.cloudCover),
+      gap,
+      Bento(color: kBentoNight, child: Row(children: [
+        SizedBox(width: 64, height: 64, child: CustomPaint(painter: _RingPainter(s.cloudCover > 75 ? 0 : a.starClarity / 100, const Color(0xFFB7C2F2)),
+            child: Center(child: Icon(Icons.auto_awesome, color: s.cloudCover > 75 ? const Color(0xFF6B76A0) : const Color(0xFFF4ECCF))))),
+        const SizedBox(width: 16),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const BlockHead('Gece gökyüzü', dot: Color(0xFFF4ECCF), labelColor: Color(0xFF9DA9CF)),
+          const SizedBox(height: 6),
+          Text(s.cloudCover > 75 ? 'Yıldız görünümü %0' : 'Yıldız netliği %${a.starClarity.round()}', style: T.h2.copyWith(color: const Color(0xFFF4ECCF))),
+          const SizedBox(height: 4),
+          Text(s.cloudCover > 75 ? 'Gökyüzü kapalı, bugün yıldız yok kanki.' : Kanki.yildizAcik(a.starClarity), style: T.small.copyWith(color: const Color(0xFF9DA9CF))),
+        ])),
+      ])),
+      gap,
+      MoonTimesBlock(lat: s.place.lat, lon: s.place.lon, day: today),
+      gap,
+      PhotoHoursBlock(lat: s.place.lat, lon: s.place.lon, day: today),
+      gap,
+      Bento(onTap: () { Sfx.tap(); Navigator.push(context, MaterialPageRoute(builder: (_) => MoonDetailScreen(lat: s.place.lat, lon: s.place.lon))); },
+          padding: const EdgeInsets.all(16), child: Row(children: [
+            const Icon(Icons.calendar_month_rounded, color: kBlizzard), const SizedBox(width: 12),
+            Expanded(child: Text('Ay evreleri ve 7 günlük Ay saatleri', style: T.body.copyWith(fontWeight: FontWeight.w700))),
+            const Icon(Icons.chevron_right_rounded, color: kInkFaint),
+          ])),
+    ]);
+  }
+}
+
+/// Pro analiz: çevre dağlar ve sis, hava modelleri, atmosfer kesiti.
+class ProPage extends StatelessWidget {
+  final WeatherSnapshot s; final Analysis a;
+  const ProPage({required this.s, required this.a});
+  @override
+  Widget build(BuildContext context) => _page('Pro analiz', [
+        ProGate(title: 'Çevre dağlar, sis radarı ve yerel gerçeklik', child: _ProAnalysis(s: s, a: a)),
+        const SizedBox(height: 12),
+        ProGate(title: Plain.t('Süper bilgisayarlar & 50+ senaryo', 'Dünyanın hava modelleri ne diyor'), child: _Models(s: s, a: a)),
+        const SizedBox(height: 12),
+        ProGate(title: Plain.t('Atmosfer kesiti (1000–300 hPa)', 'Gökyüzünde yukarı çıktıkça sıcaklık'), child: Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(Plain.t('Atmosfer kesiti', 'Yukarıdaki hava'), style: T.h2), const SizedBox(height: 4),
+          Text(Plain.t('Yükseldikçe sıcaklık. Mavi çizgi 0 °C.', 'Yere yakından 9 km yukarıya sıcaklık. Mavi çizginin solu donuyor demek.'), style: T.small), const SizedBox(height: 12),
+          SizedBox(height: 180, child: CustomPaint(painter: _ProfilePainter(s), size: Size.infinite)),
+        ]))),
+      ]);
+}
+
+class RadarPage extends StatelessWidget {
+  const RadarPage();
+  @override
+  Widget build(BuildContext context) => _page('Radar & uydu', const [RadarMapCard()]);
+}
+
+/// Gözlem (tahmini eğit) ve şimşek ölçer.
+class ObservePage extends StatelessWidget {
+  const ObservePage();
+  @override
+  Widget build(BuildContext context) {
+    final w = WeatherController.I;
+    return _page('Gözlem & şimşek', [
+      SectionLabel('Gözlem — beni eğit', trailing: Pill('Karne %${w.accuracy.round()}', color: kGood, icon: Icons.verified_outlined)),
+      Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Dışarıda gerçekte ne var? Dokun, tahminlerimi düzelteyim.', style: T.small),
+        const SizedBox(height: 12),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final e in const [('Mercimek karı', PrecipKind.lentilSnow, Wx.lentil), ('Kar başladı', PrecipKind.snow, Wx.snow), ('Tipi var', PrecipKind.blizzard, Wx.blizzard), ('Kar tuttu', PrecipKind.snow, Wx.snow)])
+            ActionChip(avatar: WxGlyph(e.$3, size: 22), label: Text(e.$1), onPressed: () {
+              Sfx.tap(); w.observe(e.$2);
+              if (e.$2 == PrecipKind.lentilSnow) Badges.award('first_lentil');
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Teşekkürler kanki, tahminimi buna göre ayarladım.')));
+            }),
+        ]),
+      ])),
+      const SectionLabel('Şimşek'),
+      const LightningMeter(),
+    ]);
+  }
+}
+
+class ToolsPage extends StatelessWidget {
+  const ToolsPage();
+  @override
+  Widget build(BuildContext context) => _page('Araçlar', [
+        GridView.count(
+          padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.35,
+          children: [
+            _ToolTile(Icons.science_outlined, 'Yaşam Laboratuvarı', '30 hesaplayıcı', kGood, const LabScreen()),
+            _ToolTile(Icons.bedtime_outlined, 'Uyku Mikseri', 'Gerçek doğa sesleri', const Color(0xFF5B5BD6), const SleepMixerScreen()),
+            _ToolTile(Icons.flashlight_on_outlined, 'SOS Feneri', 'Işıkla yardım çağrısı', kDanger, const SosScreen()),
+            _ToolTile(Icons.inventory_2_outlined, 'Zaman Kapsülü', 'Bugünü sakla', kWarn, const TimeCapsuleScreen()),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(height: 92, child: _ToolTile(Icons.videocam_outlined, 'Hava Kanalı', 'Kendi yayınını yap', kPro, const BroadcastScreen(), wide: true)),
+      ]);
 }
 
 // ── Halka göstergeler ──────────────────────────────────────────────────────

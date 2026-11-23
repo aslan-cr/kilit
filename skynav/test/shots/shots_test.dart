@@ -23,6 +23,7 @@ import 'package:skynav/ui/paywall.dart';
 import 'package:skynav/ui/settings_screen.dart';
 import 'package:skynav/ui/road_screen.dart';
 import 'package:skynav/ui/sky_screen.dart';
+import 'package:skynav/ui/weather_screen.dart' show SkyMoonPage, ToolsPage;
 import 'package:skynav/ui/clouds.dart';
 import 'package:skynav/ui/detail_screens.dart';
 import 'package:skynav/ui/plain.dart';
@@ -58,6 +59,9 @@ WeatherSnapshot fake({PrecipKind k = PrecipKind.snow, bool day = true, double t 
         pressure: i >= -3 ? 1012 + i * .1 : 1012 - .3 - 4 * sin((i + 3) / 14), gust: 9 + 3 * sin(i / 5), uv: max(0, 2.2 * sin(((i + now.hour + 48) % 24 - 7) / 10 * pi)))],
     daily: [for (var i = 0; i < 7; i++) DayPoint(date: now.add(Duration(days: i)), tMax: t + 3 + i, tMin: t - 5 + i * .5, precipSum: i.isEven ? 3 : 0, snowSum: i.isEven ? 4 : 0, windMax: 9, weatherCode: i.isEven ? 73 : 2,
         sunrise: DateTime(now.year, now.month, now.day, 7, 48), sunset: DateTime(now.year, now.month, now.day, 17, 19))],
+    // Kar 35 dk sonra başlıyor (15 dakikalık tahmin)
+    nowcast: k == PrecipKind.none ? const [] : [for (var i = 0; i < 12; i++) NowPoint(DateTime(now.year, now.month, now.day, now.hour, now.minute - now.minute % 15).add(Duration(minutes: 15 * i)),
+        i >= 3 && i < 8 ? [.15, .35, .6, .45, .2][i - 3] : 0, i >= 3 && i < 8 ? .3 : 0)],
     ensembleMembers: 82, ensembleSnowProb: 74, ensembleRainProb: 12, modelTemp24h: const {'ecmwf': -2.4, 'gfs': -1.8, 'icon': -2.9, 'gem': -2.1}, modelPrecip24h: const {'ecmwf': 4.1, 'gfs': 3.2, 'icon': 5.0, 'gem': 3.6},
     aqPm10: 18, mountains: const [Mountain(lat: 40, lon: 41.1, elevation: 3140, distanceKm: 25, bearingDeg: 300, snowDepthM: .8, tempC: -12)],
   );
@@ -148,6 +152,8 @@ void main() {
     await shot(t, DayDetailScreen(s: s, day: s.daily[1], index: 1), '15_day', size: const Size(412, 1900));
     await shot(t, MoonDetailScreen(lat: s.place.lat, lon: s.place.lon), '16_moon', size: const Size(412, 1150));
     await shot(t, TrendScreen(s: s), '17_trend', size: const Size(412, 1050));
+    await shot(t, SkyMoonPage(s: s, a: an), '19_sky_moon', size: const Size(412, 1700));
+    await shot(t, const ToolsPage(), '20_tools', size: const Size(412, 700));
     await shot(t, const LabScreen(), '03_lab');
     await shot(t, const Paywall(), '04_paywall');
     await shot(t, const SettingsScreen(), '05_settings');

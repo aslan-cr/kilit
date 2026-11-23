@@ -51,6 +51,13 @@ class MetarObs {
       this.tempC, this.dewC, this.windKt, this.windDir, this.visibilityM, this.pressureHpa});
 }
 
+/// 15 dakikalık yağış tahmini: o çeyrekte düşen yağış (mm) ve kar (cm).
+class NowPoint {
+  final DateTime time;
+  final double precip, snowfall;
+  const NowPoint(this.time, this.precip, this.snowfall);
+}
+
 /// Tüm motor ve UI'nin tükettiği tek anlık görüntü.
 class WeatherSnapshot {
   final GeoPoint2 place;
@@ -74,6 +81,8 @@ class WeatherSnapshot {
 
   final List<HourPoint> hourly;
   final List<DayPoint> daily;
+  /// Şimdiden itibaren ~3 saatlik 15 dakikalık yağış tahmini.
+  final List<NowPoint> nowcast;
 
   // Ensemble: üye sayısı ve olasılıklar (0-100)
   final int ensembleMembers;
@@ -96,7 +105,7 @@ class WeatherSnapshot {
     this.freezingLevelM, this.snowDepthM, this.wetBulb,
     required this.weatherCode, required this.isDay,
     this.soil0, this.soil6, this.soil18, this.soil54, this.soil0Past3dAvg,
-    this.pressureLevels = const {}, this.hourly = const [], this.daily = const [],
+    this.pressureLevels = const {}, this.hourly = const [], this.daily = const [], this.nowcast = const [],
     this.ensembleMembers = 0, this.ensembleSnowProb = 0, this.ensembleRainProb = 0,
     this.modelTemp24h = const {}, this.modelPrecip24h = const {},
     this.aqPm10 = 0, this.aqPm25 = 0, this.aqDust = 0,
@@ -112,7 +121,7 @@ class WeatherSnapshot {
         visibilityM: visibilityM, cape: cape, uv: uv, freezingLevelM: freezingLevelM,
         snowDepthM: snowDepthM, wetBulb: wetBulb, weatherCode: weatherCode, isDay: isDay,
         soil0: soil0, soil6: soil6, soil18: soil18, soil54: soil54, soil0Past3dAvg: soil0Past3dAvg,
-        pressureLevels: pressureLevels, hourly: hourly, daily: daily,
+        pressureLevels: pressureLevels, hourly: hourly, daily: daily, nowcast: nowcast,
         ensembleMembers: ensembleMembers, ensembleSnowProb: ensembleSnowProb,
         ensembleRainProb: ensembleRainProb, modelTemp24h: modelTemp24h,
         modelPrecip24h: modelPrecip24h, aqPm10: aqPm10, aqPm25: aqPm25, aqDust: aqDust,
