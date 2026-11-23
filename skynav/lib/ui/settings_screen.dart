@@ -1,4 +1,5 @@
 import 'gpu.dart';
+import 'plain.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -83,6 +84,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _group([
           _tile(Icons.workspace_premium_rounded, kPro, 'Pro & arkadaş indirimi', sub: 'Paketler, davet kodun, indirim durumu', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const Paywall()))),
           _tile(Icons.emoji_events_rounded, kWarn, 'Rozetler & kar yarışı', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BadgesScreen()))),
+        ]),
+
+        const SectionLabel('Görünüm'),
+        _group([
+          _tile(Icons.record_voice_over_outlined, kGood, 'Anlaşılır dil', sub: 'Bilimsel terimler herkesin anlayacağı dile döner: hPa → hava basıncı, CAPE → gök gürültüsü riski, m/s → km/s',
+              trailing: Switch(value: Plain.on, onChanged: (v) async { await Plain.set(v); setState(() {}); })),
         ]),
 
         const SectionLabel('Güncelleme & widget'),

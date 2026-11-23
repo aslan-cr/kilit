@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../data/models.dart';
 import '../engine/formulas.dart';
 import 'hero_scene.dart' show deg, moonLitPath;
+import 'plain.dart';
 import 'sky_bodies.dart';
 import 'theme.dart';
 import 'wx_glyph.dart';
@@ -186,7 +187,7 @@ class _HourlyBlockState extends State<HourlyBlock> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         BlockHead('Saatlik', trailing: AnimatedSwitcher(duration: const Duration(milliseconds: 160), child: sel == null
             ? _Trail('${h.length} saat · kaydır', key: const ValueKey('n'))
-            : _Trail('${sel.time.hour.toString().padLeft(2, '0')}:00 · ${deg(sel.temp)} · ${(max(sel.precip, sel.snowfall * .7)).toStringAsFixed(1)} mm · ${sel.windSpeed.round()} m/s',
+            : _Trail('${sel.time.hour.toString().padLeft(2, '0')}:00 · ${deg(sel.temp)} · ${(max(sel.precip, sel.snowfall * .7)).toStringAsFixed(1)} mm · ${Plain.wind(sel.windSpeed, digits: 0)}',
                 key: ValueKey(_sel), color: kAccent))),
         const SizedBox(height: 12),
         LayoutBuilder(builder: (_, c) => GestureDetector(
@@ -396,14 +397,14 @@ class WindBlock extends StatelessWidget {
   Widget build(BuildContext context) => Bento(
         color: kBentoMint, onTap: onTap,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          BlockHead('Rüzgâr', dot: kGood, trailing: _Trail('hamle ${s.windGust.round()}', color: s.windGust > 17 ? kDanger : kInkSoft)),
+          BlockHead('Rüzgâr', dot: kGood, trailing: _Trail(Plain.on ? 'ani esinti ${(s.windGust * 3.6).round()}' : 'hamle ${s.windGust.round()}', color: s.windGust > 17 ? kDanger : kInkSoft)),
           const Spacer(),
           SizedBox(width: 100, height: 100, child: CustomPaint(painter: _CompassPainter(s.windDir))),
           const Spacer(),
           Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-            Text(s.windSpeed.toStringAsFixed(1), style: _st(24, FontWeight.w700, kInk, ls: -.48)),
+            Text(Plain.on ? '${(s.windSpeed * 3.6).round()}' : s.windSpeed.toStringAsFixed(1), style: _st(24, FontWeight.w700, kInk, ls: -.48)),
             const SizedBox(width: 4),
-            Flexible(child: Text('m/s · ${windDirName(s.windDir)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(12, FontWeight.w600, kInkSoft))),
+            Flexible(child: Text('${Plain.t('m/s', 'km/s')} · ${Plain.windFrom(s.windDir, windDirName(s.windDir), noun: true)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(12, FontWeight.w600, kInkSoft))),
           ]),
         ]),
       );
@@ -516,7 +517,7 @@ class HumidityBlock extends StatelessWidget {
             const SizedBox(height: 10),
             Text('%${s.humidity.round()}', style: _st(30, FontWeight.w700, kInk, ls: -.6)),
             const SizedBox(height: 10),
-            Text('Çiy noktası ${deg(s.dewPoint)}', style: _st(12, FontWeight.w600, kInkSoft)),
+            Text('${Plain.t('Çiy noktası', 'Buğu sıcaklığı')} ${deg(s.dewPoint)}', style: _st(12, FontWeight.w600, kInkSoft)),
           ])),
         ]),
       );
@@ -554,7 +555,7 @@ class UvBlock extends StatelessWidget {
   Widget build(BuildContext context) => Bento(
         color: const Color(0xFFFFF1E2),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const BlockHead('UV indeksi', dot: kHeat),
+          BlockHead(Plain.t('UV indeksi', 'Güneş yakıcılığı'), dot: kHeat),
           const Spacer(),
           SizedBox(width: 140, height: 70, child: CustomPaint(painter: _UvPainter(uv), child: Align(alignment: const Alignment(0, .55),
               child: Text(uv.toStringAsFixed(1), style: _st(22, FontWeight.w700, kInk, ls: -.44))))),
@@ -600,12 +601,13 @@ class PressureBlock extends StatelessWidget {
   Widget build(BuildContext context) => Bento(
         onTap: onTap,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          BlockHead('Basınç', dot: kInkSoft, trailing: onTap == null ? null : const _Trail('72 sa')),
+          BlockHead(Plain.t('Basınç', 'Hava basıncı'), dot: kInkSoft, trailing: onTap == null ? null : const _Trail('72 sa')),
           const Spacer(),
           SizedBox(width: 140, height: 118, child: CustomPaint(painter: _BaroPainter(hpa), child: Column(children: [
             const SizedBox(height: 80),
             Text('${hpa.round()}', style: _st(20, FontWeight.w700, kInk, ls: -.4, h: 1.2)),
-            Text(trend == null ? 'hPa' : 'hPa · $trend', style: _st(11, FontWeight.w600, trend == 'düşüyor' ? kWarn : kInkSoft, h: 1.2)),
+            Text(Plain.on ? (trend == 'düşüyor' ? 'düşüyor: bozabilir' : trend == 'yükseliyor' ? 'yükseliyor: açıyor' : 'hava değişmiyor')
+                : trend == null ? 'hPa' : 'hPa · $trend', style: _st(11, FontWeight.w600, trend == 'düşüyor' ? kWarn : kInkSoft, h: 1.2)),
           ]))),
           const Spacer(),
         ]),
@@ -699,7 +701,7 @@ class SoilBlock extends StatelessWidget {
     return Bento(
       color: kBentoSand,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const BlockHead('Toprak', dot: Color(0xFF8D6E63)),
+        BlockHead(Plain.t('Toprak', 'Toprak sıcaklığı'), dot: const Color(0xFF8D6E63)),
         const SizedBox(height: 10),
         ClipRRect(borderRadius: BorderRadius.circular(14), child: Column(children: [
           if (snowCover) Container(height: 10, color: Colors.white),
@@ -728,15 +730,15 @@ class FreezeBlock extends StatelessWidget {
     if (fl == null) return 'Donma seviyesi verisi yok.';
     if (el == null) return 'Rakımın bilinmiyor; konumu elle seçebilirsin.';
     final d = fl - el;
-    if (d <= 0) return 'Donma çizgisinin üstündesin: yağış kar olur.';
-    if (d < 300) return 'Donma çizgisi ${d.round()} m yukarıda: karla karışık olabilir.';
-    return 'Donma çizgisi ${d.round()} m yukarıda: yağış yağmur olur.';
+    if (d <= 0) return Plain.t('Donma çizgisinin üstündesin: yağış kar olur.', 'Kar sınırının üstündesin: yağarsa kar yağar.');
+    if (d < 300) return Plain.t('Donma çizgisi ${d.round()} m yukarıda: karla karışık olabilir.', 'Kar ${d.round()} m yukarıda başlıyor: karla karışık yağabilir.');
+    return Plain.t('Donma çizgisi ${d.round()} m yukarıda: yağış yağmur olur.', 'Kar ${d.round()} m yukarıda başlıyor: burada yağmur yağar.');
   }
 
   @override
   Widget build(BuildContext context) => Bento(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const BlockHead('Donma seviyesi', dot: kSnow),
+          BlockHead(Plain.t('Donma seviyesi', 'Kar sınırı'), dot: kSnow),
           const SizedBox(height: 10),
           Expanded(child: CustomPaint(size: Size.infinite, painter: _FreezePainter(freezeM, elevation))),
           const SizedBox(height: 10),
@@ -771,7 +773,7 @@ class _FreezePainter extends CustomPainter {
       final fy = Y(fl!);
       final dash = Paint()..color = kSnow..strokeWidth = 2;
       for (var x = 0.0; x < w; x += 9) { c.drawLine(Offset(x, fy), Offset(min(w, x + 5), fy), dash); }
-      tp.text = TextSpan(text: '0°C · ${fl!.round()} m', style: _st(11, FontWeight.w700, kSnow)); tp.layout();
+      tp.text = TextSpan(text: Plain.on ? 'Kar sınırı ${fl!.round()} m' : '0°C · ${fl!.round()} m', style: _st(11, FontWeight.w700, kSnow)); tp.layout();
       tp.paint(c, Offset(X(10), fy - 16 < 0 ? fy + 4 : fy - 16));
     }
     if (el != null) {

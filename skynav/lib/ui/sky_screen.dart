@@ -1,3 +1,4 @@
+import 'plain.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -168,7 +169,7 @@ class _SkyScreenState extends State<SkyScreen> {
           if (_tonight) const _DarkPill(Icons.schedule_rounded, 'Bu gece 22:00'),
           _DarkPill(cloudy && !_xray ? Icons.cloud_rounded : Icons.auto_awesome, cloudy && !_xray ? 'Gökyüzü kapalı' : 'Netlik %${stars.round()}'),
         ])),
-        Positioned(left: 16, bottom: 16, child: _DarkPill(Icons.explore_outlined, '${windDirName(_az)} ${_az.round()}° · yükseklik ${_pitch.round()}°')),
+        Positioned(left: 16, bottom: 16, child: _DarkPill(Icons.explore_outlined, Plain.on ? '${_facing(_az)} bakıyorsun · ${_pitch.round()}° yukarı' : '${windDirName(_az)} ${_az.round()}° · yükseklik ${_pitch.round()}°')),
         Positioned(right: 12, bottom: 12, child: Column(children: [
           _RoundDark(Icons.add_rounded, 'Yakınlaş', () => setState(() => _fov = (_fov - 15).clamp(40, 120))),
           const SizedBox(height: 8),
@@ -201,12 +202,12 @@ class _SkyScreenState extends State<SkyScreen> {
         Text(_snowSim(s), style: T.small),
       ])))),
       Padding(padding: const EdgeInsets.only(bottom: 14), child: ProGate(title: 'Uzay Laboratuvarı', child: Section('Uzay laboratuvarı', dot: const Color(0xFF00B8D9), Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        InfoRow(Icons.satellite_alt_rounded, _issPass == null ? 'ISS: geçiş hesaplanıyor…' : 'ISS sonraki geçiş ${_issPass!.start.toLocal().toString().substring(5, 16)} · tepe ${_issPass!.peakAltDeg.round()}°',
+        InfoRow(Icons.satellite_alt_rounded, _issPass == null ? 'ISS: geçiş hesaplanıyor…' : Plain.t('ISS sonraki geçiş ${_issPass!.start.toLocal().toString().substring(5, 16)} · tepe ${_issPass!.peakAltDeg.round()}°', 'Uzay İstasyonu geçiyor: ${_issPass!.start.toLocal().toString().substring(5, 16)} · en yüksek ${_issPass!.peakAltDeg.round()}° (90° tam tepe)'),
             sub: _issPass == null ? null : (_issPass!.visibleToEye ? 'Çıplak gözle görünür' : 'Görünmeyebilir'), color: const Color(0xFF00B8D9)),
         InfoRow(Icons.blur_on_rounded, 'Starlink (ilk 400 uydudan) şu an ufuk üstünde: $_starlinkUp', color: kInkSoft),
         InfoRow(Icons.scatter_plot_rounded, 'Uzay çöpü takibi: ${_debris.length} parça listede', color: kInkSoft),
         const Divider(),
-        InfoRow(Icons.wb_sunny_rounded, _sw == null ? (_swErr ?? 'Güneş fırtınası verisi alınıyor…') : 'Kp ${_sw!.kp.toStringAsFixed(1)} · ${_sw!.stormLevelTr}',
+        InfoRow(Icons.wb_sunny_rounded, _sw == null ? (_swErr ?? 'Güneş fırtınası verisi alınıyor…') : Plain.t('Kp ${_sw!.kp.toStringAsFixed(1)} · ${_sw!.stormLevelTr}', 'Güneş fırtınası: ${_sw!.stormLevelTr} (kutup ışığı ölçüsü ${_sw!.kp.toStringAsFixed(0)}/9)'),
             sub: _sw == null ? null : 'Burada aurora ihtimali %${_sw!.auroraProbAtLat.round()}', color: kSun),
         InfoRow(Icons.auto_awesome_rounded, 'Sıradaki meteor yağmuru: ${nextShower.shower.name}', sub: '${nextShower.peakUtc.toLocal().toString().substring(0, 10)} · saatte ~${nextShower.shower.zhr}', color: kPro),
         if (eclipse != null) InfoRow(Icons.brightness_3_rounded, 'Sıradaki tutulma: ${eclipse.kind} (${eclipse.type}) · ${eclipse.utcDay.toString().substring(0, 10)}', sub: '${countdownText(eclipse.utcDay.difference(DateTime.now().toUtc()))} · ${eclipse.visibleIn}', color: kInk),
@@ -487,4 +488,10 @@ class _DarkPill extends StatelessWidget {
           Text(text, style: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
         ]),
       );
+}
+
+/// Telefonun baktığı yön, gündelik dilde.
+String _facing(double az) {
+  const n = ['Kuzeye', 'Kuzeydoğuya', 'Doğuya', 'Güneydoğuya', 'Güneye', 'Güneybatıya', 'Batıya', 'Kuzeybatıya'];
+  return n[(((az % 360) + 360) % 360 + 22.5) ~/ 45 % 8];
 }

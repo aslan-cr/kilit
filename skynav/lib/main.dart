@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'ui/clouds.dart';
 import 'ui/scene_shaders.dart';
+import 'ui/plain.dart';
 import 'ui/sky_bodies.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' show PlatformDispatcher;
@@ -34,6 +35,7 @@ Future<void> main() async {
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.dark));
   await Store.init();
   await SharedState.init();
+  Plain.load();
   // Tanılama: yakalanmayan Dart hatalarını kaydet (Ayarlar > Tanılama'da görünür).
   FlutterError.onError = (d) { FlutterError.presentError(d); _saveError('${d.exception}\n${d.stack}'); };
   PlatformDispatcher.instance.onError = (e, st) { _saveError('$e\n$st'); return true; };

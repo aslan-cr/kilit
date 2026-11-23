@@ -25,6 +25,7 @@ import 'package:skynav/ui/road_screen.dart';
 import 'package:skynav/ui/sky_screen.dart';
 import 'package:skynav/ui/clouds.dart';
 import 'package:skynav/ui/detail_screens.dart';
+import 'package:skynav/ui/plain.dart';
 import 'package:skynav/ui/wx_glyph.dart' show Wx;
 import 'package:skynav/ui/hero_scene.dart' show Lightning;
 import 'package:skynav/ui/scene_shaders.dart';
@@ -138,6 +139,11 @@ void main() {
       File('$outDir/02c_scrub.png').writeAsBytesSync(bytes!.buffer.asUint8List());
     });
     await g.up(); await t.pump(const Duration(seconds: 2));
+    // Anlaşılır dil açık: aynı ekran gündelik dille
+    Plain.on = true;
+    await shot(t, const AppShell(), '02d_plain_full', size: const Size(412, 4900));
+    await shot(t, TrendScreen(s: s), '17b_trend_plain', size: const Size(412, 1050));
+    Plain.on = false;
     // Yeni sayfalar: gün detayı, Ay, basınç/rüzgâr grafikleri, canlı pencere
     await shot(t, DayDetailScreen(s: s, day: s.daily[1], index: 1), '15_day', size: const Size(412, 1900));
     await shot(t, MoonDetailScreen(lat: s.place.lat, lon: s.place.lon), '16_moon', size: const Size(412, 1150));

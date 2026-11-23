@@ -7,6 +7,7 @@ import '../engine/formulas.dart' show moonPhase, windDirName;
 import '../services/audio_service.dart';
 import 'bento.dart';
 import 'hero_scene.dart';
+import 'plain.dart';
 import 'sky_bodies.dart';
 import 'theme.dart';
 import 'wx_glyph.dart';
@@ -133,22 +134,22 @@ class _WindDay extends StatelessWidget {
     return Bento(
       color: kBentoMint,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        BlockHead('Rüzgâr', dot: kGood, trailing: gust == null ? null : Text('hamle ${gust.round()}', style: _st(12, FontWeight.w600, gust > 17 ? kDanger : kInkSoft))),
+        BlockHead('Rüzgâr', dot: kGood, trailing: gust == null ? null : Text(Plain.on ? 'ani esinti ${(gust * 3.6).round()}' : 'hamle ${gust.round()}', style: _st(12, FontWeight.w600, gust > 17 ? kDanger : kInkSoft))),
         const Spacer(),
         Row(children: [
           SizedBox(width: 52, height: 52, child: CustomPaint(painter: WindRosePainter(dir, day.windMax, compact: true))),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-              Text(day.windMax.toStringAsFixed(day.windMax < 10 ? 1 : 0), style: _st(28, FontWeight.w700, kInk, ls: -.6)),
+              Text(Plain.on ? '${(day.windMax * 3.6).round()}' : day.windMax.toStringAsFixed(day.windMax < 10 ? 1 : 0), style: _st(28, FontWeight.w700, kInk, ls: -.6)),
               const SizedBox(width: 4),
-              Text('m/s', style: _st(13, FontWeight.w700, kInkSoft)),
+              Text(Plain.t('m/s', 'km/s'), style: _st(13, FontWeight.w700, kInkSoft)),
             ]),
-            Text('${(day.windMax * 3.6).round()} km/s', style: _st(12, FontWeight.w600, kInkSoft)),
+            Text(Plain.t('${(day.windMax * 3.6).round()} km/s', 'en sert rüzgâr'), style: _st(12, FontWeight.w600, kInkSoft)),
           ])),
         ]),
         const Spacer(),
-        Text(hours.isEmpty ? '' : '${windDirName(dir)} yönünden', style: _st(12, FontWeight.w600, kInkSoft)),
+        Text(hours.isEmpty ? '' : Plain.on ? Plain.windFrom(dir, '') : '${windDirName(dir)} yönünden', style: _st(12, FontWeight.w600, kInkSoft)),
       ]),
     );
   }
@@ -167,7 +168,7 @@ class _UvDay extends StatelessWidget {
     return Bento(
       color: kBentoPeach,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        BlockHead('UV en yüksek', dot: kSun),
+        BlockHead(Plain.t('UV en yüksek', 'Güneş yakıcılığı'), dot: kSun),
         const Spacer(),
         Text(peak == null ? '–' : uv.toStringAsFixed(1), style: _st(28, FontWeight.w700, kInk, ls: -.6)),
         const SizedBox(height: 8),
@@ -406,36 +407,38 @@ class TrendScreen extends StatelessWidget {
     final past = s.hourly.where((h) => !h.time.isAfter(now) && h.pressure.isFinite).toList();
     final d3 = past.length >= 4 ? past.last.pressure - past[past.length - 4].pressure : null;
     final pressure = Bento(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      BlockHead('Basınç · hPa', dot: kInkSoft, trailing: Text(d3 == null ? '' : '3 sa ${d3 >= 0 ? '+' : '−'}${d3.abs().toStringAsFixed(1)}',
+      BlockHead(Plain.t('Basınç · hPa', 'Hava basıncı'), dot: kInkSoft, trailing: Text(d3 == null ? '' : '3 sa ${d3 >= 0 ? '+' : '−'}${d3.abs().toStringAsFixed(1)}',
           style: _st(12, FontWeight.w700, (d3 ?? 0) <= -3 ? kWarn : kInkSoft))),
       const SizedBox(height: 4),
       Text('${s.pressure.round()} hPa', style: _st(26, FontWeight.w700, kInk, ls: -.5)),
       const SizedBox(height: 10),
-      SeriesChart(series: pr, color: kAccent, t0: t0, t1: t1, now: now, unit: 'hPa', decimals: 0),
+      SeriesChart(series: pr, color: kAccent, t0: t0, t1: t1, now: now, unit: Plain.t('hPa', 'basınç'), decimals: 0),
       const SizedBox(height: 10),
       Text(d3 != null && d3 <= -3 ? 'Basınç hızla düşüyor: rüzgâr ve yağış artabilir kanki.'
-          : d3 != null && d3 >= 3 ? 'Basınç hızla yükseliyor: hava açmaya dönüyor.' : 'Basınç dengeli. 3 saatte 3 hPa\'dan fazla düşüş bozulma habercisidir.',
+          : d3 != null && d3 >= 3 ? 'Basınç hızla yükseliyor: hava açmaya dönüyor.'
+          : Plain.t('Basınç dengeli. 3 saatte 3 hPa\'dan fazla düşüş bozulma habercisidir.', 'Hava basıncı dengeli. Çizgi hızla aşağı inerse hava bozuyor demektir.'),
           style: _st(12.5, FontWeight.w500, kInkSoft)),
     ]));
     final wind = Bento(color: kBentoMint, padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      BlockHead('Rüzgâr · m/s', dot: kGood, trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+      BlockHead(Plain.t('Rüzgâr · m/s', 'Rüzgâr · km/s'), dot: kGood, trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 14, height: 3, color: kGood), const SizedBox(width: 4), Text('hız', style: _st(11, FontWeight.w600, kInkSoft)),
         const SizedBox(width: 10),
-        Container(width: 14, height: 3, color: kGood.withValues(alpha: .35)), const SizedBox(width: 4), Text('hamle', style: _st(11, FontWeight.w600, kInkSoft)),
+        Container(width: 14, height: 3, color: kGood.withValues(alpha: .35)), const SizedBox(width: 4), Text(Plain.t('hamle', 'ani esinti'), style: _st(11, FontWeight.w600, kInkSoft)),
       ])),
       const SizedBox(height: 8),
       Row(children: [
         SizedBox(width: 96, height: 96, child: CustomPaint(painter: WindRosePainter(s.windDir, s.windSpeed))),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${s.windSpeed.toStringAsFixed(1)} m/s', style: _st(26, FontWeight.w700, kInk, ls: -.5)),
-          Text('${windDirName(s.windDir)} yönünden · ${(s.windSpeed * 3.6).round()} km/s', style: _st(12.5, FontWeight.w600, kInkSoft)),
+          Text(Plain.wind(s.windSpeed), style: _st(26, FontWeight.w700, kInk, ls: -.5)),
+          Text(Plain.on ? Plain.windFrom(s.windDir, '') : '${windDirName(s.windDir)} yönünden · ${(s.windSpeed * 3.6).round()} km/s', style: _st(12.5, FontWeight.w600, kInkSoft)),
           const SizedBox(height: 8),
-          Pill('Hamle ${s.windGust.round()} m/s · ${(s.windGust * 3.6).round()} km/s', color: s.windGust > 17 ? kDanger : kAccent, icon: Icons.air),
+          Pill(Plain.on ? 'Ani esinti ${(s.windGust * 3.6).round()} km/s' : 'Hamle ${s.windGust.round()} m/s · ${(s.windGust * 3.6).round()} km/s', color: s.windGust > 17 ? kDanger : kAccent, icon: Icons.air),
         ])),
       ]),
       const SizedBox(height: 12),
-      SeriesChart(series: ws, second: gs, color: kGood, t0: t0, t1: t1, now: now, unit: 'm/s', decimals: 1, zeroBase: true),
+      SeriesChart(series: Plain.on ? [for (final e in ws) (e.$1, e.$2 * 3.6)] : ws, second: Plain.on ? [for (final e in gs) (e.$1, e.$2 * 3.6)] : gs,
+          color: kGood, t0: t0, t1: t1, now: now, unit: Plain.t('m/s', 'km/s'), decimals: Plain.on ? 0 : 1, zeroBase: true),
     ]));
     return Scaffold(
       backgroundColor: kIce,

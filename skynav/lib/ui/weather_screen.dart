@@ -13,6 +13,7 @@ import 'lab_screen.dart';
 import 'radar_map.dart';
 import 'bento.dart';
 import 'detail_screens.dart';
+import 'plain.dart';
 import 'hero_scene.dart';
 import 'theme.dart';
 import 'tools_screens.dart';
@@ -93,17 +94,21 @@ class WeatherScreen extends StatelessWidget {
         // ── Diğer ölçümler ──
         gap,
         BentoRow(height: 120,
-          left: MiniBento('Yaş termometre', s.wetBulb == null ? '–' : deg1(s.wetBulb!), (s.wetBulb ?? 1) <= 0 ? 'Kar için uygun' : 'Kar için sıcak', dot: kSnow),
+          left: MiniBento(Plain.t('Yaş termometre', 'Kar eşiği sıcaklığı'), s.wetBulb == null ? '–' : deg1(s.wetBulb!), (s.wetBulb ?? 1) <= 0 ? 'Kar için uygun' : 'Kar için sıcak', dot: kSnow),
           right: MiniBento('Görüş', s.visibilityM >= 10000 ? '10+ km' : '${(s.visibilityM / 1000).toStringAsFixed(1)} km', s.visibilityM < 1000 ? 'Sis/pus var, dikkat' : 'Açık', dot: kInkSoft),
         ),
         gapS,
         BentoRow(height: 120,
-          left: MiniBento('Hava kalitesi', '${s.aqPm10.round()}', 'PM10 µg/m³ · toz ${s.aqDust.round()}', dot: kGood),
-          right: MiniBento('Fırtına enerjisi', '${s.cape.round()}', s.cape > 1000 ? 'CAPE yüksek, gök gürleyebilir' : 'CAPE J/kg · sakin', dot: kWarn),
+          left: Plain.on
+              ? MiniBento('Hava temizliği', Plain.dust(s.aqPm10), 'Havadaki toz ve duman', dot: kGood)
+              : MiniBento('Hava kalitesi', '${s.aqPm10.round()}', 'PM10 µg/m³ · toz ${s.aqDust.round()}', dot: kGood),
+          right: Plain.on
+              ? MiniBento('Şimşek riski', Plain.stormRisk(s.cape), s.cape > 1000 ? 'Şimşek çakabilir, açıkta kalma' : 'Hava sakin', dot: kWarn)
+              : MiniBento('Fırtına enerjisi', '${s.cape.round()}', s.cape > 1000 ? 'CAPE yüksek, gök gürleyebilir' : 'CAPE J/kg · sakin', dot: kWarn),
         ),
         gapS,
         BentoRow(height: 120,
-          left: MiniBento('Bulut', '%${s.cloudCover.round()}', 'Yüksek bulut %${s.cloudHigh.round()}', dot: kInkSoft),
+          left: MiniBento('Bulut', '%${s.cloudCover.round()}', '${Plain.t('Yüksek bulut', 'İnce tül bulut')} %${s.cloudHigh.round()}', dot: kInkSoft),
           right: MiniBento('Kar örtüsü', s.snowDepthM == null ? '–' : '${(s.snowDepthM! * 100).round()} cm', (s.snowDepthM ?? 0) > .02 ? 'Yerde kar var' : 'Yerde kar yok', dot: kSnow),
         ),
         if (m != null) ...[
@@ -111,8 +116,8 @@ class WeatherScreen extends StatelessWidget {
           Bento(padding: const EdgeInsets.all(14), child: Row(children: [
             const IconBadge(Icons.flight_land_rounded, size: 40), const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Havalimanı ölçümü · ${m.icao}', style: T.body.copyWith(fontWeight: FontWeight.w700)),
-              Text('${m.distanceKm.round()} km uzakta, canlı METAR doğrulaması', style: T.small.copyWith(fontSize: 12)),
+              Text(Plain.t('Havalimanı ölçümü · ${m.icao}', 'Havalimanı termometresi'), style: T.body.copyWith(fontWeight: FontWeight.w700)),
+              Text(Plain.t('${m.distanceKm.round()} km uzakta, canlı METAR doğrulaması', '${m.distanceKm.round()} km uzaktaki gerçek ölçümle karşılaştırıldı'), style: T.small.copyWith(fontSize: 12)),
             ])),
             Text(m.tempC == null ? '–' : deg(m.tempC!), style: T.num),
           ])),
@@ -136,11 +141,11 @@ class WeatherScreen extends StatelessWidget {
         const SectionLabel('Pro analiz'),
         ProGate(title: 'Çevre dağlar, sis radarı ve yerel gerçeklik', child: _ProAnalysis(s: s, a: a)),
         const SizedBox(height: 12),
-        ProGate(title: 'Süper bilgisayarlar & 50+ senaryo', child: _Models(s: s, a: a)),
+        ProGate(title: Plain.t('Süper bilgisayarlar & 50+ senaryo', 'Dünyanın hava modelleri ne diyor'), child: _Models(s: s, a: a)),
         const SizedBox(height: 12),
-        ProGate(title: 'Atmosfer kesiti (1000–300 hPa)', child: Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Atmosfer kesiti', style: T.h2), const SizedBox(height: 4),
-          const Text('Yükseldikçe sıcaklık. Mavi çizgi 0 °C.', style: T.small), const SizedBox(height: 12),
+        ProGate(title: Plain.t('Atmosfer kesiti (1000–300 hPa)', 'Gökyüzünde yukarı çıktıkça sıcaklık'), child: Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(Plain.t('Atmosfer kesiti', 'Yukarıdaki hava'), style: T.h2), const SizedBox(height: 4),
+          Text(Plain.t('Yükseldikçe sıcaklık. Mavi çizgi 0 °C.', 'Yere yakından 9 km yukarıya sıcaklık. Mavi çizginin solu donuyor demek.'), style: T.small), const SizedBox(height: 12),
           SizedBox(height: 180, child: CustomPaint(painter: _ProfilePainter(s), size: Size.infinite)),
         ]))),
 
@@ -244,7 +249,7 @@ class _ProAnalysis extends StatelessWidget {
         Row(children: [
           Expanded(child: _MiniStat('Sis ihtimali', '%${a.fogProb.round()}')),
           Expanded(child: _MiniStat('Sis yoğunluğu', '%${a.fogDensity.round()}')),
-          Expanded(child: _MiniStat('Yerel sapma', '${a.localityNote >= 0 ? '+' : ''}${a.localityNote.toStringAsFixed(1)}°')),
+          Expanded(child: _MiniStat(Plain.t('Yerel sapma', 'Bölgene göre düzeltme'), '${a.localityNote >= 0 ? '+' : ''}${a.localityNote.toStringAsFixed(1)}°')),
         ]),
         const SizedBox(height: 10),
         _Note(Icons.cloud_queue, Kanki.sisKademeli(a.fogDensity, s.temp.round()), kInkSoft),
@@ -262,19 +267,24 @@ class _Models extends StatelessWidget {
           const IconBadge(Icons.memory_rounded, color: kPro),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${s.ensembleMembers} senaryo', style: T.h2),
+            Text(Plain.t('${s.ensembleMembers} senaryo', '${s.ensembleMembers} olası gidişat'), style: T.h2),
             Text('Kar %${s.ensembleSnowProb.round()} · Yağmur %${s.ensembleRainProb.round()}', style: T.small),
           ])),
           Pill('Güven %${a.confidence.round()}', color: kGood),
         ]),
         const SizedBox(height: 12),
         for (final e in s.modelTemp24h.entries) Padding(padding: const EdgeInsets.symmetric(vertical: 5), child: Row(children: [
-          SizedBox(width: 64, child: Text(e.key.toUpperCase(), style: T.label.copyWith(color: kInk))),
+          SizedBox(width: Plain.on ? 92 : 64, child: Text(Plain.on ? _modelHome(e.key) : e.key.toUpperCase(), style: T.label.copyWith(color: kInk))),
           Expanded(child: Text('${e.value.toStringAsFixed(1)}° ortalama', style: T.body.copyWith(fontSize: 14))),
           Text('${(s.modelPrecip24h[e.key] ?? 0).toStringAsFixed(1)} mm', style: T.body.copyWith(fontSize: 14, color: kSnow, fontWeight: FontWeight.w700)),
         ])),
       ]));
 }
+
+/// Hava modelinin hangi ülkenin merkezinden geldiği (anlaşılır dil).
+String _modelHome(String k) => switch (k.toLowerCase()) {
+      'ecmwf' => 'AVRUPA', 'gfs' => 'ABD', 'icon' => 'ALMANYA', 'gem' => 'KANADA', _ => k.toUpperCase(),
+    };
 
 class _MiniStat extends StatelessWidget {
   final String l, v;
@@ -398,7 +408,7 @@ class _ProfilePainter extends CustomPainter {
     final tp = TextPainter(textDirection: TextDirection.ltr);
     for (var i = 0; i < lv.length; i++) {
       c.drawLine(Offset(left, y(i)), Offset(size.width - 8, y(i)), grid);
-      tp.text = TextSpan(text: '${lv[i]} hPa', style: const TextStyle(fontFamily: 'Inter', fontSize: 10.5, color: kInkSoft, fontWeight: FontWeight.w600)); tp.layout();
+      tp.text = TextSpan(text: Plain.level(lv[i], s.pressureLevels[lv[i]]?['geopotential']), style: const TextStyle(fontFamily: 'Inter', fontSize: 10.5, color: kInkSoft, fontWeight: FontWeight.w600)); tp.layout();
       tp.paint(c, Offset(0, y(i) - tp.height / 2));
     }
     final zx = x(0);
