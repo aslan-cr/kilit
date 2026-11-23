@@ -45,6 +45,13 @@ android {
         }
     }
 
+    // Yerel kütüphaneler APK içinde sıkıştırılsın: indirme boyutu ~19 MB küçülür (kurulumda açılırlar).
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

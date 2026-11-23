@@ -11,11 +11,11 @@ class Sfx {
 class SleepMixer {
   static final Map<String, AudioPlayer> _players = {};
   static const tracks = <String, String>{
-    'rain': 'audio/rain_loop.mp3',
-    'forest': 'audio/forest_night.mp3',
-    'waves': 'audio/waves.mp3',
-    'campfire': 'audio/campfire.mp3',
-    'waterfall': 'audio/waterfall.mp3',
+    'rain': 'audio/rain_loop.ogg',
+    'forest': 'audio/forest_night.ogg',
+    'waves': 'audio/waves.ogg',
+    'campfire': 'audio/campfire.ogg',
+    'waterfall': 'audio/waterfall.ogg',
   };
   static const labels = {'rain': '🌧️ Gece yağmuru', 'forest': '🌲 Orman gecesi (kurbağa & cırcır)', 'waves': '🌊 Dalga sesi', 'campfire': '🔥 Kamp ateşi', 'waterfall': '💧 Şelale'};
 
