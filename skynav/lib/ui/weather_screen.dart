@@ -15,6 +15,7 @@ import 'lab_screen.dart';
 import 'radar_map.dart';
 import 'bento.dart';
 import 'detail_screens.dart';
+import 'places_screen.dart';
 import 'plain.dart';
 import 'hero_scene.dart';
 import 'theme.dart';
@@ -154,6 +155,7 @@ class WeatherScreen extends StatelessWidget {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
+  static Future<void> pickPlace(BuildContext context) => _pickPlace(context);
   static Future<void> _pickPlace(BuildContext context) =>
       showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => const _PlaceSheet());
 }
@@ -172,6 +174,8 @@ class _ExploreGrid extends StatelessWidget {
     final trend = PressureBlock.trendOf(s.hourly, now);
     final tiles = <(IconData, String, String, Color, Color, Widget)>[
       (Icons.nightlight_round, 'Gök & Ay', '${moon.name} · ${planets.isEmpty ? 'gezegen yok' : '${planets.length} gezegen'}', kBentoNight, const Color(0xFFF4ECCF), SkyMoonPage(s: s, a: a)),
+      (Icons.bookmarks_rounded, 'Yerlerim', '${LocationService.places().length} kayıtlı yer · yan yana', const Color(0xFFE6EEFF), const Color(0xFF4F6BED),
+          PlacesScreen(onAdd: () => WeatherScreen.pickPlace(context))),
       (Icons.show_chart_rounded, 'Grafikler', 'Basınç ${trend ?? 'sabit'} · 72 saat', kBentoBlue, kAccent, TrendScreen(s: s)),
       (Icons.landscape_rounded, 'Pro analiz', 'Dağ desteği +%${a.mountainBonusPct.round()}', const Color(0xFFEFEAFE), kPro, ProPage(s: s, a: a)),
       (Icons.radar_rounded, 'Radar & uydu', 'Canlı yağış haritası', kBentoMint, kGood, const RadarPage()),

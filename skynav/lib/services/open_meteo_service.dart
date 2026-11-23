@@ -56,6 +56,29 @@ class OpenMeteoService {
     );
   }
 
+  /// Hafif istek: yalnızca anlık durum ve bugünün en yüksek/en düşüğü (Yerlerim kartları).
+  Future<PlaceNow> fetchLite(GeoPoint2 p) async {
+    final j = asMap(await getJson(_client, Uri.https('api.open-meteo.com', '/v1/forecast', {
+      'latitude': coord(p.lat),
+      'longitude': coord(p.lon),
+      'current': 'temperature_2m,weather_code,is_day,wind_speed_10m,precipitation,cloud_cover',
+      'daily': 'temperature_2m_max,temperature_2m_min',
+      'forecast_days': '1',
+      'wind_speed_unit': 'ms',
+      'timezone': 'auto',
+    })));
+    final cur = asMap(j['current']);
+    final d = asMap(j['daily']);
+    final temp = toD(cur['temperature_2m']) ?? (throw const FormatException('Open-Meteo: current.temperature_2m yok'));
+    return PlaceNow(
+      place: p, temp: temp,
+      tMax: opt(numList(d['temperature_2m_max']), 0) ?? temp,
+      tMin: opt(numList(d['temperature_2m_min']), 0) ?? temp,
+      wind: toD(cur['wind_speed_10m']) ?? 0, precip: toD(cur['precipitation']) ?? 0, cloud: toD(cur['cloud_cover']) ?? 0,
+      code: toD(cur['weather_code'])?.round() ?? 0, isDay: (toD(cur['is_day']) ?? 1) >= 1,
+    );
+  }
+
   // ---------------------------------------------------------------- URI'ler
 
   Uri _forecastUri(GeoPoint2 p) => Uri.https('api.open-meteo.com', '/v1/forecast', {

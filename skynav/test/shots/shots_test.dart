@@ -27,6 +27,7 @@ import 'package:skynav/ui/weather_screen.dart' show SkyMoonPage, ToolsPage;
 import 'package:skynav/ui/clouds.dart';
 import 'package:skynav/ui/detail_screens.dart';
 import 'package:skynav/ui/plain.dart';
+import 'package:skynav/ui/places_screen.dart';
 import 'package:skynav/ui/wx_glyph.dart' show Wx;
 import 'package:skynav/ui/hero_scene.dart' show Lightning;
 import 'package:skynav/ui/scene_shaders.dart';
@@ -154,6 +155,9 @@ void main() {
     await shot(t, TrendScreen(s: s), '17_trend', size: const Size(412, 1050));
     await shot(t, SkyMoonPage(s: s, a: an), '19_sky_moon', size: const Size(412, 1700));
     await shot(t, const ToolsPage(), '20_tools', size: const Size(412, 700));
+    await shot(t, PlacesScreen(fetch: (p) async => p.name == 'Evim'
+        ? PlaceNow(place: p, temp: -3, tMax: 0, tMin: -8, wind: 4, precip: .4, cloud: 95, code: 73, isDay: true)
+        : PlaceNow(place: p, temp: 1, tMax: 4, tMin: -6, wind: 2, precip: 0, cloud: 30, code: 2, isDay: true)), '21_places', size: const Size(412, 900));
     await shot(t, const LabScreen(), '03_lab');
     await shot(t, const Paywall(), '04_paywall');
     await shot(t, const SettingsScreen(), '05_settings');

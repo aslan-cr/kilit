@@ -51,6 +51,16 @@ class MetarObs {
       this.tempC, this.dewC, this.windKt, this.windDir, this.visibilityM, this.pressureHpa});
 }
 
+/// Bir yerin anlık özeti (Yerlerim kartları): hafif istekten.
+class PlaceNow {
+  final GeoPoint2 place;
+  final double temp, tMax, tMin, wind, precip, cloud;
+  final int code;
+  final bool isDay;
+  const PlaceNow({required this.place, required this.temp, required this.tMax, required this.tMin, required this.wind,
+      required this.precip, required this.cloud, required this.code, required this.isDay});
+}
+
 /// 15 dakikalık yağış tahmini: o çeyrekte düşen yağış (mm) ve kar (cm).
 class NowPoint {
   final DateTime time;
