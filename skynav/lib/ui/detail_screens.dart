@@ -52,7 +52,7 @@ class DayDetailScreen extends StatelessWidget {
       appBar: AppBar(title: Text(title)),
       body: ListView(padding: const EdgeInsets.fromLTRB(18, 4, 18, 40), children: [
         _DayHeader(day: day, hours: hours),
-        if (hours.length > 2) ...[gap, HourlyBlock(hours: hours, fromNow: false)],
+        if (hours.length > 2) ...[gap, HourlyBlock(hours: hours, fromNow: false, onHour: (h) => showHourSheet(context, h))],
         gap,
         BentoRow(height: 168, left: _PrecipDay(day: day, hours: hours), right: _WindDay(day: day, hours: hours)),
         gap,
@@ -230,6 +230,53 @@ class _MiniBars extends CustomPainter {
   }
   @override
   bool shouldRepaint(covariant _MiniBars o) => o.v != v;
+}
+
+/// Saatlik detay: grafikte bir saate dokununca alt sayfada o saatin bütün değerleri.
+void showHourSheet(BuildContext context, HourPoint h) {
+  HapticFeedback.selectionClick();
+  final wx = wxFromCode(h.weatherCode);
+  Widget tile(IconData ic, Color c, String label, String value, {String? sub}) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: c.withValues(alpha: .08), borderRadius: BorderRadius.circular(18)),
+        child: Row(children: [
+          Icon(ic, size: 20, color: c), const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(11.5, FontWeight.w600, kInkSoft)),
+            Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(16, FontWeight.w800, kInk)),
+            if (sub != null) Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(11, FontWeight.w600, kInkFaint)),
+          ])),
+        ]),
+      );
+  final snow = h.snowfall >= .05;
+  showModalBottomSheet(context: context, showDragHandle: true, builder: (_) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+    child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        WxGlyph(wx, size: 56),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${_dayNames[h.time.weekday - 1]} ${h.time.hour.toString().padLeft(2, '0')}:00', style: _st(13, FontWeight.w600, kInkSoft)),
+          Text(wxLabel(wx), style: _st(19, FontWeight.w800, kInk)),
+        ])),
+        Text(deg(h.temp), style: _st(38, FontWeight.w700, kInk, ls: -1)),
+      ]),
+      const SizedBox(height: 16),
+      GridView.count(
+        crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 2.1,
+        children: [
+          tile(snow ? Icons.ac_unit_rounded : Icons.water_drop_outlined, kSnow, snow ? 'Kar' : 'Yağış',
+              snow ? '${h.snowfall.toStringAsFixed(1)} cm' : '${h.precip.toStringAsFixed(1)} mm'),
+          tile(Icons.air_rounded, kGood, 'Rüzgâr', Plain.wind(h.windSpeed),
+              sub: '${Plain.windFrom(h.windDir, windDirName(h.windDir), noun: true)}${h.gust.isFinite ? ' · ${Plain.t('hamle', 'ani esinti')} ${Plain.wind(h.gust, digits: 0)}' : ''}'),
+          tile(Icons.cloud_outlined, kInkSoft, 'Bulut', '%${h.cloud.round()}'),
+          tile(Icons.opacity_rounded, const Color(0xFF3B8EE8), 'Nem', '%${h.humidity.round()}', sub: '${Plain.t('çiy noktası', 'buğu')} ${deg(h.dewPoint)}'),
+          if (h.uv.isFinite) tile(Icons.wb_sunny_outlined, kSun, Plain.t('UV indeksi', 'Güneş yakıcılığı'), h.uv.toStringAsFixed(1)),
+          if (h.pressure.isFinite) tile(Icons.speed_rounded, kInkSoft, Plain.t('Basınç', 'Hava basıncı'), '${h.pressure.round()}${Plain.on ? '' : ' hPa'}'),
+        ],
+      ),
+    ]),
+  ));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

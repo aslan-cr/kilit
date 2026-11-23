@@ -149,6 +149,16 @@ void main() {
       File('$outDir/02c_scrub.png').writeAsBytesSync(bytes!.buffer.asUint8List());
     });
     await g.up(); await t.pump(const Duration(seconds: 2));
+    // Bir saate dokun: saatlik detay alt sayfası
+    await t.tapAt(t.getCenter(hb) + const Offset(40, 40));
+    for (var i = 0; i < 6; i++) { await t.pump(const Duration(milliseconds: 100)); }
+    await t.runAsync(() async {
+      final b = t.renderObject<RenderRepaintBoundary>(find.byType(RepaintBoundary).first);
+      final img = await b.toImage(pixelRatio: 1.5);
+      final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+      File('$outDir/02e_hour_sheet.png').writeAsBytesSync(bytes!.buffer.asUint8List());
+    });
+    await t.pump(const Duration(seconds: 2));
     // Anlaşılır dil açık: aynı ekran gündelik dille
     Plain.on = true;
     await shot(t, const AppShell(), '02d_plain_full', size: const Size(412, 4900));

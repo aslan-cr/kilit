@@ -77,7 +77,7 @@ class WeatherScreen extends StatelessWidget {
         gap,
         SpeakerCard(text: summary, onPlay: () { Sfx.tap(); Voice.speak(summary); }),
         if (NowcastBlock.worth(s.nowcast, now)) ...[gap, NowcastBlock(pts: s.nowcast, now: now)],
-        if (hours.isNotEmpty) ...[gap, HourlyBlock(hours: hours)],
+        if (hours.isNotEmpty) ...[gap, HourlyBlock(hours: hours, onHour: (h) => showHourSheet(context, h))],
         if (days.isNotEmpty) ...[gap, DailyBlock(days: days, onDay: (i) => DayDetailScreen.open(context, s, days[i], i))],
 
         // ── Keşfet: her konu kendi sayfasında (ana ekran alt alta uzamasın) ──

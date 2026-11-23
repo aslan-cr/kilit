@@ -165,7 +165,9 @@ class HourlyBlock extends StatefulWidget {
   final List<HourPoint> hours;
   /// true: ilk nokta "Şimdi" (ana ekran); false: tüm noktalar saatle (gün detayı).
   final bool fromNow;
-  const HourlyBlock({super.key, required this.hours, this.fromNow = true});
+  /// Bir saate dokununca (kaydırma değil): saatlik detay.
+  final void Function(HourPoint h)? onHour;
+  const HourlyBlock({super.key, required this.hours, this.fromNow = true, this.onHour});
   @override
   State<HourlyBlock> createState() => _HourlyBlockState();
 }
@@ -197,7 +199,11 @@ class _HourlyBlockState extends State<HourlyBlock> {
           onHorizontalDragUpdate: (d) => _pick(d.localPosition, c.maxWidth),
           onHorizontalDragEnd: (_) => setState(() => _sel = null),
           onTapDown: (d) => _pick(d.localPosition, c.maxWidth),
-          onTapUp: (_) => Future.delayed(const Duration(milliseconds: 1400), () { if (mounted) setState(() => _sel = null); }),
+          onTapUp: (_) {
+            final i = _sel;
+            if (widget.onHour != null && i != null) widget.onHour!(widget.hours[i]);
+            Future.delayed(const Duration(milliseconds: 1400), () { if (mounted) setState(() => _sel = null); });
+          },
           child: SizedBox(height: 150, width: double.infinity, child: CustomPaint(painter: _HourlyPainter(h, _sel, widget.fromNow))),
         )),
       ]),
