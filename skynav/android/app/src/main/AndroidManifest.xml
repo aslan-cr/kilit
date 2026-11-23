@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
@@ -20,6 +22,8 @@
         android:roundIcon="@mipmap/ic_launcher_snow">
 
         <!-- Ana aktivite: LAUNCHER filtresi yok; ikonlar aşağıdaki activity-alias'larla seçilir. -->
+        <!-- Uyku mikseri: ekran kapalıyken de çalsın (medya oynatma ön plan servisi) -->
+        <service android:name=".MixerService" android:exported="false" android:foregroundServiceType="mediaPlayback"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

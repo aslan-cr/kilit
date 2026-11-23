@@ -58,31 +58,78 @@ class SleepMixerScreen extends StatefulWidget {
 }
 
 class _SleepMixerScreenState extends State<SleepMixerScreen> {
-  final _vol = {for (final k in SleepMixer.tracks.keys) k: 0.0};
-  final _missing = <String>{};
+  final m = SleepMixer.I;
+
   @override
-  void dispose() { SleepMixer.stopAll(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: kIce,
-        appBar: AppBar(title: const Text('Uyku Mikseri')),
-        body: ListView(padding: const EdgeInsets.fromLTRB(18, 4, 18, 28), children: [
-          Bento(color: kBentoNight, padding: const EdgeInsets.all(18), child: Row(children: [
-            const IconBadge(Icons.bedtime_rounded, color: Color(0xFFF4ECCF), size: 46), const SizedBox(width: 14),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Gerçek doğa kayıtları', style: T.h2.copyWith(color: const Color(0xFFF4ECCF))),
-              const SizedBox(height: 2),
-              Text('Freesound, CC0. Sentetik ses yok. Sesleri karıştır, uykuna dal.', style: T.small.copyWith(color: const Color(0xFF9DA9CF))),
-            ])),
-          ])),
-          const SizedBox(height: 14),
-          for (final k in SleepMixer.tracks.keys) Padding(padding: const EdgeInsets.only(bottom: 12), child: _track(k)),
-        ]),
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: m,
+        builder: (context, _) {
+          final left = m.sleepLeft;
+          return Scaffold(
+            backgroundColor: kIce,
+            appBar: AppBar(title: const Text('Uyku Mikseri')),
+            body: ListView(padding: const EdgeInsets.fromLTRB(18, 4, 18, 32), children: [
+              Bento(color: kBentoNight, padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const IconBadge(Icons.bedtime_rounded, color: Color(0xFFF4ECCF), size: 46), const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(m.playing ? 'Çalıyor' : 'Gerçek doğa kayıtları', style: T.h2.copyWith(color: const Color(0xFFF4ECCF))),
+                    const SizedBox(height: 2),
+                    Text(m.playing ? 'Ekranı kapatabilirsin, sabaha kadar çalar.' : 'Freesound, CC0. Sentetik ses yok. Sesleri karıştır, uykuna dal.',
+                        style: T.small.copyWith(color: const Color(0xFF9DA9CF))),
+                  ])),
+                  if (m.playing) IconButton.filled(
+                    style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: .14)),
+                    tooltip: 'Hepsini durdur', onPressed: () { Sfx.tap(); m.stopAll(); },
+                    icon: const Icon(Icons.stop_rounded, color: Colors.white)),
+                ]),
+                const SizedBox(height: 14),
+                Row(children: [
+                  const Icon(Icons.volume_down_rounded, color: Color(0xFF9DA9CF), size: 20),
+                  Expanded(child: SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: const Color(0xFFF4ECCF), thumbColor: const Color(0xFFF4ECCF),
+                      inactiveTrackColor: Colors.white.withValues(alpha: .15), overlayColor: Colors.white.withValues(alpha: .08)),
+                      child: Slider(value: m.master, onChanged: m.setMaster))),
+                  const Icon(Icons.volume_up_rounded, color: Color(0xFF9DA9CF), size: 20),
+                ]),
+              ])),
+              const SizedBox(height: 16),
+              const BlockHead('Hazır karışımlar', dot: Color(0xFF5B5BD6)),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final e in SleepMixer.presets.entries) _chip(e.key, () { Sfx.tap(); m.preset(e.value); }),
+                if (m.last.isNotEmpty && !m.playing) _chip('Son karışımım', () { Sfx.tap(); m.preset(Map.of(m.last)); }, icon: Icons.history_rounded),
+              ]),
+              const SizedBox(height: 18),
+              BlockHead('Uyku zamanlayıcısı', dot: kWarn, trailing: left == null ? null
+                  : Text('${left.inMinutes}:${(left.inSeconds % 60).toString().padLeft(2, '0')} kaldı', style: T.small.copyWith(fontWeight: FontWeight.w700, color: kWarn))),
+              const SizedBox(height: 10),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final mins in const [15, 30, 60, 90]) _chip('$mins dk', () { Sfx.tap(); m.setSleep(Duration(minutes: mins)); }, icon: Icons.timer_outlined),
+                _chip('Kapalı', () { Sfx.tap(); m.setSleep(null); }, icon: Icons.timer_off_outlined, selected: left == null),
+              ]),
+              const SizedBox(height: 18),
+              const BlockHead('Kayıtlar'),
+              const SizedBox(height: 10),
+              for (final k in SleepMixer.tracks.keys) Padding(padding: const EdgeInsets.only(bottom: 12), child: _track(k)),
+              const SizedBox(height: 4),
+              Text('Kayıtların ses seviyeleri eşitlendi ve döngü noktaları dikişsiz birleştirildi; seslerin kendisi değiştirilmedi.', style: T.small.copyWith(fontSize: 12)),
+            ]),
+          );
+        },
+      );
+
+  Widget _chip(String text, VoidCallback onTap, {IconData? icon, bool selected = false}) => ActionChip(
+        avatar: icon == null ? null : Icon(icon, size: 18, color: selected ? Colors.white : kInkSoft),
+        label: Text(text, style: TextStyle(color: selected ? Colors.white : kInk)),
+        backgroundColor: selected ? kAccent : Colors.white,
+        side: BorderSide(color: selected ? kAccent : kLine),
+        onPressed: onTap,
       );
 
   Widget _track(String k) {
     final (icon, color) = mixerIcon(k);
-    final on = _vol[k]! > 0;
+    final v = m.level[k]!;
+    final on = v > .01;
     return Bento(
       color: on ? Color.lerp(Colors.white, color, .07)! : Colors.white,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
@@ -90,15 +137,12 @@ class _SleepMixerScreenState extends State<SleepMixerScreen> {
         Row(children: [
           IconBadge(icon, color: color, size: 40), const SizedBox(width: 12),
           Expanded(child: Text(noEmoji(SleepMixer.labels[k]!), style: T.body.copyWith(fontWeight: FontWeight.w700))),
-          Text(on ? '%${(_vol[k]! * 100).round()}' : 'kapalı', style: T.small.copyWith(fontWeight: FontWeight.w700, color: on ? color : kInkFaint)),
+          Text(on ? '%${(v * 100).round()}' : 'kapalı', style: T.small.copyWith(fontWeight: FontWeight.w700, color: on ? color : kInkFaint)),
         ]),
-        _missing.contains(k)
-            ? Padding(padding: const EdgeInsets.fromLTRB(52, 4, 0, 8), child: Text('Ses dosyası pakette yok (assets/audio/CREDITS.md)', style: T.small.copyWith(color: kDanger, fontSize: 12)))
-            : SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: color, thumbColor: color, inactiveTrackColor: color.withValues(alpha: .15)), child: Slider(value: _vol[k]!, onChanged: (v) async {
-                setState(() => _vol[k] = v);
-                final ok = await SleepMixer.setVolume(k, v);
-                if (!ok) setState(() { _missing.add(k); _vol[k] = 0; });
-              })),
+        m.missing.contains(k)
+            ? Padding(padding: const EdgeInsets.fromLTRB(52, 4, 0, 8), child: Text('Ses dosyası açılamadı', style: T.small.copyWith(color: kDanger, fontSize: 12)))
+            : SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: color, thumbColor: color, inactiveTrackColor: color.withValues(alpha: .15)),
+                child: Slider(value: v, onChanged: (x) => m.set(k, x))),
       ]),
     );
   }

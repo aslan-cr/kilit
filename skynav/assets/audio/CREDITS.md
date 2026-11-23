@@ -11,6 +11,6 @@ abetusk/noixer deposunun (https://github.com/abetusk/noixer, "Credits" bölümü
 | campfire.ogg | Kamp ateşi | cagancelik | https://freesound.org/people/cagancelik/sounds/433783 |
 | waterfall.ogg | Küçük şelale | ali-k | https://freesound.org/people/ali-k/sounds/155940 |
 
-Dosyalar uygulama boyutunu küçültmek için kayıtların kendisi değiştirilmeden Ogg Vorbis'e (q2, ~90–100 kb/sn) dönüştürülmüştür.
+İşleme (kaydın kendisi değiştirilmedi): 28 Hz altı uğultu süzüldü, ses seviyesi −24 LUFS'a eşitlendi (önce 21 dB fark vardı), tepeler −1 dBTP altına sınırlandı (önceden 0 dB üstü kırpılma vardı), ilk 4 sn sona eşit-güç geçişle bindirilerek dikişsiz döngü yapıldı, Ogg Vorbis q3.
 
 Yayından önce her bağlantıdaki lisansın "Creative Commons 0" olduğunu bir kez daha kontrol et.
