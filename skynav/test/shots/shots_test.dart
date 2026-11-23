@@ -37,12 +37,17 @@ WeatherSnapshot fake({PrecipKind k = PrecipKind.snow, bool day = true, double t 
     visibilityM: 4000, cape: 30, uv: 1.2, freezingLevelM: 900, snowDepthM: .18, wetBulb: t - .6, weatherCode: 73, isDay: day,
     soil0: -1.2, soil6: -.4, soil18: .8, soil54: 3.1, soil0Past3dAvg: -.6,
     pressureLevels: const {1000: {'temp': -2}, 925: {'temp': -6}, 850: {'temp': -9}, 700: {'temp': -16}, 500: {'temp': -30}, 300: {'temp': -48}},
-    hourly: [for (var i = 0; i < 24; i++) HourPoint(time: now.add(Duration(hours: i)), temp: t + (i % 8) * .6 - 2, precip: i % 5 == 0 ? .8 : 0, snowfall: i % 4 == 0 ? .5 : 0, windSpeed: 5, windDir: 300, cloud: 70, humidity: 85, dewPoint: t - 3, weatherCode: i % 3 == 0 ? 73 : 3)],
-    daily: [for (var i = 0; i < 7; i++) DayPoint(date: now.add(Duration(days: i)), tMax: t + 3 + i, tMin: t - 5 + i * .5, precipSum: i.isEven ? 3 : 0, snowSum: i.isEven ? 4 : 0, windMax: 9, weatherCode: i.isEven ? 73 : 2)],
+    // Figma örneğiyle aynı saatlik seri (3 saat geçmiş + 24 saat); basınç son 3 saatte sabit.
+    hourly: [for (var i = -3; i < 24; i++) HourPoint(time: now.add(Duration(hours: i)), temp: t + _ht[(i + 24) % 24] + 2, precip: _hp[(i + 24) % 24], snowfall: _hp[(i + 24) % 24] * .9, windSpeed: 5, windDir: 300, cloud: 70, humidity: 85, dewPoint: t - 3, weatherCode: _hp[(i + 24) % 24] > 0 ? 73 : 3, pressure: 1012 + i * .1)],
+    daily: [for (var i = 0; i < 7; i++) DayPoint(date: now.add(Duration(days: i)), tMax: t + 3 + i, tMin: t - 5 + i * .5, precipSum: i.isEven ? 3 : 0, snowSum: i.isEven ? 4 : 0, windMax: 9, weatherCode: i.isEven ? 73 : 2,
+        sunrise: DateTime(now.year, now.month, now.day, 7, 48), sunset: DateTime(now.year, now.month, now.day, 17, 19))],
     ensembleMembers: 82, ensembleSnowProb: 74, ensembleRainProb: 12, modelTemp24h: const {'ecmwf': -2.4, 'gfs': -1.8, 'icon': -2.9, 'gem': -2.1}, modelPrecip24h: const {'ecmwf': 4.1, 'gfs': 3.2, 'icon': 5.0, 'gem': 3.6},
     aqPm10: 18, mountains: const [Mountain(lat: 40, lon: 41.1, elevation: 3140, distanceKm: 25, bearingDeg: 300, snowDepthM: .8, tempC: -12)],
   );
 }
+
+const _ht = <double>[-4, -4, -3, -3, -2, -1, 0, 1, 1, 0, -1, -2, -3, -3, -4, -5, -5, -6, -6, -5, -5, -4, -4, -3];
+const _hp = <double>[.5, .6, .3, 0, 0, 0, .2, .8, 1.2, .9, .4, 0, 0, 0, .3, .7, .5, .2, 0, 0, 0, .4, .6, .3];
 
 Future<void> shot(WidgetTester t, Widget w, String name, {Size size = const Size(412, 915)}) async {
   await t.binding.setSurfaceSize(size);
@@ -80,7 +85,7 @@ void main() {
     WeatherController.I.debugSet(s, WeatherEngine.analyze(s));
     await shot(t, const Onboarding(onDone: _noop), '01_onboarding');
     await shot(t, const AppShell(), '02_weather');
-    await shot(t, const AppShell(), '02b_weather_full', size: const Size(412, 4200));
+    await shot(t, const AppShell(), '02b_weather_full', size: const Size(412, 4600));
     await shot(t, const LabScreen(), '03_lab');
     await shot(t, const Paywall(), '04_paywall');
     await shot(t, const SettingsScreen(), '05_settings');

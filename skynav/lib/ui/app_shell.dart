@@ -33,12 +33,12 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  static List<(IconData, IconData, String)> get _tabs => [
-    (Icons.wb_cloudy_outlined, Icons.wb_cloudy_rounded, L10n.t('nav_weather')),
-    (Icons.view_in_ar_outlined, Icons.view_in_ar_rounded, L10n.t('nav_map3d')),
-    (Icons.flight_outlined, Icons.flight_rounded, L10n.t('nav_planes')),
-    (Icons.navigation_outlined, Icons.navigation_rounded, L10n.t('nav_road')),
-    (Icons.nights_stay_outlined, Icons.nights_stay_rounded, L10n.t('nav_sky')),
+  static List<(NavIcon, String)> get _tabs => [
+    (NavIcon.cloud, L10n.t('nav_weather')),
+    (NavIcon.cube, L10n.t('nav_map3d')),
+    (NavIcon.plane, L10n.t('nav_planes')),
+    (NavIcon.arrow, L10n.t('nav_road')),
+    (NavIcon.moon, L10n.t('nav_sky')),
   ];
 
   @override
@@ -47,7 +47,8 @@ class _AppShellState extends State<AppShell> {
         builder: (_, __) => Scaffold(
           extendBody: true,
           body: Stack(children: [
-            Positioned.fill(child: SkyBackground(state: _sky())),
+            // Hava sekmesinde gökyüzü üstteki sahnede; zemin sade buz beyazı (Figma).
+            Positioned.fill(child: _i == 0 ? const ColoredBox(color: kIce) : SkyBackground(state: _sky())),
             SafeArea(
               bottom: false,
               child: Column(children: [
@@ -108,9 +109,9 @@ class _Banner extends StatelessWidget {
       );
 }
 
-/// Yüzen buzlu cam alt menü.
+/// Yüzen buzlu cam alt menü (Figma "Alt menü").
 class _NavBar extends StatelessWidget {
-  final int index; final List<(IconData, IconData, String)> tabs; final ValueChanged<int> onTap;
+  final int index; final List<(NavIcon, String)> tabs; final ValueChanged<int> onTap;
   const _NavBar({required this.index, required this.tabs, required this.onTap});
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -121,22 +122,66 @@ class _NavBar extends StatelessWidget {
             radius: 26, padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
             child: Row(children: [
               for (var i = 0; i < tabs.length; i++)
-                Expanded(child: InkWell(
-                  borderRadius: BorderRadius.circular(18), onTap: () => onTap(i),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220), curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(color: i == index ? kAccent.withValues(alpha: .12) : Colors.transparent, borderRadius: BorderRadius.circular(18)),
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(i == index ? tabs[i].$2 : tabs[i].$1, size: 23, color: i == index ? kAccent : kInkSoft),
-                      const SizedBox(height: 3),
-                      Text(tabs[i].$3, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontFamily: 'Inter', fontSize: 10.5, fontWeight: i == index ? FontWeight.w700 : FontWeight.w600, color: i == index ? kAccent : kInkSoft)),
-                    ]),
+                Expanded(child: Semantics(
+                  selected: i == index, button: true, label: tabs[i].$2,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(18), onTap: () => onTap(i),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 220), curve: Curves.easeOutCubic,
+                      padding: const EdgeInsets.symmetric(vertical: 7),
+                      decoration: BoxDecoration(color: i == index ? kAccent.withValues(alpha: .12) : Colors.transparent, borderRadius: BorderRadius.circular(18)),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        SizedBox(width: 22, height: 22, child: CustomPaint(painter: _NavIconPainter(tabs[i].$1, i == index ? kAccent : kInkSoft))),
+                        const SizedBox(height: 3),
+                        Text(tabs[i].$2, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontFamily: 'Inter', fontSize: 10.5, fontWeight: i == index ? FontWeight.w700 : FontWeight.w600, color: i == index ? kAccent : kInkSoft)),
+                      ]),
+                    ),
                   ),
                 )),
             ]),
           ),
         ),
       );
+}
+
+enum NavIcon { cloud, cube, plane, arrow, moon }
+
+/// Figma'daki alt menü ikonları (24'lük kutu).
+class _NavIconPainter extends CustomPainter {
+  final NavIcon icon; final Color color;
+  _NavIconPainter(this.icon, this.color);
+  @override
+  void paint(Canvas c, Size s) {
+    c.scale(s.width / 24);
+    final fill = Paint()..color = color;
+    final stroke = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.8..strokeJoin = StrokeJoin.round..strokeCap = StrokeCap.round;
+    switch (icon) {
+      case NavIcon.cloud:
+        final p = Path()..moveTo(7, 18)
+          ..arcToPoint(const Offset(6.4, 9), radius: const Radius.circular(4.5))
+          ..arcToPoint(const Offset(17.9, 10.6), radius: const Radius.circular(6))
+          ..arcToPoint(const Offset(17, 18), radius: const Radius.circular(3.8))..close();
+        c.drawPath(p, fill);
+      case NavIcon.cube:
+        final p = Path()..moveTo(12, 3)..lineTo(20, 7.5)..lineTo(20, 16.5)..lineTo(12, 21)..lineTo(4, 16.5)..lineTo(4, 7.5)..close()
+          ..moveTo(4, 7.5)..lineTo(12, 12)..lineTo(20, 7.5)..moveTo(12, 12)..lineTo(12, 21);
+        c.drawPath(p, stroke);
+      case NavIcon.plane:
+        final p = Path()..moveTo(21, 16)..lineTo(21, 14)..lineTo(13, 9)..lineTo(13, 3.5)
+          ..arcToPoint(const Offset(10, 3.5), radius: const Radius.circular(1.5), clockwise: false)
+          ..lineTo(10, 9)..lineTo(2, 14)..lineTo(2, 16)..lineTo(10, 13.5)..lineTo(10, 19)..lineTo(8, 20.5)..lineTo(8, 22)
+          ..lineTo(11.5, 21)..lineTo(15, 22)..lineTo(15, 20.5)..lineTo(13, 19)..lineTo(13, 13.5)..close();
+        c.drawPath(p, fill);
+      case NavIcon.arrow:
+        c.drawPath(Path()..moveTo(12, 2)..lineTo(19, 21)..lineTo(12, 17)..lineTo(5, 21)..close(), stroke);
+      case NavIcon.moon:
+        final p = Path()..moveTo(20, 14.5)
+          ..arcToPoint(const Offset(9.5, 4), radius: const Radius.circular(8), largeArc: true)
+          ..arcToPoint(const Offset(20, 14.5), radius: const Radius.circular(6.5), clockwise: false)..close();
+        c.drawPath(p, stroke);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant _NavIconPainter o) => o.icon != icon || o.color != color;
 }
