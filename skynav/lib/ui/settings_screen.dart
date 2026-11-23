@@ -37,7 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _taps++;
     if (_taps >= 7 && !_devUnlocked) {
       _devUnlocked = true; await Store.put('dev_unlocked', true);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Geliştirici modu açıldı 🛠️')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Geliştirici modu açıldı.')));
     }
     setState(() {});
   }
@@ -107,6 +107,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _tile(Icons.gavel_rounded, kInkSoft, 'Kullanım Şartları', onTap: () => _show('Kullanım Şartları', termsText)),
           _tile(Icons.shield_outlined, kInkSoft, 'Veri Kullanımı & İzinler', onTap: () => _show('Veri Kullanımı & İzinler', dataText)),
           _tile(Icons.app_settings_alt_outlined, kAccent, 'Uygulama izinlerini değiştir', onTap: openAppSettings),
+          _tile(Icons.copyright_rounded, kInkSoft, 'Kaynaklar ve lisanslar', sub: 'Ay haritası, doğa sesleri, yazı tipi, haritalar', onTap: () => _show('Kaynaklar ve lisanslar', creditsText)),
         ]),
 
         if (_devUnlocked) ...[
@@ -157,3 +158,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _show(String t, String body) => showModalBottomSheet(context: context, isScrollControlled: true, builder: (_) => DraggableScrollableSheet(
       expand: false, initialChildSize: .8, builder: (_, c) => ListView(controller: c, padding: const EdgeInsets.fromLTRB(24, 0, 24, 32), children: [Text(t, style: T.h1), const SizedBox(height: 14), Text(body, style: T.body)])));
 }
+
+/// Üçüncü taraf içerikler ve lisansları (CC BY gibi lisanslar kaynak gösterilmesini ister).
+const creditsText = '''Ay görüntüsü: Solar System Scope (solarsystemscope.com) Ay dokusu, NASA Lunar Reconnaissance Orbiter (LRO) verisine dayanır. Lisans: CC BY 4.0. Uygulamada küreye sarılıp gerçek evreye göre aydınlatılır.
+
+Doğa sesleri: Freesound.org kullanıcıları ali-k, greysound, florianreichelt, cagancelik. Lisans: CC0 (kamu malı). Gerçek kayıtlardır, sentetik ses yoktur.
+
+Yazı tipi: Inter, Rasmus Andersson. Lisans: SIL Open Font License 1.1.
+
+Haritalar ve uydu: Esri World Imagery ve World Hillshade, OpenStreetMap katkıcıları (ODbL), NASA GIBS (MODIS), RainViewer radar.
+
+Hava verisi: Open-Meteo (CC BY 4.0), havalimanı ölçümleri NOAA Aviation Weather Center, uzay havası NOAA SWPC. Uçaklar: OpenSky Network. Uydular: CelesTrak. Yol tarifi: OSRM. Yer arama: Photon (komoot), Overpass API (OpenStreetMap).
+
+Bulutlar, dağlar ve gökyüzü uygulamanın kendi kodu ile çizilir.''';

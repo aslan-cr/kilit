@@ -20,6 +20,7 @@ import '../services/location_service.dart';
 import '../services/voice_service.dart';
 import '../services/weather_repository.dart';
 import '../widgets/widget_service.dart';
+import 'app_icons.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -222,7 +223,7 @@ class _RoadScreenState extends State<RoadScreen> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 14),
           leading: Container(width: 40, height: 40, alignment: Alignment.center,
               decoration: BoxDecoration(color: [kGood, kWarn, kHeat, kDanger][it.level0to3.clamp(0, 3)].withValues(alpha: .12), borderRadius: BorderRadius.circular(13)),
-              child: Text(it.emoji, style: const TextStyle(fontSize: 20))),
+              child: Icon(roadIcon(it.id), size: 20, color: [kGood, kWarn, kHeat, kDanger][it.level0to3.clamp(0, 3)])),
           title: Text(it.title, style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 14.5, color: kInk)),
           subtitle: Text(it.kanki, style: T.small.copyWith(fontSize: 12.5), maxLines: 2, overflow: TextOverflow.ellipsis),
           trailing: Text(it.valueText, style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w800, color: [kGood, kWarn, kHeat, kDanger][it.level0to3.clamp(0, 3)])),

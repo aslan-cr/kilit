@@ -162,7 +162,7 @@ class ProService extends ChangeNotifier {
     final g = _db.collection('users').doc(uid).collection('grants').doc('eco_30d');
     if ((await g.get()).exists) return false;
     await g.set({'kind': 'eco', 'days': 30, 'until': Timestamp.fromDate(now.add(const Duration(days: 30))), 'at': FieldValue.serverTimestamp()});
-    lastMessage = '🎉 4 uygulamam = 1 ay Pro! Aynı hesapla 4 uygulamayı kullandığın için 30 gün SkyNav Pro hediye.';
+    lastMessage = '4 uygulamam = 1 ay Pro! Aynı hesapla 4 uygulamayı kullandığın için 30 gün SkyNav Pro hediye.';
     return true;
   }
 
@@ -210,8 +210,8 @@ class ProService extends ChangeNotifier {
       await Store.put('launch_checked', true);
       if (rank > 0) {
         lastMessage = rank <= 5
-            ? '🏆 Tebrikler kanki! $rank. kullanıcısın: Ömür Boyu SkyNav Pro hediye!'
-            : '🎁 Tebrikler kanki! $rank. kullanıcısın: 5 ay (150 gün) SkyNav Pro hediye!';
+            ? 'Tebrikler kanki! $rank. kullanıcısın: Ömür Boyu SkyNav Pro hediye!'
+            : 'Tebrikler kanki! $rank. kullanıcısın: 5 ay (150 gün) SkyNav Pro hediye!';
       }
     } catch (e) { debugPrint('launch: $e'); }
   }
@@ -250,7 +250,7 @@ class ProService extends ChangeNotifier {
             {'friend': me, 'code': code, 'days': 7, 'until': until, 'consumed': false, 'at': FieldValue.serverTimestamp()});
         return null;
       });
-      if (err == null) { lastMessage = '🎉 Davet onaylandı! 7 gün SkyNav Pro senin; arkadaşına da 7 gün gitti.'; await refresh(); }
+      if (err == null) { lastMessage = 'Davet onaylandı! 7 gün SkyNav Pro senin; arkadaşına da 7 gün gitti.'; await refresh(); }
       return err;
     } catch (e) { return 'Şu an doğrulayamadım, internetini kontrol edip tekrar dene.'; }
   }
@@ -287,7 +287,7 @@ class ProService extends ChangeNotifier {
           until = DateTime.now().add(const Duration(days: 7));
           await credit.reference.update({'consumed': true, 'consumedAt': FieldValue.serverTimestamp()});
           await Store.put('discount_until', until.millisecondsSinceEpoch);
-          lastMessage = '🏷️ İndirim açıldı! 7 gün boyunca Pro paketlerinde indirim var.';
+          lastMessage = 'İndirim açıldı! 7 gün boyunca Pro paketlerinde indirim var.';
         }
       } catch (_) {}
     }

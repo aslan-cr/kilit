@@ -56,7 +56,7 @@ class BillingService extends ChangeNotifier {
       if (p.status == PurchaseStatus.purchased || p.status == PurchaseStatus.restored) {
         final life = p.productID == idLife || p.productID == idLifeDisc;
         await ProService.I.grantPurchase(lifetime: life);
-        message = 'Teşekkürler kanki! SkyNav Pro açıldı 🎉';
+        message = 'Teşekkürler kanki! SkyNav Pro açıldı.';
       } else if (p.status == PurchaseStatus.error) {
         message = 'Satın alma tamamlanamadı.';
       }

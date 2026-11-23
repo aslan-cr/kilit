@@ -22,6 +22,7 @@ import 'package:skynav/ui/sky_screen.dart';
 import 'package:skynav/ui/sky_background.dart';
 import 'package:skynav/ui/clouds.dart';
 import 'package:skynav/ui/scene_shaders.dart';
+import 'package:skynav/ui/sky_bodies.dart';
 import 'package:skynav/ui/theme.dart';
 import 'package:skynav/widgets/widget_faces.dart';
 
@@ -78,7 +79,7 @@ void main() {
     await _font('MaterialIcons', ['/tmp/fl/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf']);
     await _font('InterDisplay', ['/usr/share/fonts/opentype/inter/InterDisplay-Light.otf', '/usr/share/fonts/opentype/inter/InterDisplay-Medium.otf']);
     await _font('NotoColorEmoji', ['/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf']);
-    await Future.wait([CloudShader.load(), MountainShader.load()]);
+    await Future.wait([CloudShader.load(), MountainShader.load(), MoonRenderer.load()]);
     final tmp = Directory.systemTemp.createTempSync('hive');
     await Store.init(testPath: tmp.path);
     await Store.put('onboarding_done', true);

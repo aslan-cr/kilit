@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'ui/clouds.dart';
 import 'ui/scene_shaders.dart';
+import 'ui/sky_bodies.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' show PlatformDispatcher;
 import 'services/shared_state.dart';
@@ -44,7 +45,7 @@ Future<void> main() async {
   await Cloud.init();
   await Notify.init();
   // GPU bulut ve dağ programları (yüklenemezse sahne eski çizimle devam eder).
-  await Future.wait([CloudShader.load(), MountainShader.load()]);
+  await Future.wait([CloudShader.load(), MountainShader.load(), MoonRenderer.load()]);
   runApp(const SkyNavApp());
 }
 

@@ -79,7 +79,7 @@ class WeatherScreen extends StatelessWidget {
         gap,
         BentoRow(height: 170, left: HumidityBlock(s: s), right: UvBlock(uv: s.uv)),
         gap,
-        BentoRow(height: 200, left: PressureBlock(hpa: s.pressure, trend: PressureBlock.trendOf(s.hourly, now)), right: MoonBlock(now: now, south: s.place.lat < 0)),
+        BentoRow(height: 200, left: PressureBlock(hpa: s.pressure, trend: PressureBlock.trendOf(s.hourly, now)), right: MoonBlock(now: now, south: s.place.lat < 0, lat: s.place.lat, lon: s.place.lon)),
         gap,
         BentoRow(height: 244, left: SoilBlock(s: s), right: FreezeBlock(freezeM: s.freezingLevelM, elevation: s.place.elevation)),
 

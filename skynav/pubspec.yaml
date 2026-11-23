@@ -90,8 +90,10 @@ flutter:
   shaders:
     - shaders/clouds.frag
     - shaders/mountains.frag
+    - shaders/moon.frag
   assets:
     - assets/audio/
+    - assets/moon/
   fonts:
     - family: Inter
       fonts:

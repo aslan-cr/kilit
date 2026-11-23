@@ -5,6 +5,7 @@ import '../astro/astro_math.dart' show sunAltitude, sunRaDec, moonRaDec, raDecTo
 import '../engine/formulas.dart';
 import 'clouds.dart';
 import 'scene_shaders.dart';
+import 'sky_bodies.dart';
 import 'wx_glyph.dart';
 
 /// Ana ekranın üst sahnesi (Figma "Sahne", 376×380): kodla çizilmiş manzara.
@@ -259,11 +260,12 @@ class _ScenePainter extends CustomPainter {
     if (!sl.visible) {
       // Ay ufkun altında: çizilmez (uydurma ay yok).
     } else if (!night) {
-      final glowA = (.75 * (1 - cover * .45)).clamp(.25, .75);
-      c.drawCircle(disc, 110 * k, Paint()..shader = RadialGradient(colors: [pal.sun.withValues(alpha: glowA), pal.sun.withValues(alpha: 0)]).createShader(Rect.fromCircle(center: disc, radius: 110 * k)));
-      if (cover < .92) c.drawCircle(disc, 28 * k, Paint()..color = pal.sun.withValues(alpha: .9 - cover * .35));
+      // Gerçekçi güneş: yüksekliğe göre renk, ufukta basık disk, çok katmanlı parlama
+      paintSun(c, disc, 22 * k, alt: ScenePalette.sunAlt(s), cover: cover);
     } else {
-      _moon(c, disc, k);
+      // Gerçek Ay: NASA LRO haritası, gözlemciye göre evre ve eğim
+      final mv = MoonView.at(s.place.lat, s.place.lon, DateTime.now());
+      if (!MoonRenderer.paint(c, disc, 24 * k, mv, alpha: (1 - cover * .75).clamp(.25, 1.0))) _moon(c, disc, k);
     }
 
     // Yedek: GPU programları yüklenemezse eski kodla çizilmiş bulut ve dağlar.
@@ -344,6 +346,11 @@ class _ScenePainter extends CustomPainter {
   }
 
   void _front(Canvas c, Size sz, ScenePalette pal, double W, double H, double k) {
+    // İnce bulutların arkasından sızan güneş parıltısı (bulutların üstüne)
+    if (s.isDay) {
+      final sl = skyLight(s, W, H);
+      if (sl.visible) paintSunBloom(c, sl.pos, 22 * k, alt: ScenePalette.sunAlt(s), cover: (s.cloudCover / 100).clamp(0.0, 1.0));
+    }
     // Sis bandı
     final fog = (a.fogProb * a.fogDensity / 10000).clamp(0.0, 1.0);
     if (fog > .05 || wx == Wx.fog) {

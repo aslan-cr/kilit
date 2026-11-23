@@ -17,7 +17,7 @@ class SleepMixer {
     'campfire': 'audio/campfire.ogg',
     'waterfall': 'audio/waterfall.ogg',
   };
-  static const labels = {'rain': '🌧️ Gece yağmuru', 'forest': '🌲 Orman gecesi (kurbağa & cırcır)', 'waves': '🌊 Dalga sesi', 'campfire': '🔥 Kamp ateşi', 'waterfall': '💧 Şelale'};
+  static const labels = {'rain': 'Gece yağmuru', 'forest': 'Orman gecesi (kurbağa & cırcır)', 'waves': 'Dalga sesi', 'campfire': 'Kamp ateşi', 'waterfall': 'Şelale'};
 
   /// false dönerse ses dosyası pakette yok demektir (assets/audio/CREDITS.md).
   static Future<bool> setVolume(String key, double v) async {

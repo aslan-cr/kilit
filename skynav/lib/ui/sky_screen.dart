@@ -21,6 +21,7 @@ import '../services/voice_service.dart';
 import '../services/weather_repository.dart';
 import 'bento.dart';
 import 'clouds.dart';
+import 'sky_bodies.dart';
 import 'hero_scene.dart' show moonLitPath;
 import 'theme.dart';
 import 'widgets.dart';
@@ -183,7 +184,7 @@ class _SkyScreenState extends State<SkyScreen> {
         )),
       ]))),
       const SizedBox(height: 14),
-      BentoRow(height: 200, left: MoonBlock(now: t, south: _lat < 0), right: _ClarityBlock(clarity: cloudy ? 0.0 : stars.toDouble(), cloudy: cloudy)),
+      BentoRow(height: 200, left: MoonBlock(now: t, south: _lat < 0, lat: _lat, lon: _lon), right: _ClarityBlock(clarity: cloudy ? 0.0 : stars.toDouble(), cloudy: cloudy)),
       const SizedBox(height: 14),
       Padding(padding: const EdgeInsets.only(bottom: 14), child: ProGate(title: 'Sensörlü 360° Kubbe, Bulutları Kapat & Zaman Makinesi', child: Section('Pro gökyüzü araçları', dot: kPro, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _SwitchRow(Icons.screen_rotation_alt_rounded, kAccent, '360° sensör modu', 'Telefonu gökyüzüne tut, harita seninle döner', _sensor, _toggleSensor),
@@ -348,13 +349,15 @@ class _DomePainter extends CustomPainter {
       for (final s in brightStars) { final o = P(s.raDeg, s.decDeg); if (o != null) c.drawCircle(o, max(1.0, 3.6 - s.mag * .8), Paint()..color = Colors.white.withValues(alpha: starVis)); }
     }
     // Güneş, Ay, gezegenler
-    final sun = sunRaDec(t); final so = P(sun.raDeg, sun.decDeg); if (so != null) c.drawCircle(so, 16, Paint()..color = const Color(0xFFFFD23F));
+    final sun = sunRaDec(t); final so = P(sun.raDeg, sun.decDeg); if (so != null) paintSun(c, so, 13, alt: sunAltitude(lat, lon, t), cover: cloud);
     final mn = moonRaDec(t); final mo = P(mn.raDeg, mn.decDeg);
     if (mo != null) {
       final ph = moonPhaseInfo(t);
-      c.drawCircle(mo, 24, Paint()..shader = RadialGradient(colors: [const Color(0xFFF4ECCF).withValues(alpha: day ? 0 : .25), const Color(0x00F4ECCF)]).createShader(Rect.fromCircle(center: mo, radius: 24)));
-      c.drawCircle(mo, 12, Paint()..color = (day ? Colors.white : const Color(0xFF2B3866)).withValues(alpha: day ? .25 : .9));
-      c.drawPath(moonLitPath(mo, 12, ph.ageDays / 29.530588853, south: lat < 0), Paint()..color = const Color(0xFFF4ECCF));
+      if (!MoonRenderer.paint(c, mo, 13, MoonView.at(lat, lon, t), alpha: day ? .85 : 1)) {
+        c.drawCircle(mo, 24, Paint()..shader = RadialGradient(colors: [const Color(0xFFF4ECCF).withValues(alpha: day ? 0 : .25), const Color(0x00F4ECCF)]).createShader(Rect.fromCircle(center: mo, radius: 24)));
+        c.drawCircle(mo, 12, Paint()..color = (day ? Colors.white : const Color(0xFF2B3866)).withValues(alpha: day ? .25 : .9));
+        c.drawPath(moonLitPath(mo, 12, ph.ageDays / 29.530588853, south: lat < 0), Paint()..color = const Color(0xFFF4ECCF));
+      }
     }
     if (planetsOn) {
       for (final name in const ['Merkür', 'Venüs', 'Mars', 'Jüpiter', 'Satürn']) {

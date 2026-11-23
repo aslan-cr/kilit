@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../engine/formulas.dart';
 import 'hero_scene.dart' show deg, moonLitPath;
+import 'sky_bodies.dart';
 import 'theme.dart';
 import 'wx_glyph.dart';
 
@@ -546,8 +547,8 @@ class _BaroPainter extends CustomPainter {
 
 // ── Ay evresi ──────────────────────────────────────────────────────────────
 class MoonBlock extends StatelessWidget {
-  final DateTime now; final bool south;
-  const MoonBlock({super.key, required this.now, this.south = false});
+  final DateTime now; final bool south; final double lat, lon;
+  const MoonBlock({super.key, required this.now, this.south = false, this.lat = 39, this.lon = 35});
   @override
   Widget build(BuildContext context) {
     final m = moonPhase(now);
@@ -556,7 +557,7 @@ class MoonBlock extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const BlockHead('Ay', dot: Color(0xFFF4ECCF), labelColor: Color(0xFF9DA9CF)),
         const Spacer(),
-        SizedBox(width: 92, height: 92, child: CustomPaint(painter: _MoonPainter(m.fraction, south))),
+        SizedBox(width: 92, height: 92, child: CustomPaint(painter: _MoonPainter(m.fraction, south, MoonView.at(lat, lon, now)))),
         const Spacer(),
         Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(13, FontWeight.w700, const Color(0xFFF4ECCF))),
         const SizedBox(height: 4),
@@ -567,10 +568,13 @@ class MoonBlock extends StatelessWidget {
 }
 
 class _MoonPainter extends CustomPainter {
-  final double f; final bool south;
-  _MoonPainter(this.f, this.south);
+  final double f; final bool south; final MoonView mv;
+  _MoonPainter(this.f, this.south, this.mv);
   @override
   void paint(Canvas c, Size s) {
+    // Gerçek Ay (NASA LRO haritası); bloktaki görünüm ufuk renginden bağımsız (yüksek Ay gibi)
+    final flat = MoonView(illum: mv.illum, phaseAngle: mv.phaseAngle, bright: mv.bright, rot: mv.rot, alt: 45);
+    if (MoonRenderer.paint(c, s.center(Offset.zero), s.width * .41, flat)) return;
     final k = s.width / 92; c.scale(k);
     const ctr = Offset(46, 46), r = 38.0;
     c.drawCircle(ctr, 46, Paint()..shader = RadialGradient(colors: [const Color(0xFFF4ECCF).withValues(alpha: .25), const Color(0x00F4ECCF)], stops: const [.6, 1])
