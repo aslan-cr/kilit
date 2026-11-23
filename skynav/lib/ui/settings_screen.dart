@@ -1,3 +1,4 @@
+import 'gpu.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -143,6 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
             const SizedBox(height: 4),
             Text('İkon: ${p?.getString('sn_icon_key') ?? 'kar (varsayılan)'} · bekleyen: ${p?.getString('sn_icon_pending') ?? '-'}', style: T.small.copyWith(fontSize: 11.5)),
+            Text(Gpu.summary, style: T.small.copyWith(fontSize: 11.5)),
           ]));
         }),
         const SizedBox(height: 18),

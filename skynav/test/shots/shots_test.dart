@@ -23,6 +23,7 @@ import 'package:skynav/ui/settings_screen.dart';
 import 'package:skynav/ui/road_screen.dart';
 import 'package:skynav/ui/sky_screen.dart';
 import 'package:skynav/ui/clouds.dart';
+import 'package:skynav/ui/hero_scene.dart' show Lightning;
 import 'package:skynav/ui/scene_shaders.dart';
 import 'package:skynav/ui/sky_bodies.dart';
 import 'package:skynav/ui/bento.dart';
@@ -70,12 +71,13 @@ double _lonForSun(double alt) {
 const _ht = <double>[-4, -4, -3, -3, -2, -1, 0, 1, 1, 0, -1, -2, -3, -3, -4, -5, -5, -6, -6, -5, -5, -4, -4, -3];
 const _hp = <double>[.5, .6, .3, 0, 0, 0, .2, .8, 1.2, .9, .4, 0, 0, 0, .3, .7, .5, .2, 0, 0, 0, .4, .6, .3];
 
-Future<void> shot(WidgetTester t, Widget w, String name, {Size size = const Size(412, 915)}) async {
+Future<void> shot(WidgetTester t, Widget w, String name, {Size size = const Size(412, 915), Duration extra = Duration.zero}) async {
   await t.binding.setSurfaceSize(size);
   t.view.devicePixelRatio = 2;
   final key = GlobalKey();
   await t.pumpWidget(RepaintBoundary(key: key, child: MaterialApp(debugShowCheckedModeBanner: false, theme: buildTheme(), home: w)));
   for (var i = 0; i < 6; i++) { await t.pump(const Duration(milliseconds: 250)); }
+  if (extra > Duration.zero) await t.pump(extra);
   await t.runAsync(() async {
     final b = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
     final img = await b.toImage(pixelRatio: 1.5);
@@ -149,6 +151,17 @@ void main() {
       WeatherController.I.debugSet(v, WeatherEngine.analyze(v));
       await shot(t, const AppShell(), name, size: const Size(412, 560));
     }
+    // Fırtına: ilk şimşek çakışının tam anı (sahne saati açılıştan beri geçen saniye)
+    final storm = variant(17, 96, 95, 6, true, wind: 11);
+    WeatherController.I.debugSet(storm, WeatherEngine.analyze(storm));
+    var strike = 2.0;
+    while (Lightning.at(strike) == null || Lightning.at(strike)!.$2 < .9) { strike += .01; }
+    await shot(t, const AppShell(), '06i_thunder', size: const Size(412, 560), extra: Duration(milliseconds: ((strike - 1.5) * 1000).round() + 20));
+    // Sis: nemli, durgun, görüş 250 m
+    final fogSnap = WeatherSnapshot(place: s.place, fetchedAt: s.fetchedAt, temp: 3, feelsLike: 2, humidity: 99, dewPoint: 2.9, pressure: 1022, windSpeed: 1.2, windDir: 90, windGust: 2,
+        cloudCover: 55, cloudHigh: 0, precip: 0, snowfall: 0, visibilityM: 250, cape: 0, uv: 1, freezingLevelM: 2000, snowDepthM: 0, weatherCode: 45, isDay: true, hourly: s.hourly, daily: s.daily);
+    WeatherController.I.debugSet(fogSnap, WeatherEngine.analyze(fogSnap));
+    await shot(t, const AppShell(), '06j_fog', size: const Size(412, 560));
     await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: RoadScreen())), '07_road');
     await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: RoadScreen())), '07b_road_full', size: const Size(412, 1500));
     await shot(t, const Scaffold(backgroundColor: kIce, body: SafeArea(child: SkyScreen())), '08_sky');

@@ -4,13 +4,19 @@ precision highp float;
 
 // Gerçek Ay: NASA LRO verisinden Ay haritası küreye sarılır; Ay'a özgü yansıma (Lommel-Seeliger + Lambert)
 // ile gerçek evreye göre aydınlatılır. Karanlık tarafta Dünya ışığı, ufka yakınken atmosfer rengi.
-uniform vec2 uCenter;     // px
-uniform float uRadius;    // px
-uniform vec3 uSun;        // Ay'dan güneşe yön (x sağ, y yukarı, z izleyiciye)
-uniform float uRot;       // ekranda Ay kuzeyinin dönüşü (radyan)
-uniform vec3 uTint;       // atmosfer rengi çarpanı (ufka yakın sarı-turuncu)
-uniform float uEarthshine;// karanlık tarafın Dünya ışığı (0..1)
-uniform float uAlpha;     // genel saydamlık (bulut/pus)
+// Uniform'lar yalnızca vec4: her GPU'da hizalama kayması olmaz.
+uniform vec4 uA;      // xy: merkez (px), z: yarıçap (px), w: ekranda Ay kuzeyinin dönüşü (radyan)
+uniform vec4 uL;      // xyz: Ay'dan güneşe yön (x sağ, y yukarı, z izleyiciye), w: Dünya ışığı (0..1)
+uniform vec4 uT;      // rgb: atmosfer rengi çarpanı, a: genel saydamlık
+uniform vec4 uP;      // x: görüntü pikseli / mantıksal px
+#define uCenter uA.xy
+#define uRadius uA.z
+#define uRot uA.w
+#define uSun uL.xyz
+#define uEarthshine uL.w
+#define uTint uT.rgb
+#define uAlpha uT.a
+#define uPx uP.x
 uniform sampler2D uTex;   // eşdikdörtgen Ay haritası (boylam 0 ortada)
 
 out vec4 fragColor;
@@ -18,7 +24,10 @@ out vec4 fragColor;
 const float PI = 3.14159265;
 
 void main() {
-  vec2 fc = FlutterFragCoord().xy;
+  // Ekran dışı görüntü pikseli → mantıksal px. uP.y > 0: bu GPU'da y ekseni ters (açılışta ölçülür).
+  vec2 raw = FlutterFragCoord().xy;
+  if (uP.y > 0.0) raw.y = uP.y - raw.y;
+  vec2 fc = raw / uPx;
   vec2 p = (fc - uCenter) / uRadius;
   float r2 = dot(p, p);
   float aa = 1.5 / uRadius;

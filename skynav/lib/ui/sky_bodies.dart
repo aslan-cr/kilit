@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../astro/astro_math.dart';
+import 'gpu.dart';
 
 /// Gökteki Ay'ın gözlemciye göre gerçek görünümü.
 @immutable
@@ -45,11 +46,46 @@ class MoonRenderer {
 
   static Future<void> load() => _loading ??= () async {
         try {
+          await Gpu.calibrate();
+          if (Gpu.broken) return;
           _p = await ui.FragmentProgram.fromAsset('shaders/moon.frag');
           _big = await _img('assets/moon/moon_1k.jpg');
           _small = await _img('assets/moon/moon_256.jpg');
+          if (!await Gpu.verify('ay', _selfTest)) _p = null;
         } catch (_) { _p = null; }
       }();
+
+  /// Dolunay testi: merkez opak ve gri (mor/eflatun değil), köşe saydam olmalı.
+  static Future<bool> _selfTest() async {
+    final img = _render(16, 0, 0, 1, 0, const [1, 1, 1], 0, 1, 1.5, _small!);
+    final px = await Gpu.pixels(img);
+    final w = img.width;
+    img.dispose();
+    if (px == null) return false;
+    final c = Gpu.at(px, w, w ~/ 2, w ~/ 2), corner = Gpu.at(px, w, 1, 1);
+    final hi = max(c[0], max(c[1], c[2])), lo = min(c[0], min(c[1], c[2]));
+    return c[3] > 220 && hi > 30 && hi - lo < hi * .3 + 10 && corner[3] < 12;
+  }
+
+  /// Ay diskini (yarıçap [r] mantıksal px) kendi küçük görüntüsüne çizer; disk görüntünün ortasında.
+  static ui.Image _render(double r, double sx, double sy, double sz, double rot, List<double> tint, double earth, double alpha, double px, ui.Image tex) {
+    final side = 2 * (r + 2);
+    final n = (side * px).ceil();
+    final sh = _p!.fragmentShader();
+    var i = 0;
+    void f(double x) => sh.setFloat(i++, x);
+    f(r + 2); f(r + 2); f(r); f(rot);
+    f(sx); f(sy); f(sz); f(earth);
+    f(tint[0]); f(tint[1]); f(tint[2]); f(alpha);
+    f(px); f(Gpu.flip ? n.toDouble() : 0); f(0); f(0);
+    sh.setImageSampler(0, tex);
+    final img = Gpu.render(sh, n, n);
+    sh.dispose();
+    return img;
+  }
+
+  // Ay çok yavaş değişir: aynı görünüm tekrar tekrar üretilmesin (her karede çizilen sahneler için).
+  static final Map<String, ui.Image> _cache = {};
 
   static Future<ui.Image> _img(String path) async {
     final data = await rootBundle.load(path);
@@ -71,19 +107,19 @@ class MoonRenderer {
         Color.fromRGBO(255, (236 - 30 * low).round(), (205 - 60 * low).round(), .20 * v.illum * alpha),
         Color.fromRGBO(255, 236, 205, .06 * v.illum * alpha), const Color(0x00FFECCD)], stops: const [0, .35, 1]).createShader(Rect.fromCircle(center: o, radius: hr)));
     }
-    final sh = p.fragmentShader();
     final sx = v.bright.dx * sin(v.phaseAngle), sy = v.bright.dy * sin(v.phaseAngle), sz = cos(v.phaseAngle);
-    var i = 0;
-    void f(double x) => sh.setFloat(i++, x);
-    f(o.dx); f(o.dy); f(r);
-    f(sx); f(sy); f(sz);
-    f(v.rot);
-    f(tint[0]); f(tint[1]); f(tint[2]);
-    f(pow(1 - v.illum, 2).toDouble());
-    f(alpha);
-    sh.setImageSampler(0, r * dpr > 70 ? _big! : _small!);
-    c.drawRect(Rect.fromCircle(center: o, radius: r + 2), Paint()..shader = sh);
-    sh.dispose();
+    final px = Gpu.dpr.clamp(1.0, 4.0);
+    final earth = pow(1 - v.illum, 2).toDouble();
+    String q(double x) => x.toStringAsFixed(3);
+    final key = [r.toStringAsFixed(1), q(sx), q(sy), q(sz), q(v.rot), tint.map((e) => e.toStringAsFixed(2)).join(','), q(earth), alpha.toStringAsFixed(2), px].join('|');
+    var img = _cache.remove(key);
+    if (img == null) {
+      img = _render(r, sx, sy, sz, v.rot, tint, earth, alpha, px, r * px > 70 ? _big! : _small!);
+      if (_cache.length >= 8) _cache.remove(_cache.keys.first)?.dispose();
+    }
+    _cache[key] = img; // en son kullanılan sona
+    final side = img.width / px;
+    Gpu.draw(c, img, Rect.fromCenter(center: o, width: side, height: side));
     return true;
   }
 }

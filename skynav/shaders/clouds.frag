@@ -4,17 +4,23 @@ precision highp float;
 
 // SkyNav bulutları: tek parça bulut kütleleri. Büyük ölçekli gürültü kütleyi, kabarık (billow)
 // ayrıntı gürültüsü kenarları aşındırır; güneşe doğru kısa örnekleme gölgeli alt/iç kısım verir.
-uniform vec2 uSize;      // çizim alanı (mantıksal px)
-uniform float uTime;     // sn
-uniform float uCover;    // bulut örtüsü 0..1
-uniform vec2 uSun;       // güneş/ay konumu (px)
-uniform vec4 uLit;       // aydınlık renk (rgb) + en yüksek opaklık (a)
-uniform vec4 uShade;     // gölge rengi (rgb) + ağırlık (a: 0 açık pamuk, 1 koyu yağmur bulutu)
-uniform vec2 uWind;      // kayma (gürültü birimi/sn)
-uniform float uScale;    // 1 gürültü birimi kaç px
-uniform float uHorizon;  // bulutların sönümlendiği yükseklik oranı (0..1)
-uniform float uSeed;
-uniform vec2 uOffset;    // görünüm kaydırma (px): kubbede bakış yönüyle bulutlar da kayar
+// Uniform'lar yalnızca vec4: her GPU'da (Vulkan/GLES std140) hizalama kayması olmaz.
+uniform vec4 uA;     // xy: çizim alanı (mantıksal px), z: zaman (sn), w: bulut örtüsü 0..1
+uniform vec4 uB;     // xy: güneş/ay konumu (px), zw: kayma (gürültü birimi/sn)
+uniform vec4 uLit;   // aydınlık renk (rgb) + en yüksek opaklık (a)
+uniform vec4 uShade; // gölge rengi (rgb) + ağırlık (a: 0 açık pamuk, 1 koyu yağmur bulutu)
+uniform vec4 uC;     // x: 1 gürültü birimi kaç px, y: ufuk oranı, z: tohum, w: görüntü pikseli / mantıksal px
+uniform vec4 uD;     // xy: görünüm kaydırma (px)
+#define uSize uA.xy
+#define uTime uA.z
+#define uCover uA.w
+#define uSun uB.xy
+#define uWind uB.zw
+#define uScale uC.x
+#define uHorizon uC.y
+#define uSeed uC.z
+#define uPx uC.w
+#define uOffset uD.xy
 
 out vec4 fragColor;
 
@@ -61,7 +67,10 @@ float density(vec2 p, float t) {
 }
 
 void main() {
-  vec2 fc0 = FlutterFragCoord().xy;
+  // Ekran dışı görüntü pikseli → mantıksal px. uD.z > 0: bu GPU'da y ekseni ters (açılışta ölçülür).
+  vec2 raw = FlutterFragCoord().xy;
+  if (uD.z > 0.0) raw.y = uD.z - raw.y;
+  vec2 fc0 = raw / uPx;
   vec2 uv = fc0 / uSize;
   vec2 fc = fc0 + uOffset;
   float h = clamp(uv.y / uHorizon, 0.0, 1.0);

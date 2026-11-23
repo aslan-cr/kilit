@@ -47,6 +47,7 @@ class _HeroSceneState extends State<HeroScene> with SingleTickerProviderStateMix
               final sl = skyLight(s, W, H);
               final look = SceneLook.of(s, widget.wx, sun: Offset(sl.pos.dx / W, sl.pos.dy / H));
               final night = starsOn(s, DateTime.now());
+              final fog = fogAmount(s, widget.a, widget.wx);
               Widget layer(_Part part, {bool anim = true}) => RepaintBoundary(child: still || !anim
                   ? CustomPaint(size: Size.infinite, painter: _ScenePainter(s, widget.a, widget.wx, 12, _parts, part))
                   : AnimatedBuilder(animation: _c, builder: (_, __) => CustomPaint(size: Size.infinite, painter: _ScenePainter(s, widget.a, widget.wx, _c.value * 3600, _parts, part))));
@@ -54,6 +55,9 @@ class _HeroSceneState extends State<HeroScene> with SingleTickerProviderStateMix
                 layer(_Part.back, anim: night),
                 CloudLayer(spec: look.clouds, animate: !still),
                 MountainLayer(spec: look.mountains),
+                // Vadide süzülen sis: aynı bulut programı, ters çevrilmiş (yoğun taraf aşağıda, uzakta yassı)
+                if (fog > .08) Positioned(left: 0, right: 0, top: H * .36, bottom: 0, child: IgnorePointer(child: Transform.flip(flipY: true,
+                    child: CloudLayer(spec: fogSpec(s, widget.wx, fog, H / 380), animate: !still, resolution: .35)))),
                 layer(_Part.front),
               ]);
             }),
@@ -91,6 +95,20 @@ class _HeroSceneState extends State<HeroScene> with SingleTickerProviderStateMix
   final x = W * (.60 + .26 * along.clamp(0.0, 1.0));
   final y = H * .40 - (H * .40 - 76 * k) * (aa.alt / 35).clamp(0.0, 1.0); // en yüksekte bile konum hapının altında
   return (pos: Offset(x, y), visible: aa.alt > -1.5);
+}
+
+/// Sis yoğunluğu 0..1 (motorun sis olasılığı × yoğunluğu; "Sisli" durumda en az 0,6).
+double fogAmount(WeatherSnapshot s, Analysis a, Wx wx) =>
+    max((a.fogProb * a.fogDensity / 10000).clamp(0.0, 1.0), wx == Wx.fog ? .6 : 0.0);
+
+/// Vadi sisi için bulut ayarı: pus renginde, alçak, rüzgârla yavaşça süzülen.
+CloudSpec fogSpec(WeatherSnapshot s, Wx wx, double fog, double k) {
+  final pal = ScenePalette.of(s, wx);
+  final to = (s.windDir + 180) * pi / 180;
+  final spd = .004 + s.windSpeed.clamp(0, 10) * .0012;
+  final lit = Color.lerp(pal.haze, Colors.white, s.isDay ? .35 : 0)!;
+  return CloudSpec(cover: (.42 + .45 * fog).clamp(0.0, 1.0), lit: lit, shade: Color.lerp(pal.haze, pal.mid2, .45)!, opacity: (.5 + .4 * fog).clamp(0.0, .92),
+      weight: .08, sun: const Offset(.5, -2), wind: Offset(-sin(to) * spd - .003, 0), scale: 110 * k, horizon: .98, seed: 9.1);
 }
 
 /// Gece göğünde en az en parlak yıldızlar/gezegenler görünüyor mu (alacakaranlık, Ay, bulut).
@@ -353,16 +371,24 @@ class _ScenePainter extends CustomPainter {
       final sl = skyLight(s, W, H);
       if (sl.visible) paintSunBloom(c, sl.pos, 22 * k, alt: ScenePalette.sunAlt(s), cover: (s.cloudCover / 100).clamp(0.0, 1.0));
     }
-    // Sis bandı
-    final fog = (a.fogProb * a.fogDensity / 10000).clamp(0.0, 1.0);
-    if (fog > .05 || wx == Wx.fog) {
-      final f = max(fog, wx == Wx.fog ? .6 : 0.0);
+    // Sis bandı (süzülen sis bulutlarının altında yoğunluk tabanı)
+    final f = fogAmount(s, a, wx);
+    if (f > .05) {
       final r = Rect.fromLTWH(0, H * .42, W, H * .58);
       c.drawRect(r, Paint()..shader = LinearGradient(begin: Alignment.bottomCenter, end: Alignment.topCenter,
-          colors: [pal.haze.withValues(alpha: .85 * f), pal.haze.withValues(alpha: 0)]).createShader(r));
+          colors: [pal.haze.withValues(alpha: .7 * f), pal.haze.withValues(alpha: 0)]).createShader(r));
     }
 
     _precip(c, W, H);
+
+    // Şimşek: bulut tabanından çakan dallanan yıldırım; tüm gök, bulutlar ve dağlar bir an aydınlanır
+    if (wx == Wx.thunder && part != _Part.all) {
+      final st = Lightning.at(t);
+      if (st != null) {
+        if (st.$2 > .12) Lightning.paintBolt(c, sz, st.$1, st.$2);
+        Lightning.paintFlash(c, sz, st.$1, st.$2);
+      }
+    }
 
     // Üst okunurluk gölgesi: açık renkli gökte beyaz sıcaklık yazısı net kalsın
     if (s.isDay) {
@@ -406,23 +432,113 @@ class _ScenePainter extends CustomPainter {
     final kinds = {Wx.rain, Wx.drizzle, Wx.thunder, Wx.sleet, Wx.snow, Wx.lentil, Wx.blizzard};
     if (!kinds.contains(wx)) return;
     final wind = sin((s.windDir + 180) * pi / 180) * s.windSpeed.clamp(0, 25); // + sağa
-    final n = switch (wx) { Wx.blizzard => 170, Wx.drizzle => 70, Wx.snow || Wx.lentil => 80, _ => 110 };
     final q = .55 + .45 * (H / 380).clamp(0.0, 1.0); // küçük yüzeyde (widget) taneler de küçülür
+    switch (wx) {
+      case Wx.snow || Wx.blizzard:
+        _snow(c, W, H, wind, q, wx == Wx.blizzard ? 170 : 110, wx == Wx.blizzard);
+      case Wx.lentil:
+        _pellets(c, W, H, wind, q);
+      case Wx.sleet:
+        _snow(c, W, H, wind, q, 60, false);
+        _rain(c, W, H, wind, q, 70, false);
+        _splashes(c, W, H, q, 12);
+      default:
+        final drizzle = wx == Wx.drizzle;
+        _rain(c, W, H, wind, q, drizzle ? 90 : (wx == Wx.thunder ? 150 : 130), drizzle);
+        _splashes(c, W, H, q, drizzle ? 10 : 30);
+    }
+  }
+
+  /// Kar: derinlik bulanıklığı. Uzak taneler küçük ve keskin, yakınlar büyük ve yumuşak; birkaç tane
+  /// objektifin hemen önünden geçer (iri, flu). Her tane kendi salınımıyla süzülür.
+  void _snow(Canvas c, double W, double H, double wind, double q, int n, bool blizzard) {
+    final far = Paint();
+    final mid = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, .7);
+    final near = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.6);
+    final bokeh = Paint()..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.6);
+    const flake = Color(0xFFFFFFFF);
     for (var i = 0; i < n; i++) {
-      final (rx, ry, depth, ph) = p.drops[i];
-      final snowish = wx == Wx.snow || wx == Wx.blizzard || (wx == Wx.sleet && i.isEven);
-      final pellet = wx == Wx.lentil;
-      final speed = snowish ? (22 + 26 * depth) * (wx == Wx.blizzard ? 2.2 : 1) : pellet ? 90 + 80 * depth : (wx == Wx.drizzle ? 220 : 380) * (.55 + depth);
+      final (rx, ry, d0, ph) = p.drops[i];
+      final lens = i % 23 == 0; // objektife çok yakın tane
+      final depth = lens ? 1.0 : d0 * d0; // çoğu tane uzakta
+      final speed = (lens ? 70.0 : 16 + 40 * depth) * (blizzard ? 2.6 : 1);
+      final span = H + 60;
+      final y = (ry * span + t * speed) % span - 30;
+      final sway = sin(t * (.5 + ph * .8) + ph * 6.28) * (3 + 11 * depth);
+      var x = rx * W + (y / H) * wind * (2 + 6 * depth) + t * wind * (1 + 2.4 * depth) * (blizzard ? 2 : 1) + sway;
+      x %= W + 20; if (x < -10) x += W + 20; x -= 10;
+      final Paint pt; final double r, a;
+      if (lens) { pt = bokeh; r = (6 + 4 * ph) * q; a = .26; }
+      else if (depth > .62) { pt = near; r = (2.2 + 2.4 * depth) * q; a = .7; }
+      else if (depth > .25) { pt = mid; r = (1.2 + 1.6 * depth) * q; a = .8; }
+      else { pt = far; r = (.6 + 1.6 * depth) * q; a = .55 + depth; }
+      c.drawCircle(Offset(x, y), r, pt..color = flake.withValues(alpha: a.clamp(0.0, 1.0)));
+    }
+  }
+
+  void _pellets(Canvas c, double W, double H, double wind, double q) {
+    final pt = Paint();
+    for (var i = 0; i < 90; i++) {
+      final (rx, ry, depth, _) = p.drops[i];
+      final speed = 120 + 120 * depth;
       final y = (ry * (H + 20) + t * speed) % (H + 20) - 10;
-      var x = rx * W + (y / H) * wind * (snowish ? 6 : 3) + t * wind * (snowish ? 2.2 : .6) + (snowish ? sin(t * 1.1 + ph * 6.28) * 7 : 0);
+      var x = rx * W + (y / H) * wind * 3 + t * wind * .8;
       x %= W; if (x < 0) x += W;
-      if (snowish) {
-        c.drawCircle(Offset(x, y), (.8 + depth * 2.1) * q, Paint()..color = Colors.white.withValues(alpha: .55 + .45 * depth));
-      } else if (pellet) {
-        c.drawCircle(Offset(x, y), (1.4 + depth * 1.8) * q, Paint()..color = Colors.white);
-      } else {
-        final len = (wx == Wx.drizzle ? 5 + 4 * depth : 9 + 10 * depth) * q;
-        c.drawLine(Offset(x, y), Offset(x + wind * .45, y + len), Paint()..color = Colors.white.withValues(alpha: .3 + .35 * depth)..strokeWidth = .8 + depth..strokeCap = StrokeCap.round);
+      c.drawCircle(Offset(x, y), (1.2 + depth * 1.6) * q, pt..color = Colors.white.withValues(alpha: .7 + .3 * depth));
+    }
+  }
+
+  /// Yağmur: hıza göre uzayan ince çizgiler; yakın damlalar kalın ve hafif flu, rüzgârla eğik.
+  void _rain(Canvas c, double W, double H, double wind, double q, int n, bool drizzle) {
+    final thin = Paint()..strokeCap = StrokeCap.round;
+    final soft = Paint()..strokeCap = StrokeCap.round..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.1);
+    const col = Color(0xFFE4ECF6);
+    for (var i = 0; i < n; i++) {
+      final (rx, ry, depth, _) = p.drops[i];
+      final speed = (drizzle ? 240.0 : 560.0) * (.55 + .8 * depth);
+      final span = H + 40;
+      final y = (ry * span + t * speed) % span - 20;
+      final slope = wind * (drizzle ? .045 : .03); // yatay kayma / düşey
+      var x = rx * W + y * slope + t * speed * slope * .02;
+      x %= W + 20; if (x < -10) x += W + 20; x -= 10;
+      final len = (drizzle ? 4 + 6 * depth : 10 + 26 * depth) * q;
+      final near = depth > .88 && !drizzle;
+      final pt = near ? soft : thin;
+      pt
+        ..color = col.withValues(alpha: near ? .3 : (drizzle ? .28 : .16) + .3 * depth)
+        ..strokeWidth = (near ? 2.0 : .55 + .9 * depth) * q;
+      c.drawLine(Offset(x, y), Offset(x + len * slope, y + len), pt);
+    }
+  }
+
+  /// Yere düşen damlaların sıçraması: ön planda genişleyen halka ve havalanan iki-üç damlacık.
+  void _splashes(Canvas c, double W, double H, double q, int n) {
+    final ring = Paint()..style = PaintingStyle.stroke;
+    final dot = Paint();
+    final k = H / 380;
+    for (var j = 0; j < n; j++) {
+      final (rx, ry, d, ph) = p.drops[(j * 7 + 3) % p.drops.length];
+      final period = .45 + ry * .8;
+      const life = .26;
+      final tt = t + ph * period;
+      final u = tt % period;
+      if (u > life) continue;
+      final pr = u / life;
+      final cycle = (tt / period).floor();
+      final near = d; // 0 uzak (yukarıda, küçük) … 1 yakın (aşağıda, büyük)
+      final y = H - (30 - 26 * near) * k;
+      final x = (rx * W + cycle * 97.3 + j * 41.7) % W;
+      final sc = (.5 + .9 * near) * q;
+      final fade = (1 - pr);
+      ring
+        ..strokeWidth = .7 * sc
+        ..color = const Color(0xFFE8F0FA).withValues(alpha: .5 * fade);
+      c.drawOval(Rect.fromCenter(center: Offset(x, y), width: (2 + 11 * pr) * sc, height: (.8 + 3.2 * pr) * sc), ring);
+      dot.color = const Color(0xFFF2F7FD).withValues(alpha: .6 * fade);
+      for (final side in const [-1.0, 1.0, .35]) {
+        final dx = side * (2.5 + 7 * pr) * sc;
+        final dy = -(4 * pr * (1 - pr)) * 7 * sc * (side == .35 ? 1.4 : 1);
+        c.drawCircle(Offset(x + dx, y + dy), .65 * sc, dot);
       }
     }
   }
@@ -446,4 +562,103 @@ Path moonLitPath(Offset c, double r, double fraction, {bool south = false}) {
   final gibbous = illum > .5;
   p.arcToPoint(top, radius: Radius.elliptical(max(k, .01), r), clockwise: rightLit == gibbous);
   return p..close();
+}
+
+/// Fırtınada yıldırım: zamanlaması ve biçimi saatten türetilir (her çakış farklı, çakış boyunca sabit).
+/// Ortalama 8 sn'de bir; ana boşalmadan ~0,12 sn sonra ikinci bir parlama (geri dönüş vuruşu).
+class Lightning {
+  static double _h(double n) { final v = sin(n * 12.9898 + 78.233) * 43758.5453; return v - v.floorToDouble(); }
+
+  /// [t] anında süren bir çakış varsa (tohum, parlaklık 0..1).
+  static (int, double)? at(double t) {
+    for (var back = 0; back < 2; back++) {
+      final slot = (t / 1.0).floor() - back;
+      if (_h(slot * 1.0) > .13) continue;
+      final start = slot + _h(slot + .5) * .6;
+      final tau = t - start;
+      if (tau < 0 || tau > 1.1) continue;
+      var e = exp(-tau * 9);
+      if (tau > .12) e += .75 * exp(-(tau - .12) * 7);
+      if (tau > .3 && _h(slot + .7) > .5) e += .4 * exp(-(tau - .3) * 10);
+      return (slot, e.clamp(0.0, 1.0));
+    }
+    return null;
+  }
+
+  static final Map<int, (List<Offset>, List<List<Offset>>)> _shapes = {};
+
+  /// Bölüm bölüm kırılan ana kanal ve birkaç dal (birim koordinat: x 0..1, y 0..1).
+  static (List<Offset>, List<List<Offset>>) shape(int seed) => _shapes[seed] ??= () {
+        if (_shapes.length > 12) _shapes.clear();
+        final r = Random(seed);
+        List<Offset> zig(Offset a, Offset b, double rough, int depth) {
+          var pts = [a, b];
+          var amp = rough;
+          for (var d = 0; d < depth; d++) {
+            final next = <Offset>[pts.first];
+            for (var i = 0; i < pts.length - 1; i++) {
+              final p0 = pts[i], p1 = pts[i + 1];
+              final m = (p0 + p1) / 2;
+              final dir = p1 - p0;
+              final nrm = Offset(-dir.dy, dir.dx) / max(dir.distance, 1e-6);
+              next..add(m + nrm * (r.nextDouble() - .5) * amp)..add(p1);
+            }
+            pts = next; amp *= .52;
+          }
+          return pts;
+        }
+        final x0 = .18 + .64 * r.nextDouble();
+        final main = zig(Offset(x0, 0), Offset(x0 + (r.nextDouble() - .5) * .22, 1), .16, 6);
+        final branches = <List<Offset>>[];
+        final nb = 2 + r.nextInt(3);
+        for (var b = 0; b < nb; b++) {
+          final i = (main.length * (.15 + .55 * r.nextDouble())).floor();
+          final a = main[i];
+          final side = r.nextBool() ? 1.0 : -1.0;
+          final len = .18 + .25 * r.nextDouble();
+          branches.add(zig(a, a + Offset(side * len * .55, len), .08, 4));
+        }
+        return (main, branches);
+      }();
+
+  /// Yıldırım kanalı: bulut tabanından (gök %9) uzak dağların üstündeki pusa (%46) iner ve orada
+  /// söner (bulut-hava boşalması gibi; dağların önüne geçmez). Parlak çekirdek + mavi hale.
+  static void paintBolt(Canvas c, Size sz, int seed, double e) {
+    final (main, branches) = shape(seed);
+    final top = sz.height * .09, bot = sz.height * .46;
+    Path path(List<Offset> pts) {
+      final p = Path();
+      for (var i = 0; i < pts.length; i++) {
+        final o = Offset(pts[i].dx * sz.width, top + pts[i].dy * (bot - top));
+        if (i == 0) { p.moveTo(o.dx, o.dy); } else { p.lineTo(o.dx, o.dy); }
+      }
+      return p;
+    }
+    final k = sz.height / 380;
+    // Alt uçta pusun içinde yavaşça kaybolur
+    Shader fade(Color col, double a) => LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+        colors: [col.withValues(alpha: a), col.withValues(alpha: a), col.withValues(alpha: 0)], stops: const [0, .72, 1])
+        .createShader(Rect.fromLTRB(0, top, sz.width, bot));
+    final glow = Paint()..style = PaintingStyle.stroke..strokeJoin = StrokeJoin.round..shader = fade(const Color(0xFFB8C6FF), .6 * e)
+      ..strokeWidth = 7 * k..maskFilter = MaskFilter.blur(BlurStyle.normal, 5 * k);
+    final core = Paint()..style = PaintingStyle.stroke..strokeJoin = StrokeJoin.round..shader = fade(Colors.white, e);
+    final mp = path(main);
+    c.drawPath(mp, glow);
+    for (final b in branches) {
+      final bp = path(b);
+      c.drawPath(bp, glow..strokeWidth = 4 * k);
+      c.drawPath(bp, core..strokeWidth = .9 * k);
+    }
+    c.drawPath(mp, core..strokeWidth = 1.8 * k);
+  }
+
+  /// Çakış ışığı: gök, bulutlar ve dağlar bir an soğuk beyaz aydınlanır; en çok kanalın üstünde.
+  static void paintFlash(Canvas c, Size sz, int seed, double e) {
+    final r = Offset.zero & sz;
+    final x = shape(seed).$1.first.dx * sz.width;
+    c.drawRect(r, Paint()..blendMode = BlendMode.screen..color = const Color(0xFFDCE4FF).withValues(alpha: .28 * e));
+    c.drawRect(r, Paint()..blendMode = BlendMode.screen..shader = RadialGradient(
+        center: Alignment(x / sz.width * 2 - 1, -.75), radius: .9,
+        colors: [const Color(0xFFEFF3FF).withValues(alpha: .55 * e), const Color(0x00EFF3FF)]).createShader(r));
+  }
 }

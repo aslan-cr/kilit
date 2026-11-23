@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../data/models.dart';
 import 'clouds.dart';
+import 'gpu.dart';
 import 'hero_scene.dart' show ScenePalette;
 import 'sky_bodies.dart';
 import 'wx_glyph.dart';
@@ -18,32 +19,62 @@ class MountainSpec {
   int get hashCode => Object.hash(pal, light, snow, ground, sun, seed, snowLit);
 }
 
-/// GPU dağ programı (ışıklı yamaçlar, erozyon, gerçekçi kar, pus).
+/// GPU dağ programı (ışıklı yamaçlar, erozyon, gerçekçi kar, pus). Açılışta doğrulanır.
 class MountainShader {
   static ui.FragmentProgram? _p;
   static Future<void>? _loading;
   static bool get ready => _p != null;
   static Future<void> load() => _loading ??= () async {
-        try { _p = await ui.FragmentProgram.fromAsset('shaders/mountains.frag'); } catch (_) { _p = null; }
+        try {
+          await Gpu.calibrate();
+          if (Gpu.broken) return;
+          _p = await ui.FragmentProgram.fromAsset('shaders/mountains.frag');
+          if (!await Gpu.verify('dağ', _selfTest)) _p = null;
+        } catch (_) { _p = null; }
       }();
 
-  static bool paint(Canvas c, Rect rect, MountainSpec m) {
+  /// Yeşil test dağları: en üst satır saydam (gök), en alt orta piksel opak ve yeşil olmalı.
+  static Future<bool> _selfTest() async {
+    const g = Color(0xFF1AC833);
+    const pal = ScenePalette(skyTop: g, skyBottom: g, far1: g, far2: g, mid1: g, mid2: g, near1: g, near2: g, haze: g);
+    final img = image(const MountainSpec(pal: pal, light: 1, snow: 0, ground: 0, sun: Offset(.8, .2), snowLit: g), const Size(64, 64), 1.5);
+    if (img == null) return false;
+    final px = await Gpu.pixels(img);
+    final w = img.width, h = img.height;
+    img.dispose();
+    if (px == null) return false;
+    var top = 0;
+    for (var x = 0; x < w; x++) { top = max(top, Gpu.at(px, w, x, 0)[3]); }
+    final b = Gpu.at(px, w, w ~/ 2, h - 2);
+    return top < 25 && b[3] > 220 && Gpu.greenish(b);
+  }
+
+  /// Dağları mantıksal [size] için [px] yoğunlukta üretir.
+  static ui.Image? image(MountainSpec m, Size size, double px) {
     final p = _p;
-    if (p == null) return false;
+    if (p == null || size.isEmpty) return null;
+    final w = (size.width * px).ceil(), h = (size.height * px).ceil();
     final sh = p.fragmentShader();
-    final w = rect.width, h = rect.height;
     var i = 0;
     void f(double v) => sh.setFloat(i++, v);
-    void col(Color x) { f(x.r); f(x.g); f(x.b); }
-    f(w); f(h); f(m.sun.dx * w); f(m.sun.dy * h); f(m.light);
+    void col(Color x) { f(x.r); f(x.g); f(x.b); f(1); }
+    f(size.width); f(size.height); f(m.sun.dx * size.width); f(m.sun.dy * size.height);
+    f(m.light); f(m.snow); f(m.ground); f(m.seed);
     final pal = m.pal;
     col(pal.far1); col(pal.far2); col(pal.mid1); col(pal.mid2); col(pal.near1); col(pal.near2); col(pal.haze);
     col(m.snowLit);
-    f(m.snow); f(m.ground); f(m.seed);
-    c.save(); c.translate(rect.left, rect.top);
-    c.drawRect(Offset.zero & rect.size, Paint()..shader = sh);
-    c.restore();
+    f(px); f(Gpu.flip ? h.toDouble() : 0); f(0); f(0);
+    final img = Gpu.render(sh, w, h);
     sh.dispose();
+    return img;
+  }
+
+  /// Tek seferlik çizim (widget görüntüsü gibi).
+  static bool paint(Canvas c, Rect rect, MountainSpec m, {double px = 2}) {
+    final img = image(m, rect.size, px);
+    if (img == null) return false;
+    Gpu.draw(c, img, rect);
+    img.dispose();
     return true;
   }
 }
@@ -68,13 +99,7 @@ class _MountainLayerState extends State<MountainLayer> {
   void _render() {
     if (!MountainShader.ready || _size.isEmpty) return;
     if (_img != null && _for == widget.spec) return;
-    final w = (_size.width * _dpr).ceil(), h = (_size.height * _dpr).ceil();
-    final rec = ui.PictureRecorder();
-    final c = Canvas(rec)..scale(_dpr);
-    MountainShader.paint(c, Offset.zero & _size, widget.spec);
-    final pic = rec.endRecording();
-    final img = pic.toImageSync(w, h);
-    pic.dispose();
+    final img = MountainShader.image(widget.spec, _size, _dpr);
     _img?.dispose();
     _img = img; _for = widget.spec;
   }

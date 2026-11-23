@@ -32,3 +32,17 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
    basınç/rüzgâr grafikleri, hava uyarı bildirimleri, "Canlı pencere" (tam ekran sahne + havaya uygun doğa sesi).
 5. Zamanlanmış "devam" görevi (trig_01FVr2RbhKYjAbAgfNm3iwx2) eski oturuma bağlı ve devre dışı bırakıldı;
    yeni oturumda gerekirse yeniden kur (create_trigger, 2 saatte bir, bu dosyayı okumasını söyle).
+
+## 2. oturum (2026-11-23, 1.6.0+10)
+- **Cihazda bozuk GPU çizimi düzeltildi** (1.5.0'da Ay mor, ana sahnede dağlar üstte renkli diken şeridi):
+  tüm shader'lar artık yalnızca vec4 uniform kullanıyor (vec3 hizası bazı GPU'larda kayıyordu), hep dönüşümsüz
+  ekran dışı görüntüye çiziliyor (lib/ui/gpu.dart), açılışta `shaders/probe.frag` ile koordinat ölçülüyor ve her
+  program piksel okunarak doğrulanıyor; başarısızsa o program kapanır, eski kanvas çizimi devreye girer.
+  Durum Ayarlar > Tanılama'da "GPU çizimi: ..." satırında. **Kullanıcıdan bu satırı iste.**
+  Yeni uniform eklerken: yalnızca vec4, Dart'ta setFloat sırası birebir.
+- Ses: döngü sıçraması giderildi (tool/make_loops.py; eski alimiter başa 5 ms sessizlik ekliyordu), mikser iki
+  oynatıcıyla 3 sn çapraz geçiş yapıyor (cihazda doğrulanmadı).
+- Ana sahne: gerçek yıldızlar (lib/astro/bsc5.dart, Yale BSC V≤5) + gezegenler (planetMagnitude), lib/ui/sky_stars.dart.
+- Yağış: kar derinlik bulanıklığı, yağmur çizgi + sıçrama, fırtınada yıldırım (Lightning sınıfı), vadi sisi (ters CloudLayer).
+- Ekran görüntüsü testi: altın/mavi saat boylamı otomatik; 06h yıldızlı gece, 06i fırtına (çakış anı), 06j sis.
+- Sıradaki: yeni özellikler (gün detay, fotoğrafçı saatleri, Ay doğuş/batış, 72 sa grafik, canlı pencere, uyarılar).
