@@ -22,6 +22,7 @@ import 'best_time_screen.dart';
 import 'climate_screen.dart';
 import 'detail_screens.dart';
 import 'places_screen.dart';
+import 'ski_screen.dart';
 import 'plain.dart';
 import 'hero_scene.dart';
 import 'theme.dart';
@@ -185,6 +186,7 @@ class _ExploreGrid extends StatelessWidget {
       (Icons.bookmarks_rounded, 'Yerlerim', '${LocationService.places().length} kayıtlı yer · yan yana', const Color(0xFFE6EEFF), const Color(0xFF4F6BED),
           PlacesScreen(onAdd: () => WeatherScreen.pickPlace(context, add: true))),
       (Icons.schedule_rounded, 'En iyi zaman', bestTimeTeaser(s, now), kBentoMint, kGood, BestTimeScreen(s: s)),
+      (Icons.downhill_skiing_rounded, 'Kayak merkezleri', 'Palandöken, Sarıkamış, Erciyes…', const Color(0xFFE4EEFB), const Color(0xFF3B7DDD), SkiScreen(here: s.place)),
       (Icons.thermostat_auto_rounded, 'İklim', climateTeaser(s, now) ?? '30 yıllık normaller', const Color(0xFFFFF4E0), kWarn, ClimateScreen(s: s)),
       (Icons.air_rounded, 'Hava kalitesi', 'Toz-duman: ${Plain.dust(s.aqPm10).toLowerCase()} · 3 gün', const Color(0xFFE8F6EE), const Color(0xFF2E9E6A), AirScreen(s: s)),
       (Icons.show_chart_rounded, 'Grafikler', 'Basınç ${trend ?? 'sabit'} · 72 saat', kBentoBlue, kAccent, TrendScreen(s: s)),

@@ -29,6 +29,8 @@ import 'package:skynav/ui/detail_screens.dart';
 import 'package:skynav/ui/plain.dart';
 import 'package:skynav/ui/places_screen.dart';
 import 'package:skynav/ui/compare_screen.dart';
+import 'package:skynav/ui/ski_screen.dart';
+import 'package:skynav/services/ski_service.dart';
 import 'package:skynav/ui/best_time_screen.dart';
 import 'package:skynav/ui/climate_screen.dart';
 import 'package:skynav/ui/air_screen.dart';
@@ -188,6 +190,9 @@ void main() {
             days: [for (final d in s.daily) DayPoint(date: d.date, tMax: d.tMax - 3, tMin: d.tMin - 4, precipSum: d.precipSum * 1.5, snowSum: d.snowSum * 1.6, windMax: d.windMax, weatherCode: d.weatherCode)])),
         '25_compare', size: const Size(412, 1000));
     await shot(t, BestTimeScreen(s: s), '22_best_time', size: const Size(412, 1000));
+    await shot(t, SkiScreen(here: s.place, data: [for (final (i, r) in skiResorts.indexed) SkiNow(r, snowCm: <double>[85.0, 62.0, 120.0, 45.0, 70.0, 38.0, 20.0, 55.0][i], new24: <double>[12.0, 4.0, 0.0, 2.0, 6.0, 0.0, 0.0, 3.0][i],
+        next72: <double>[30.0, 18.0, 6.0, 10.0, 14.0, 2.0, 0.0, 9.0][i], temp: <double>[-8.0, -6.0, -9.0, -3.0, -4.0, -2.0, 1.0, -3.0][i], wind: <double>[6.0, 4.0, 9.0, 3.0, 5.0, 4.0, 2.0, 3.0][i], gust: <double>[12.0, 8.0, 19.0, 6.0, 9.0, 7.0, 4.0, 6.0][i], gustNext12: <double>[14.0, 9.0, 21.0, 7.0, 9.0, 8.0, 5.0, 7.0][i], code: [73, 71, 3, 2, 73, 2, 3, 71][i])]),
+        '26_ski', size: const Size(412, 1900));
     final n0 = DateTime.now();
     // İklim: sentetik 30 yıllık seri (yalnızca test; uygulamada ERA5 arşivinden)
     final ct = <String>[]; final cx = <double?>[]; final cn = <double?>[]; final cs = <double?>[];

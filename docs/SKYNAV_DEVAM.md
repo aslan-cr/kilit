@@ -105,3 +105,8 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - Gökyüzü takvimi: lib/astro/sky_calendar.dart (meteor tepe gecesi koşulu: radyant yüksekliği × Ay ışığı), SkyCalendarBlock (Gök & Ay).
 - Yağış geliyor bildirimi: bg_tasks (Nowcast, 30 dk içinde, 3 saatte bir; SharedState sn_rainsoon_off).
 
+## 2.5.0+19
+- Yerlerim > Karşılaştır (lib/ui/compare_screen.dart; PlaceNow.days, fetchLite forecast_days=7; Türkçe ayrılma eki ablative()).
+- Keşfet > Kayak merkezleri (lib/services/ski_service.dart: 8 merkez, Open-Meteo çoklu konum + elevation; lib/ui/ski_screen.dart).
+  Model tahmini olduğu ekranda yazıyor; merkez koordinat/yükseklikleri yaklaşık.
+

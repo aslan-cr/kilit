@@ -4,6 +4,7 @@ import 'package:skynav/astro/space_events.dart';
 import 'package:skynav/astro/sky_times.dart';
 import 'package:skynav/astro/star_catalog.dart';
 import 'package:skynav/engine/alerts.dart';
+import 'package:skynav/services/ski_service.dart';
 import 'package:skynav/ui/compare_screen.dart';
 import 'package:skynav/astro/sky_calendar.dart';
 import 'package:skynav/engine/brief.dart';
@@ -226,5 +227,26 @@ void main() {
     final b = PlaceNow(place: const GeoPoint2(39.95, 41.1, name: 'Anneannem'), temp: -2.4, tMax: 0, tMin: -8, wind: 3, precip: 0, cloud: 50, code: 2, isDay: true, days: [d(1), d(1)]);
     expect(CompareScreen.summary(a, b), "Şu an Anneannem, Evim'den 3° daha soğuk. 7 günde kar: Evim 10 cm, Anneannem 2 cm.");
     expect(['Erzurum', 'Ağrı', 'Kars', 'İzmit', 'Rize', 'Van'].map(ablative).toList(), ["Erzurum'dan", "Ağrı'dan", "Kars'tan", "İzmit'ten", "Rize'den", "Van'dan"]);
+  });
+
+  test('kayak: çoklu konum yanıtı, kar kalınlığı, 24 sa ve 3 gün kar, rüzgâr uyarısı', () {
+    final now = DateTime(2026, 12, 5, 10, 20);
+    Map<String, dynamic> loc(double depth, double snowPerHour, double gust) => {
+      'hourly': {
+        'time': [for (var i = -24; i < 73; i++) DateTime(2026, 12, 5, 10).add(Duration(hours: i)).toIso8601String().substring(0, 16)],
+        'snow_depth': [for (var i = -24; i < 73; i++) depth], 'snowfall': [for (var i = -24; i < 73; i++) snowPerHour],
+        'temperature_2m': [for (var i = -24; i < 73; i++) -6.0], 'wind_speed_10m': [for (var i = -24; i < 73; i++) 5.0],
+        'wind_gusts_10m': [for (var i = -24; i < 73; i++) gust], 'weather_code': [for (var i = -24; i < 73; i++) 73],
+      },
+    };
+    final r = SkiService.parse([loc(.85, .5, 8), loc(0, 0, 18)], now);
+    expect(r.length, 2);
+    expect(r[0].r.name, 'Palandöken');
+    expect(r[0].snowCm, closeTo(85, .01));
+    expect(r[0].new24, closeTo(12, .01)); // 24 saat × 0,5 cm
+    expect(r[0].next72, closeTo(36, .01));
+    expect(r[0].windy, isFalse);
+    expect(r[1].windy, isTrue);
+    expect(SkiService.km(const GeoPoint2(39.9, 41.27), skiResorts.first), lessThan(10));
   });
 }
