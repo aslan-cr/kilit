@@ -211,7 +211,12 @@ void main() {
     for (var d = DateTime(n0.year, n0.month >= 9 ? 9 : 9, 1).subtract(Duration(days: n0.month >= 9 ? 0 : 365)); !d.isAfter(n0); d = d.add(const Duration(days: 1))) {
       sd.add(d.toIso8601String().substring(0, 10)); sv.add(d.month >= 11 && d.day % 4 == 0 ? 3.0 : 0);
     }
-    await shot(t, ClimateScreen(s: s, normals: ClimateNormals.compute(ct, cx, cn, cs), season: SeasonSnow.fromDaily(sd, sv)), '23_climate', size: const Size(412, 1400));
+    final recent = [for (var i = 30; i >= 1; i--) () {
+      final d = DateTime(n0.year, n0.month, n0.day).subtract(Duration(days: i));
+      final b0 = 6 - 15 * cos(2 * pi * (ClimateNormals.doy(d) - 20) / 365);
+      return DayPoint(date: d, tMax: b0 + 5 + 6 * sin(i / 4), tMin: b0 - 6, precipSum: i % 5 == 0 ? 3 : 0, snowSum: i % 5 == 0 && b0 < 4 ? 4 : 0, windMax: 0, weatherCode: 0);
+    }()];
+    await shot(t, ClimateScreen(s: s, normals: ClimateNormals.compute(ct, cx, cn, cs), season: SeasonSnow.fromDaily(sd, sv), recent: recent), '23_climate', size: const Size(412, 1900));
     await shot(t, AirScreen(s: s, data: [for (var i = -24; i < 72; i++) AirPoint(DateTime(n0.year, n0.month, n0.day, n0.hour).add(Duration(hours: i)),
         28 + 14 * sin(i / 5) + (i > 30 && i < 40 ? 18 : 0), 9 + 5 * sin(i / 5), 22 + 8 * sin(i / 5), 55 + 20 * sin(i / 7), 14 + 9 * sin(i / 4))]), '24_air', size: const Size(412, 1100));
     await shot(t, const LabScreen(), '03_lab');

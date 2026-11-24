@@ -249,4 +249,11 @@ void main() {
     expect(r[1].windy, isTrue);
     expect(SkiService.km(const GeoPoint2(39.9, 41.27), skiResorts.first), lessThan(10));
   });
+
+  test('son 30 gün: ayrıştırma', () {
+    final r = RecentDays.parse({'daily': {'time': ['2026-11-01', '2026-11-02', '2026-11-03'], 'temperature_2m_max': [5.2, null, 7], 'temperature_2m_min': [-1, 0, 1],
+        'snowfall_sum': [0, 2, 0.6], 'precipitation_sum': [0, 1.4, 0.4]}});
+    expect(r.length, 2); // en yüksek sıcaklığı olmayan gün atlanır
+    expect(r.last.snowSum, .6);
+  });
 }

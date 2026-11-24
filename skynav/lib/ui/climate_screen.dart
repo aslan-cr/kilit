@@ -26,7 +26,8 @@ class ClimateScreen extends StatefulWidget {
   /// Test için hazır normaller; boşsa indirilir/önbellekten.
   final ClimateNormals? normals;
   final SeasonSnow? season;
-  const ClimateScreen({super.key, required this.s, this.normals, this.season});
+  final List<DayPoint>? recent;
+  const ClimateScreen({super.key, required this.s, this.normals, this.season, this.recent});
   @override
   State<ClimateScreen> createState() => _ClimateScreenState();
 }
@@ -34,11 +35,16 @@ class ClimateScreen extends StatefulWidget {
 class _ClimateScreenState extends State<ClimateScreen> {
   ClimateNormals? _n;
   SeasonSnow? _season;
+  List<DayPoint>? _recent;
   bool _failed = false;
 
   @override
   void initState() {
     super.initState();
+    _recent = widget.recent;
+    if (_recent == null) {
+      RecentDays.load(widget.s.place).then((v) { if (mounted) setState(() => _recent = v); }).catchError((_) {});
+    }
     _season = widget.season;
     if (_season == null) {
       SeasonSnow.load(widget.s.place).then((v) { if (mounted && v != null) setState(() => _season = v); }).catchError((_) {});
@@ -68,6 +74,7 @@ class _ClimateScreenState extends State<ClimateScreen> {
           if (days.length > 1) _WeekBand(days: days, n: n),
           const SizedBox(height: 14),
           _Records(n: n, now: now),
+          if (_recent != null && _recent!.length >= 7) ...[const SizedBox(height: 14), _Last30(days: _recent!, n: n)],
           if (n.snowSeasonNormal >= 10 && ClimateNormals.seasonDay(now) != null) ...[
             const SizedBox(height: 14),
             _SeasonSnowBlock(n: n, season: _season, now: now),
@@ -270,5 +277,63 @@ class _SnowPainter extends CustomPainter {
   }
   @override
   bool shouldRepaint(covariant _SnowPainter o) => o.season != season || o.n != n;
+}
+
+/// Son 30 gün takvimi: her gün mevsim normaline göre renklenir (mavi soğuk, turuncu sıcak), karlı günde nokta.
+class _Last30 extends StatelessWidget {
+  final List<DayPoint> days; final ClimateNormals n;
+  const _Last30({required this.days, required this.n});
+
+  static Color _col(double dev) {
+    final t = (dev / 8).clamp(-1.0, 1.0);
+    return t < 0 ? Color.lerp(const Color(0xFFF2F6FB), const Color(0xFF3B7DDD), -t)! : Color.lerp(const Color(0xFFF2F6FB), const Color(0xFFF2643D), t)!;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final devs = [for (final d in days) d.tMax - n.maxOn(d.date)];
+    final avg = devs.reduce((a, b) => a + b) / devs.length;
+    final snowDays = days.where((d) => d.snowSum >= .5).length;
+    final lead = days.first.date.weekday - 1; // Pazartesi başlangıç
+    const names = ['Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct', 'Pa'];
+    return Bento(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        BlockHead('Son ${days.length} gün', trailing: Text(avg.abs() < .5 ? 'normal geçti' : 'ort. ${avg > 0 ? '+' : '−'}${avg.abs().toStringAsFixed(1)}°',
+            style: _st(12, FontWeight.w700, avg.abs() < .5 ? kGood : avg < 0 ? kSnow : kHeat))),
+        const SizedBox(height: 10),
+        Row(children: [for (final w in names) Expanded(child: Center(child: Text(w, style: _st(10.5, FontWeight.w700, kInkFaint))))]),
+        const SizedBox(height: 4),
+        LayoutBuilder(builder: (_, c) {
+          final cell = (c.maxWidth - 6 * 6) / 7;
+          return Wrap(spacing: 6, runSpacing: 6, children: [
+            for (var i = 0; i < lead; i++) SizedBox(width: cell, height: cell),
+            for (var i = 0; i < days.length; i++) Container(
+              width: cell, height: cell,
+              decoration: BoxDecoration(color: _col(devs[i]), borderRadius: BorderRadius.circular(10)),
+              child: Stack(children: [
+                Center(child: Text('${days[i].date.day}', style: _st(12, FontWeight.w700, devs[i].abs() > 5 ? Colors.white : kInk))),
+                if (days[i].snowSum >= .5) Positioned(right: 4, top: 4, child: Container(width: 6, height: 6,
+                    decoration: BoxDecoration(color: devs[i].abs() > 5 ? Colors.white : kSnow, shape: BoxShape.circle))),
+              ]),
+            ),
+          ]);
+        }),
+        const SizedBox(height: 10),
+        Row(children: [
+          Container(width: 30, height: 8, decoration: BoxDecoration(borderRadius: BorderRadius.circular(4),
+              gradient: const LinearGradient(colors: [Color(0xFF3B7DDD), Color(0xFFF2F6FB), Color(0xFFF2643D)]))),
+          const SizedBox(width: 6),
+          Text('normalden soğuk · sıcak', style: _st(11, FontWeight.w600, kInkSoft)),
+          const Spacer(),
+          if (snowDays > 0) ...[
+            Container(width: 6, height: 6, decoration: const BoxDecoration(color: kSnow, shape: BoxShape.circle)),
+            const SizedBox(width: 4),
+            Text('$snowDays karlı gün', style: _st(11, FontWeight.w700, kSnow)),
+          ],
+        ]),
+      ]),
+    );
+  }
 }
 

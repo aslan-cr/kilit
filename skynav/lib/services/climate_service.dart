@@ -182,3 +182,35 @@ class SeasonSnow {
   }
 }
 
+/// Son 30 günün gerçekleşen günlük değerleri (Open-Meteo, past_days). 3 saat bellekte.
+class RecentDays {
+  static final Map<String, (DateTime, List<DayPoint>)> _mem = {};
+
+  static List<DayPoint> parse(Object? body) {
+    final d = asMap(asMap(body)['daily']);
+    final t = strList(d['time']);
+    final mx = numList(d['temperature_2m_max']), mn = numList(d['temperature_2m_min']);
+    final sn = numList(d['snowfall_sum']), pr = numList(d['precipitation_sum']);
+    return [
+      for (var i = 0; i < t.length; i++)
+        if (opt(mx, i) != null)
+          DayPoint(date: DateTime.parse(t[i]), tMax: opt(mx, i)!, tMin: opt(mn, i) ?? opt(mx, i)!, precipSum: opt(pr, i) ?? 0, snowSum: opt(sn, i) ?? 0, windMax: 0, weatherCode: 0),
+    ];
+  }
+
+  static Future<List<DayPoint>> load(GeoPoint2 p, {http.Client? client}) async {
+    final k = '${p.lat.toStringAsFixed(2)}_${p.lon.toStringAsFixed(2)}';
+    final m = _mem[k];
+    if (m != null && DateTime.now().difference(m.$1) < const Duration(hours: 3)) return m.$2;
+    final body = await getJson(client ?? http.Client(), Uri.https('api.open-meteo.com', '/v1/forecast', {
+      'latitude': coord(p.lat), 'longitude': coord(p.lon),
+      'daily': 'temperature_2m_max,temperature_2m_min,snowfall_sum,precipitation_sum',
+      'past_days': '30', 'forecast_days': '1', 'timezone': 'auto',
+    }));
+    final today = DateTime.now();
+    final r = parse(body).where((d) => d.date.isBefore(DateTime(today.year, today.month, today.day))).toList();
+    _mem[k] = (DateTime.now(), r);
+    return r;
+  }
+}
+
