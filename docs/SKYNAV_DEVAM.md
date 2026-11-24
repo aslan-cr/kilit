@@ -119,3 +119,8 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
   (initiallyLaunchedFromHomeWidget + widgetClicked, navigatorKey). SkyWeatherWidget eskisi gibi ana ekranı açar.
 - İklim > Son 30 gün takvimi (RecentDays, past_days=30). Canlı pencere ses seçici. Sabah özeti saati (SharedState sn_brief_hour).
 
+## 2.8.0+22
+- Keşfet sık kullanılanı öne alır (_ExploreUse, Hive 'xp_<başlık>', 5 açılıştan sonra).
+- Gökyüzü olayı bildirimi: lib/engine/sky_notice.dart + bg_tasks (18–23, olay başına bir kez; sn_sky_off/sn_sky_last).
+- Ayarlar > Bildirimler bölümü.
+
