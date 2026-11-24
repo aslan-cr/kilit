@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../data/policy_text.dart';
 import '../pro/pro_service.dart';
 import '../services/auth_service.dart';
+import '../services/cloud_backup.dart';
 import '../services/store.dart';
 import '../services/weather_repository.dart';
 import '../widgets/widget_service.dart';
@@ -74,6 +75,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onTap: onTap,
       );
 
+  static String _ago(DateTime? t) {
+    if (t == null) return 'henüz yok';
+    final d = DateTime.now().difference(t);
+    if (d.inMinutes < 1) return 'az önce';
+    if (d.inHours < 1) return '${d.inMinutes} dk önce';
+    if (d.inDays < 1) return '${d.inHours} saat önce';
+    return '${d.inDays} gün önce';
+  }
+
+  /// Bulut yedeği: Gmail ile girişliyken yerler, rozetler, kapsüller ve ayarlar hesaba yedeklenir.
+  Widget _backupGroup(bool signedIn) {
+    if (!signedIn) {
+      return _group([
+        _tile(Icons.cloud_outlined, kAccent, 'Bulut yedeği',
+            sub: 'Gmail ile giriş yaparsan kayıtlı yerlerin, rozetlerin, zaman kapsüllerin ve ayarların hesabına yedeklenir. Uygulamayı silip yüklesen ya da telefon değiştirsen aynı Gmail ile girince geri gelir.'),
+      ]);
+    }
+    final on = CloudBackup.enabled;
+    void say(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    return _group([
+      _tile(Icons.cloud_done_outlined, kAccent, 'Bulut yedeği',
+          sub: on ? 'Açık · son yedek ${_ago(CloudBackup.lastBackup)}. Yerler, rozetler, kapsüller ve ayarlar; uygulamadan çıkınca kendiliğinden yedeklenir.' : 'Kapalı: veriler yalnızca bu telefonda.',
+          trailing: Switch(value: on, onChanged: (v) async { await CloudBackup.setEnabled(v); if (mounted) setState(() {}); })),
+      if (on) _tile(Icons.backup_outlined, kGood, 'Şimdi yedekle', onTap: () async {
+        final ok = await CloudBackup.backupNow(force: true);
+        if (!mounted) return;
+        say(ok ? 'Yedeklendi.' : 'Yedeklenemedi; internete bağlanınca tekrar dene.');
+        setState(() {});
+      }),
+      _tile(Icons.cloud_download_outlined, kAccent, 'Yedekten geri getir', sub: 'Buluttakini bu telefondakiyle birleştirir; hiçbir şey silinmez', onTap: () async {
+        final r = await CloudBackup.restoreIfNeeded(force: true);
+        if (!mounted) return;
+        say(r == null ? (CloudBackup.lastOk ? 'Bulutta yedek yok; her şey bu telefonda.' : 'İnternete ulaşılamadı; sonra tekrar dene.') : r.any ? r.text : 'Her şey zaten güncel.');
+        setState(() {});
+      }),
+      _tile(Icons.delete_outline_rounded, kDanger, 'Buluttaki yedeği sil', sub: 'Telefondaki veriler kalır; yedekleme kapanır', onTap: () async {
+        final yes = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+          title: const Text('Buluttaki yedek silinsin mi?'),
+          content: const Text('Telefondaki verilerin kalır. Uygulamayı silersen bu veriler geri getirilemez.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
+            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Sil', style: TextStyle(color: kDanger))),
+          ],
+        ));
+        if (yes != true) return;
+        final ok = await CloudBackup.deleteCloud();
+        if (!mounted) return;
+        say(ok ? 'Buluttaki yedek silindi.' : 'Silinemedi; internete bağlanınca tekrar dene.');
+        setState(() {});
+      }),
+    ]);
+  }
+
   Widget _group(List<Widget> kids) {
     final out = <Widget>[];
     for (var i = 0; i < kids.length; i++) { if (i > 0) out.add(const Divider(height: 1, indent: 66)); out.add(kids[i]); }
@@ -96,9 +150,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Pill(ProService.I.state.label, color: ProService.I.state.isPro ? kPro : kInkSoft, icon: Icons.workspace_premium_rounded),
           ])),
           user == null
-              ? FilledButton(style: FilledButton.styleFrom(minimumSize: const Size(0, 42)), onPressed: () async { final u = await AuthService.signInWithGoogle(); if (u != null) await ProService.I.onSignedIn(); setState(() {}); }, child: const Text('Giriş'))
-              : TextButton(onPressed: () async { await AuthService.signOut(); setState(() {}); }, child: const Text('Çıkış')),
+              ? FilledButton(style: FilledButton.styleFrom(minimumSize: const Size(0, 42)), onPressed: () async {
+                  final u = await AuthService.signInWithGoogle();
+                  if (u != null) { await ProService.I.onSignedIn(); CloudBackup.announce(await CloudBackup.restoreIfNeeded()); }
+                  if (mounted) setState(() {});
+                }, child: const Text('Giriş'))
+              : TextButton(onPressed: () async { await CloudBackup.backupNow(); await AuthService.signOut(); if (mounted) setState(() {}); }, child: const Text('Çıkış')),
         ])),
+        const SizedBox(height: 12),
+        _backupGroup(user != null),
 
         const SectionLabel('SkyNav Pro'),
         _group([

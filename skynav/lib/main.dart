@@ -16,6 +16,7 @@ import 'pro/billing_service.dart';
 import 'pro/pro_service.dart';
 import 'services/auth_service.dart';
 import 'services/cloud.dart';
+import 'services/cloud_backup.dart';
 import 'services/notify_service.dart';
 import 'services/icon_service.dart';
 import 'services/store.dart';
@@ -106,6 +107,7 @@ class _SkyNavAppState extends State<SkyNavApp> with WidgetsBindingObserver {
       // Sadece son kullanım anını kaydet ve birkaç dakika sonrası için arka plan işi planla.
       IconService.markForeground(false);
       Background.scheduleIconApply();
+      CloudBackup.backupNow(); // değiştiyse buluta yaz (girişliyse)
     }
   }
 
@@ -114,7 +116,11 @@ class _SkyNavAppState extends State<SkyNavApp> with WidgetsBindingObserver {
     Voice.init(L10n.ttsTag);
     BillingService.I.init();
     await ProService.I.markUsageAndRefresh();
-    if (AuthService.user != null) { await ProService.I.onSignedIn(); }
+    if (AuthService.user != null) {
+      await ProService.I.onSignedIn();
+      // Bu kurulumda bu hesap için ilk açılış: buluttaki yedeği getir (sil-yükle / yeni telefon)
+      CloudBackup.restoreIfNeeded().then(CloudBackup.announce);
+    }
     ProService.I.addListener(_toast);
     // 1 sn'lik nabız: doğrulama sessiz çalışır, ekran yalnızca onaylı veriyle güncellenir.
     WeatherController.I.refresh(force: true);
@@ -139,6 +145,7 @@ class _SkyNavAppState extends State<SkyNavApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) => MaterialApp(
         navigatorKey: _nav,
+        scaffoldMessengerKey: CloudBackup.messenger,
         title: 'SkyNav',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),

@@ -33,6 +33,7 @@ class WhatsNew extends StatelessWidget {
       'Saatlik, Mini, Ay, Kayak ve Hava kalitesi; dokununca ilgili sayfa açılır',
     ]),
     (Icons.touch_app_outlined, kWarn, kBentoPeach, 'Kolaylık', [
+      'Bulut yedeği: Gmail ile girersen yerlerin, rozetlerin ve ayarların hesabına yedeklenir; silip yüklesen de geri gelir',
       'Günlere ve saatlere dokun: ayrıntı sayfası',
       'Anlaşılır dil: bilimsel terimler gündelik dile döner',
       'Konum araması yazarken arar; büyük yazı, küçük ekran ve ekran okuyucu desteği',

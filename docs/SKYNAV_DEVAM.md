@@ -150,3 +150,21 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - Widget'lar 7 adet (ImageWidgets.kt + SkyWeatherWidget). Yeni widget = layout aynı, info xml + receiver + Dart yüzü.
 - Pro ile çakışan ücretsiz özellik ekleme (ör. yol durumu şeridi denendi, bırakıldı).
 - Taşma testi: flutter test test/shots/large_text_test.dart --dart-define=SCALE={0.9,1.0,1.25} --dart-define=W={320,360,412}.
+
+## 3.1.0+25 — kullanıcı: "silip yükleyip aynı Gmail ile girince veriler silinmesin"
+- Bulut yedeği: lib/services/cloud_backup.dart. Yer: users/{uid}/apps/skynav belgesinde 'backup' (JSON metni),
+  'backupRev' (rastgele sürüm damgası), 'backupAt', 'backupV'. Mevcut firestore.rules apps/{appId} için sahibine
+  okuma/yazma veriyor → KURAL DEĞİŞİKLİĞİ GEREKMEDİ. Belge ekosistem kaydıyla ortak; firstSeen/lastActive'e dokunulmaz,
+  belge yoksa yazılmaz (registerThisApp oluşturur).
+- Yedeklenen: kayıtlı yerler (Hive places), rozetler, zaman kapsülleri, Keşfet kullanım sayıları (xp_*), gözlem
+  öğrenmesi (selfcheck, son 300) + bias_c, plain_lang/muted/mixer_last, SharedState bildirim tercihleri (sn_*_off,
+  sn_brief_hour, sn_dyn_icon). Pro hakları YOK (hesaptan/Play'den gelir), önbellek yok.
+- Eşitleme (sync): sunucudan oku (Source.server; çevrimdışıysa hiç yazmaz) → buluttaki damga cihazın bildiği damgadan
+  ('cloud_rev' = "uid:rev") farklıysa önce BİRLEŞTİR (merge: cihazdaki kazanır, birleşim, hiçbir şey silinmez) → değiştiyse
+  yeni damgayla yaz. Böylece yeni kurulumun boş verisi ya da Android otomatik yedeğinin geri yüklediği eski veri buluttakini
+  ezmez. Çağrılar: açılışta + girişte (main/_boot, onboarding, Ayarlar) restoreIfNeeded; uygulama arka plana geçince backupNow.
+- Ayarlar > (hesap kartının altı) Bulut yedeği: aç/kapa, Şimdi yedekle, Yedekten geri getir, Buluttaki yedeği sil.
+- Gizlilik metni güncellendi (policy_text.dart). Test: test/cloud_backup_test.dart (birleştirme + sil-yükle senaryosu).
+- AÇIK KONU: gizlilik metni "Ayarlar > Hesabı ve verilerimi sil" diyor ama uygulamada böyle bir seçenek yok (önceden de
+  yoktu). Play hesap silme şartı için gerekli; firestore.rules users/{uid} ve grants için delete izni vermiyor → kural
+  değişikliği (Firebase konsolunda yayınlama) gerektirir. Kullanıcıya soruldu.

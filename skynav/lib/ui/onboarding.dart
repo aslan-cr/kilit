@@ -5,6 +5,7 @@ import '../data/policy_text.dart';
 import '../pro/pro_service.dart';
 import '../services/audio_service.dart';
 import '../services/auth_service.dart';
+import '../services/cloud_backup.dart';
 import '../services/notify_service.dart';
 import '../services/store.dart';
 import 'hero_scene.dart' show ScenePalette;
@@ -48,6 +49,8 @@ class _OnboardingState extends State<Onboarding> {
     final u = await AuthService.signInWithGoogle();
     if (u != null) {
       await ProService.I.onSignedIn();
+      // Daha önce bu Gmail ile kullandıysa: yerler, rozetler, kapsüller, ayarlar geri gelsin
+      CloudBackup.announce(await CloudBackup.restoreIfNeeded());
       final pending = Store.get<String>('pending_code');
       if (pending != null) {
         final err = await ProService.I.redeemInvite(pending);
