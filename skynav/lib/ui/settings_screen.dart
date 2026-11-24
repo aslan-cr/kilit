@@ -129,6 +129,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (v) await Notify.requestPermission();
                 setState(() {});
               })),
+          _tile(Icons.auto_awesome, kPro, 'Gökyüzü olayları', sub: 'Meteor yağmuru tepe gecesi ve Türkiye\'den görülen tutulmalar (akşam bildirimi)',
+              trailing: Switch(value: SharedState.cached?.getBool('sn_sky_off') != true, onChanged: (v) async {
+                final p = await SharedState.get();
+                await p.setBool('sn_sky_off', !v);
+                if (v) await Notify.requestPermission();
+                setState(() {});
+              })),
           _tile(Icons.wb_twilight_rounded, kSun, 'Sabah özeti',
               sub: 'Her sabah ${(SharedState.cached?.getInt('sn_brief_hour') ?? 7).toString().padLeft(2, '0')}:00 civarı: bugünün havası ve kısa öneri · saati değiştirmek için dokun',
               onTap: _pickBriefHour,

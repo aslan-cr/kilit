@@ -4,6 +4,7 @@ import 'package:skynav/astro/space_events.dart';
 import 'package:skynav/astro/sky_times.dart';
 import 'package:skynav/astro/star_catalog.dart';
 import 'package:skynav/engine/alerts.dart';
+import 'package:skynav/engine/sky_notice.dart';
 import 'package:skynav/services/ski_service.dart';
 import 'package:skynav/ui/compare_screen.dart';
 import 'package:skynav/astro/sky_calendar.dart';
@@ -255,5 +256,13 @@ void main() {
         'snowfall_sum': [0, 2, 0.6], 'precipitation_sum': [0, 1.4, 0.4]}});
     expect(r.length, 2); // en yüksek sıcaklığı olmayan gün atlanır
     expect(r.last.snowSum, .6);
+  });
+
+  test('gökyüzü olayı bildirimi: Geminid tepe gecesi akşamı, sıradan akşam yok', () {
+    final n = skyNotice(DateTime(2026, 12, 13, 20), 39.9, 41.27);
+    expect(n, isNotNull);
+    expect(n!.title, contains('Geminidler'));
+    expect(skyNotice(DateTime(2026, 12, 3, 20), 39.9, 41.27), isNull);
+    expect(skyNotice(DateTime(2028, 12, 31, 19), 39.9, 41.27)?.title, contains('Ay tutulması')); // Türkiye'den görülür
   });
 }

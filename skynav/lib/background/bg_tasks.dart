@@ -5,6 +5,7 @@ import '../data/models.dart';
 import '../engine/alerts.dart';
 import '../engine/brief.dart';
 import '../engine/nowcast.dart';
+import '../engine/sky_notice.dart';
 import '../engine/weather_engine.dart';
 import '../services/icon_service.dart';
 import '../services/notify_service.dart';
@@ -49,6 +50,15 @@ void callbackDispatcher() {
             await sp.setInt('sn_alarm_rainsoon', DateTime.now().millisecondsSinceEpoch);
             await Notify.show('SkyNav · ${n.snow ? 'Kar' : 'Yağmur'} geliyor', '${n.headline}. ${n.snow ? 'Yollar kayganlaşabilir kanki.' : 'Şemsiyeni al kanki.'}');
           }
+        }
+      }
+      // Gökyüzü olayı: akşam 18–23 arası, olay başına bir kez (meteor tepe gecesi, Türkiye'den görülen tutulma)
+      final ev = DateTime.now();
+      if (sp.getBool('sn_sky_off') != true && ev.hour >= 18 && ev.hour < 23) {
+        final n = skyNotice(ev, p.lat, p.lon);
+        if (n != null && sp.getString('sn_sky_last') != n.key) {
+          await sp.setString('sn_sky_last', n.key);
+          await Notify.show('SkyNav · ${n.title}', n.body);
         }
       }
       // Sabah özeti: 07:00–10:00 arası günde bir kez (Ayarlar'dan kapatılabilir)
