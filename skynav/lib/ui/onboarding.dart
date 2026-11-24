@@ -204,9 +204,8 @@ class _OnboardingState extends State<Onboarding> {
         const SizedBox(height: 10),
         const Text('Google ile girersen haklarını kaybetmezsin, uygulamalarım arasında birleşir.', style: T.body),
         const SizedBox(height: 22),
-        const _Feature(Icons.workspace_premium_rounded, kPro, '4 uygulama = 1 ay Pro', 'Aynı hesapla 4 uygulamamı 7+ gün kullanırsan 30 gün Pro hediye.'),
         const _Feature(Icons.card_giftcard_rounded, kGood, 'Davet ödülleri', 'Kodunu paylaş; arkadaşın onaylarsa ikiniz de 1 hafta Pro.'),
-        const _Feature(Icons.sync_rounded, kAccent, 'Hakların güvende', 'Telefon değiştirsen de Pro ve ödüllerin hesabında kalır.'),
+        const _Feature(Icons.sync_rounded, kAccent, 'Verilerin güvende', 'Telefon değiştirsen ya da uygulamayı silip yüklesen de Pro, kayıtlı yerlerin ve ayarların hesabında kalır.'),
         for (final n in _notes) Padding(padding: const EdgeInsets.only(top: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Icon(Icons.info_outline_rounded, size: 18, color: kWarn), const SizedBox(width: 8), Expanded(child: Text(n, style: T.small.copyWith(color: kInk))),
         ])),

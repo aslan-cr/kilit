@@ -10,7 +10,8 @@ import '../services/auth_service.dart';
 import '../services/cloud.dart';
 import '../services/store.dart';
 
-/// Pro hakları. Kaynaklar: geliştirici modu, ömür boyu, süreli hibeler (lansman, davet, ekosistem, satın alma).
+/// Pro hakları. Kaynaklar: geliştirici modu, ömür boyu, süreli hibeler (lansman, davet, satın alma).
+/// ("4 uygulama = 30 gün Pro" ödülü Play'in teşvikli yükleme politikası nedeniyle 3.2'de kaldırıldı; verilmiş hibeler süresince geçerli.)
 class ProState {
   final bool dev, lifetime;
   final DateTime? until;
@@ -103,7 +104,7 @@ class ProService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Hesap açıldığında bir kez çalışır: kullanıcı belgesi, davet kodu, ekosistem, lansman ödülü.
+  /// Hesap açıldığında bir kez çalışır: kullanıcı belgesi, davet kodu, uygulama kaydı, lansman ödülü.
   Future<void> onSignedIn() async {
     if (!Cloud.ready || uid == null) return;
     final ref = _db.collection('users').doc(uid);
@@ -118,7 +119,6 @@ class ProService extends ChangeNotifier {
         });
       }
       await registerThisApp();
-      await checkEcosystem();
       await claimLaunchReward();
     } catch (e) { debugPrint('onSignedIn: $e'); }
     await refresh();
@@ -130,7 +130,7 @@ class ProService extends ChangeNotifier {
     return 'SKY-${List.generate(6, (_) => a[r.nextInt(a.length)]).join()}';
   }
 
-  /// Her açılışta: bu uygulamanın "yüklü ve aktif" kaydı (ekosistem motoru).
+  /// Her açılışta: bu uygulamanın kaydı (users/{uid}/apps/skynav; bulut yedeği de bu belgede durur).
   Future<void> registerThisApp({String appId = 'skynav'}) async {
     if (!Cloud.ready || uid == null) return;
     final ref = _db.collection('users').doc(uid).collection('apps').doc(appId);
@@ -140,30 +140,6 @@ class ProService extends ChangeNotifier {
     } else {
       await ref.update({'lastActive': FieldValue.serverTimestamp()});
     }
-  }
-
-  /// Aynı Gmail'de ≥7 gündür yüklü + son 7 günde aktif ≥4 farklı uygulama → 30 gün Pro.
-  Future<List<Map<String, dynamic>>> myApps() async {
-    if (!Cloud.ready || uid == null) return [];
-    final q = await _db.collection('users').doc(uid).collection('apps').get();
-    return q.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-  }
-
-  Future<bool> checkEcosystem() async {
-    final apps = await myApps();
-    final now = DateTime.now();
-    int ok = 0;
-    for (final a in apps) {
-      final f = (a['firstSeen'] as Timestamp?)?.toDate();
-      final l = (a['lastActive'] as Timestamp?)?.toDate();
-      if (f != null && l != null && now.difference(f).inDays >= 7 && now.difference(l).inDays <= 7) ok++;
-    }
-    if (ok < 4) return false;
-    final g = _db.collection('users').doc(uid).collection('grants').doc('eco_30d');
-    if ((await g.get()).exists) return false;
-    await g.set({'kind': 'eco', 'days': 30, 'until': Timestamp.fromDate(now.add(const Duration(days: 30))), 'at': FieldValue.serverTimestamp()});
-    lastMessage = '4 uygulamam = 1 ay Pro! Aynı hesapla 4 uygulamayı kullandığın için 30 gün SkyNav Pro hediye.';
-    return true;
   }
 
   // ---------- Lansman ödül sayacı ----------

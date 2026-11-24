@@ -57,10 +57,10 @@ Future<void> _font(String family, List<String> files) async {
 WeatherSnapshot fake({PrecipKind k = PrecipKind.snow, bool day = true, double t = -2}) {
   final now = DateTime.now();
   return WeatherSnapshot(
-    place: const GeoPoint2(39.9, 41.27, elevation: 1850, name: 'Erzurum'), fetchedAt: now,
+    place: _home, fetchedAt: now,
     temp: t, feelsLike: t - 6, humidity: 88, dewPoint: t - 2, pressure: 1012, windSpeed: 6.5, windDir: 300, windGust: 11,
     cloudCover: k == PrecipKind.none ? 20 : 90, cloudHigh: 30, precip: k == PrecipKind.none ? 0 : 1.1, snowfall: k == PrecipKind.snow ? .9 : 0,
-    visibilityM: 4000, cape: 30, uv: 1.2, freezingLevelM: 900, snowDepthM: .18, wetBulb: t - .6, weatherCode: 73, isDay: day,
+    visibilityM: 4000, cape: 30, uv: 1.2, freezingLevelM: _store ? 250 : 900, snowDepthM: .18, wetBulb: t - .6, weatherCode: 73, isDay: day,
     soil0: -1.2, soil6: -.4, soil18: .8, soil54: 3.1, soil0Past3dAvg: -.6,
     pressureLevels: const {1000: {'temp': -2}, 925: {'temp': -6}, 850: {'temp': -9}, 700: {'temp': -16}, 500: {'temp': -30}, 300: {'temp': -48}},
     // Figma örneğiyle aynı saatlik seri (3 saat geçmiş + 24 saat); basınç son 3 saatte sabit.
@@ -95,6 +95,8 @@ const _hp = <double>[.5, .6, .3, 0, 0, 0, .2, .8, 1.2, .9, .4, 0, 0, 0, .3, .7, 
 
 /// Mağaza modu (--dart-define=STORE=true): tüm ekranlar 390×780, 3 kat çözünürlük, /tmp/store'a (Play görselleri).
 const _store = bool.fromEnvironment('STORE');
+/// Örnek şehir: ekran testlerinde Erzurum, mağaza görsellerinde Kahramanmaraş.
+const _home = _store ? GeoPoint2(37.585, 36.937, elevation: 568, name: 'Kahramanmaraş') : GeoPoint2(39.9, 41.27, elevation: 1850, name: 'Erzurum');
 
 Future<void> shot(WidgetTester t, Widget w, String name, {Size size = const Size(412, 915), Duration extra = Duration.zero}) async {
   if (_store) size = name == '02b_weather_full' ? const Size(390, 3400) : const Size(390, 780);
@@ -136,18 +138,18 @@ void main() {
     WeatherController.I.debugSet(s, WeatherEngine.analyze(s));
     final an = WeatherEngine.analyze(s);
     await shot(t, Scaffold(backgroundColor: const Color(0xFF6B7F99), body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      WeatherWidgetFace(s: s, a: an, place: 'Erzurum', condition: 'Kar', line2: 'Rüzgâr 6 m/s · nem %88', today: s.daily.first),
+      WeatherWidgetFace(s: s, a: an, place: _home.name, condition: 'Kar', line2: 'Rüzgâr 6 m/s · nem %88', today: s.daily.first),
       const SizedBox(height: 16),
-      WeatherWidgetFace(s: fake(k: PrecipKind.none, day: false, t: 6), a: WeatherEngine.analyze(fake(k: PrecipKind.none, day: false, t: 6)), place: 'Erzurum', condition: 'Açık gece', line2: 'Yıldız netliği %80'),
+      WeatherWidgetFace(s: fake(k: PrecipKind.none, day: false, t: 6), a: WeatherEngine.analyze(fake(k: PrecipKind.none, day: false, t: 6)), place: _home.name, condition: 'Açık gece', line2: 'Yıldız netliği %80'),
       const SizedBox(height: 16),
       const Row(mainAxisSize: MainAxisSize.min, children: [
         SpeedWidgetFace(speedKmh: 54, road: 'Karlı', gText: 'G 0.2', warn: 'Yol kaygan, yavaş git kanki.', level: 1),
       ]),
       const SizedBox(height: 16),
-      HourlyWidgetFace(s: s, place: 'Erzurum', now: DateTime.now()),
+      HourlyWidgetFace(s: s, place: _home.name, now: DateTime.now()),
       const SizedBox(height: 16),
       Row(mainAxisSize: MainAxisSize.min, children: [
-        MiniWidgetFace(s: s, a: an, place: 'Erzurum', today: s.daily.first, now: DateTime.now()),
+        MiniWidgetFace(s: s, a: an, place: _home.name, today: s.daily.first, now: DateTime.now()),
         const SizedBox(width: 16),
         MoonWidgetFace(lat: s.place.lat, lon: s.place.lon, now: DateTime.now()),
       ]),
@@ -155,7 +157,7 @@ void main() {
       Row(mainAxisSize: MainAxisSize.min, children: [
         SkiWidgetFace(s: SkiNow(skiResorts.first, snowCm: 85, new24: 12, next72: 30, temp: -8, wind: 6, gust: 12, gustNext12: 14, code: 73), km: 4),
         const SizedBox(width: 16),
-        AirWidgetFace(s: s, place: 'Erzurum'),
+        AirWidgetFace(s: s, place: _home.name),
       ]),
     ]))), '00_widgets', size: const Size(412, 1200));
     await shot(t, const Onboarding(onDone: _noop), '01_onboarding');
@@ -198,7 +200,7 @@ void main() {
         ? PlaceNow(place: p, temp: -3, tMax: 0, tMin: -8, wind: 4, precip: .4, cloud: 95, code: 73, isDay: true)
         : PlaceNow(place: p, temp: 1, tMax: 4, tMin: -6, wind: 2, precip: 0, cloud: 30, code: 2, isDay: true)), '21_places', size: const Size(412, 900));
     await shot(t, CompareScreen(
-        a: PlaceNow(place: const GeoPoint2(39.9, 41.27, name: 'Erzurum'), temp: -2, tMax: 1, tMin: -7, wind: 6, precip: 1, cloud: 90, code: 73, isDay: true, days: s.daily),
+        a: PlaceNow(place: _home, temp: -2, tMax: 1, tMin: -7, wind: 6, precip: 1, cloud: 90, code: 73, isDay: true, days: s.daily),
         b: PlaceNow(place: const GeoPoint2(39.95, 41.10, name: 'Anneannem'), temp: -5, tMax: -1, tMin: -11, wind: 3, precip: 0, cloud: 30, code: 2, isDay: true,
             days: [for (final d in s.daily) DayPoint(date: d.date, tMax: d.tMax - 3, tMin: d.tMin - 4, precipSum: d.precipSum * 1.5, snowSum: d.snowSum * 1.6, windMax: d.windMax, weatherCode: d.weatherCode)])),
         '25_compare', size: const Size(412, 1000));
@@ -253,7 +255,7 @@ void main() {
         ('06f_golden', variant(4, 30, 1, 0, true, snowDepth: .1, at: GeoPoint2(39.9, _lonForSun(3), elevation: 1850, name: 'Gün batımı'))),
         ('06g_bluehour', variant(2, 20, 0, 0, false, snowDepth: .1, at: GeoPoint2(39.9, _lonForSun(-3.5), elevation: 1850, name: 'Mavi saat'))),
         // Karanlık, açık gece: gerçek yıldızlar ve gezegenler
-        ('06h_starry', variant(-4, 5, 0, 0, false, snowDepth: .1, at: GeoPoint2(39.9, _lonForSun(-35), elevation: 1850, name: 'Yıldızlı gece')))]) {
+        ('06h_starry', variant(-4, 5, 0, 0, false, snowDepth: .1, at: GeoPoint2(39.9, _lonForSun(-35), elevation: _home.elevation, name: _store ? _home.name : 'Yıldızlı gece')))]) {
       WeatherController.I.debugSet(v, WeatherEngine.analyze(v));
       await shot(t, const AppShell(), name, size: const Size(412, 560));
     }

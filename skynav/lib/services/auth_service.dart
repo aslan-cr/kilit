@@ -27,6 +27,22 @@ class AuthService {
     }
   }
 
+  /// Hassas işlemlerden (hesap silme) önce: aynı Google hesabıyla yeniden doğrular. Başarılıysa null, değilse hata metni.
+  static Future<String?> reauthenticate() async {
+    final u = user;
+    if (u == null) return 'Giriş yapılmamış.';
+    try {
+      if (!_gsiInit) { await GoogleSignIn.instance.initialize(serverClientId: _webClientId); _gsiInit = true; }
+      final acc = await GoogleSignIn.instance.authenticate();
+      await u.reauthenticateWithCredential(GoogleAuthProvider.credential(idToken: acc.authentication.idToken));
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return e.code == 'user-mismatch' ? 'Giriş yaptığın Gmail hesabını seçmelisin.' : 'Doğrulanamadı: ${e.message ?? e.code}';
+    } catch (e) {
+      return 'Doğrulama iptal edildi.';
+    }
+  }
+
   static Future<void> signOut() async {
     try { await GoogleSignIn.instance.signOut(); } catch (_) {}
     if (Cloud.ready) await FirebaseAuth.instance.signOut();

@@ -177,3 +177,15 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
   windows-latest'te VS 2026 var ve Flutter 3.35.7 tanımıyor). kilit/main'i çekip `flutter create --platforms=windows`,
   dik pencere 440×920, Inno Setup ile SkyNav-Setup-<sürüm>.exe + zip → o deponun Releases'ına.
   Windows'ta telefona özel eklentiler (widget, workmanager, Google giriş, satın alma, sensörler) çalışmaz.
+
+## 3.2.0+26 — Play politikası
+- "4 uygulama = 30 gün Pro" (ekosistem) ödülü KALDIRILDI (Play: teşvikli yükleme yasağı). pro_service: checkEcosystem/myApps
+  silindi; registerThisApp kalır (apps/skynav belgesi bulut yedeğini taşır). Onboarding ve Ayarlar'daki "Diğer uygulamalarım"
+  kalktı. Arkadaş daveti ödülü aynen duruyor. Kurallarda 'eco' türü bırakıldı (Firebase projesi diğer uygulamalarla ortak olabilir).
+- Hesap silme: lib/services/account_service.dart + AuthService.reauthenticate; Ayarlar > Gizlilik & izinler >
+  "Hesabımı ve verilerimi sil" (girişliyse). Siler: users/{uid} + apps/grants/credits + Auth kullanıcısı. Saklar: devices, invites.
+  firestore.rules'a users/grants/credits için sahibine delete izni eklendi → KULLANICI FIREBASE KONSOLUNDA YAYINLAMALI,
+  yoksa silme "sunucu izni" hatası verir.
+- Web sayfaları (Play Console'a link): docs/skynav_gizlilik.md, docs/skynav_hesap_silme.md (GitHub'da görüntülenir).
+  hesap_silme.md'de [DESTEK E-POSTASI] yer tutucusu var: kullanıcıdan adres alınacak.
+- Mağaza görselleri Kahramanmaraş (shots_test STORE modunda _home; donma seviyesi 250 m ki "Karlı" görünsün).

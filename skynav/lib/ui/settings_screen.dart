@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../data/policy_text.dart';
 import '../pro/pro_service.dart';
+import '../services/account_service.dart';
 import '../services/auth_service.dart';
 import '../services/cloud_backup.dart';
 import '../services/store.dart';
@@ -29,13 +30,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _ver = '';
   int _taps = 0;
   bool _devUnlocked = Store.prefs.get('dev_unlocked', defaultValue: false) as bool;
-  List<Map<String, dynamic>> _apps = [];
 
   @override
   void initState() {
     super.initState();
     PackageInfo.fromPlatform().then((p) => setState(() => _ver = '${p.version}+${p.buildNumber}'));
-    ProService.I.myApps().then((a) => setState(() => _apps = a));
   }
 
   void _tapVersion() async {
@@ -74,6 +73,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
         trailing: trailing ?? (onTap != null ? const Icon(Icons.chevron_right_rounded, color: kInkFaint) : null),
         onTap: onTap,
       );
+
+  /// Hesap silme: açık uyarı → Google ile onay → sil → sonuç.
+  Future<void> _deleteAccount() async {
+    Widget line(String t) => Padding(padding: const EdgeInsets.only(top: 6), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Padding(padding: EdgeInsets.only(top: 7), child: Icon(Icons.circle, size: 5, color: kInkSoft)),
+          const SizedBox(width: 8),
+          Expanded(child: Text(t, style: T.small.copyWith(color: kInk))),
+        ]));
+    final yes = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+      title: const Text('Hesabın silinsin mi?'),
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Bu işlem geri alınamaz. Kalıcı olarak silinecekler:', style: T.body.copyWith(fontSize: 14.5)),
+        line('Google ile açılan SkyNav hesabın'),
+        line('Pro hakların, ödüllerin ve davet kredilerin'),
+        line('Buluttaki yedeğin: kayıtlı yerler, rozetler, kapsüller, ayarlar'),
+        const SizedBox(height: 10),
+        Text('Google Play\'den Pro satın aldıysan, aynı Gmail ile yeniden girip "Satın alımları geri yükle" ile geri getirebilirsin. '
+            'Bu telefondaki veriler kalır. Kötüye kullanımı önlemek için cihaz özeti ve kullanılmış davet kodları saklanır.', style: T.small.copyWith(fontSize: 12.5)),
+        const SizedBox(height: 10),
+        Text('Onaylamak için Google hesabını bir kez daha seçeceksin.', style: T.small.copyWith(fontSize: 12.5, fontWeight: FontWeight.w700)),
+      ])),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
+        TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Kalıcı olarak sil', style: TextStyle(color: kDanger, fontWeight: FontWeight.w700))),
+      ],
+    ));
+    if (yes != true || !mounted) return;
+    showDialog<void>(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+    final err = await AccountService.deleteAccount();
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    await ProService.I.refresh();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err ?? 'Hesabın ve buluttaki verilerin silindi.')));
+    setState(() {});
+  }
 
   static String _ago(DateTime? t) {
     if (t == null) return 'henüz yok';
@@ -228,14 +263,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _tile(Icons.new_releases_outlined, kAccent, 'Yenilikler', sub: 'Son sürümlerde gelenler', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhatsNew()))),
         ]),
 
-        const SectionLabel('Diğer uygulamalarım'),
-        Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Aynı hesapla 7+ gündür aktif 4 uygulama = 30 gün Pro.', style: T.small),
-          if (_apps.isEmpty) Padding(padding: const EdgeInsets.only(top: 10), child: Text('Henüz kayıtlı uygulama yok (giriş yapınca görünür).', style: T.body.copyWith(fontSize: 14))),
-          for (final a in _apps) ListTile(contentPadding: EdgeInsets.zero, leading: const IconBadge(Icons.apps_rounded, size: 36), title: Text(a['id'].toString(), style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text('İlk: ${(a['firstSeen'] as dynamic)?.toDate().toString().substring(0, 10) ?? '-'}')),
-        ])),
-
         const SectionLabel('Gizlilik & izinler'),
         _group([
           _tile(Icons.privacy_tip_outlined, kInkSoft, 'Gizlilik Politikası', onTap: () => _show('Gizlilik Politikası', privacyText)),
@@ -243,6 +270,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _tile(Icons.shield_outlined, kInkSoft, 'Veri Kullanımı & İzinler', onTap: () => _show('Veri Kullanımı & İzinler', dataText)),
           _tile(Icons.app_settings_alt_outlined, kAccent, 'Uygulama izinlerini değiştir', onTap: openAppSettings),
           _tile(Icons.copyright_rounded, kInkSoft, 'Kaynaklar ve lisanslar', sub: 'Ay haritası, yıldızlar, doğa sesleri, yazı tipi, haritalar', onTap: () => _show('Kaynaklar ve lisanslar', creditsText)),
+          if (AuthService.user != null)
+            _tile(Icons.person_remove_outlined, kDanger, 'Hesabımı ve verilerimi sil', sub: 'Hesabın, Pro hakların ve buluttaki yedeğin kalıcı silinir', onTap: _deleteAccount),
         ]),
 
         if (_devUnlocked) ...[

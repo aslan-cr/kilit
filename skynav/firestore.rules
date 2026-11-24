@@ -7,20 +7,23 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if me() && request.auth.uid == uid;
       allow create, update: if me() && request.auth.uid == uid;
+      // Hesap silme (Ayarlar > Hesabımı ve verilerimi sil): kullanıcı kendi belgesini ve alt koleksiyonlarını siler.
+      allow delete: if me() && request.auth.uid == uid;
 
       // Hibeler (Pro hakları): yalnızca izinli türler, sabit gün sayılarıyla.
       match /grants/{gid} {
         allow read: if me() && request.auth.uid == uid;
         allow create: if me() && request.auth.uid == uid && request.resource.data.kind in ['eco', 'launch', 'invite_in', 'invite_out', 'purchase']
                       && (request.resource.data.get('days', 0) <= 150);
+        allow delete: if me() && request.auth.uid == uid;
       }
-      // Uygulama kayıtları (ekosistem motoru)
+      // Uygulama kaydı ve bulut yedeği (users/{uid}/apps/skynav)
       match /apps/{appId} {
         allow read, write: if me() && request.auth.uid == uid;
       }
       // Davet edene kredi: yalnızca davet edilen kişi, kendi uid'siyle ve kullanılmış davet varsa yazabilir.
       match /credits/{friend} {
-        allow read, update: if me() && request.auth.uid == uid;
+        allow read, update, delete: if me() && request.auth.uid == uid;
         allow create: if me() && request.auth.uid == friend
                       && getAfter(/databases/$(db)/documents/invites/$(request.resource.data.code)).data.usedBy == request.auth.uid
                       && getAfter(/databases/$(db)/documents/invites/$(request.resource.data.code)).data.ownerUid == uid;
