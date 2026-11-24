@@ -1,0 +1,42 @@
+SkyNav, hava durumunu sayılardan çok daha fazlası olarak gösterir: bulunduğun yerin gökyüzünü canlı bir sahne olarak çizer, kar ve yağışı dakika dakika takip eder, gece gökte ne olduğunu anlatır. Reklam yok.
+
+CANLI GÖKYÜZÜ
+• O anki havaya göre çizilen canlı sahne: kar, yağmur, sis, şimşek ve bulutlar
+• Gece göğünde o an gerçekten görünen yıldızlar ve gezegenler
+• Canlı pencere: tam ekran sahne, gerçek doğa sesleriyle
+
+YAĞIŞ VE KAR
+• Önümüzdeki 2 saat için 15 dakikalık yağış tahmini: "Kar 40 dakika sonra başlıyor"
+• Kar, karla karışık yağmur, mercimek karı ve tipi olasılıkları
+• Saatlik ve 7 günlük tahmin; güne ya da saate dokununca ayrıntı
+• Kar kalınlığı, donma seviyesi, yaş termometre ve toprak sıcaklığı
+
+KEŞFET
+• Gök & Ay: bu gece görünen gezegenler, Ay doğuş-batış saatleri, Ay evresi, fotoğrafçı saatleri ve meteor yağmurları
+• En iyi zaman: yürüyüş, koşu, bisiklet, çamaşır, araba yıkama ve yıldız gözlemi için en uygun saatler
+• Kayak merkezleri: kar kalınlığı, son 24 saatte ve önümüzdeki 3 günde yağacak kar, rüzgâr
+• Bahçe & tarla: gece gece don takvimi, ekim için toprak sıcaklığı, ilaçlama saatleri ve haftalık sulama
+• İklim: bugün mevsim normalinden ne kadar farklı, rekorlar, bu kış yağan kar, son 30 gün
+• Hava kalitesi, basınç ve rüzgâr grafikleri
+• Yerlerim: kayıtlı yerlerinin havası yan yana, iki yeri karşılaştırma
+
+BİLDİRİMLER (hepsi Ayarlar'dan açılıp kapatılır)
+• Fırtına, buzlanma, yoğun kar ve tipi uyarıları
+• Yağış geliyor: 30 dakika içinde başlayacaksa haber
+• Sabah özeti, saatini sen seç
+• Meteor yağmuru ve Türkiye'den görülen tutulma akşamları
+• Bahçe don uyarısı: ılık günlerden sonra gelen don gecesinden önce
+
+ANA EKRAN WIDGET'LARI
+Hava, saatlik, mini, Ay, kayak ve hava kalitesi widget'ları; dokununca ilgili sayfa açılır.
+
+HERKES İÇİN
+• Anlaşılır dil: bilimsel terimler gündelik dile döner (hPa → hava basıncı, m/s → km/s)
+• Büyük yazı ve ekran okuyucu desteği
+• Gmail ile girersen kayıtlı yerlerin, rozetlerin ve ayarların hesabına yedeklenir; telefon değiştirsen de geri gelir
+
+SKYNAV PRO
+Çevre dağ analizi, dünya hava modellerinin karşılaştırması, atmosfer kesiti ve yol güvenliği paketi gibi gelişmiş özellikler SkyNav Pro'dadır. Temel hava durumu, uyarılar ve Keşfet sayfaları ücretsizdir.
+
+VERİ KAYNAKLARI
+Tahminler Open-Meteo (ECMWF, DWD ICON, NOAA GFS ve diğer ulusal servislerin modelleri) üzerinden alınır; iklim verileri Copernicus ERA5, hava kalitesi Copernicus CAMS kaynaklıdır. Yıldızlar Yale Parlak Yıldız Kataloğu'ndan gelir. Tahminler modele dayanır; kesinlik garanti edilmez.

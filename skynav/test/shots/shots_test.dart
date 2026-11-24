@@ -93,19 +93,24 @@ double _lonForSun(double alt) {
 const _ht = <double>[-4, -4, -3, -3, -2, -1, 0, 1, 1, 0, -1, -2, -3, -3, -4, -5, -5, -6, -6, -5, -5, -4, -4, -3];
 const _hp = <double>[.5, .6, .3, 0, 0, 0, .2, .8, 1.2, .9, .4, 0, 0, 0, .3, .7, .5, .2, 0, 0, 0, .4, .6, .3];
 
+/// Mağaza modu (--dart-define=STORE=true): tüm ekranlar 390×780, 3 kat çözünürlük, /tmp/store'a (Play görselleri).
+const _store = bool.fromEnvironment('STORE');
+
 Future<void> shot(WidgetTester t, Widget w, String name, {Size size = const Size(412, 915), Duration extra = Duration.zero}) async {
+  if (_store) size = name == '02b_weather_full' ? const Size(390, 3400) : const Size(390, 780);
   await t.binding.setSurfaceSize(size);
-  t.view.devicePixelRatio = 2;
+  t.view.devicePixelRatio = _store ? 3 : 2;
   final key = GlobalKey();
   await t.pumpWidget(RepaintBoundary(key: key, child: MaterialApp(debugShowCheckedModeBanner: false, theme: buildTheme(), home: w)));
   for (var i = 0; i < 6; i++) { await t.pump(const Duration(milliseconds: 250)); }
   if (extra > Duration.zero) await t.pump(extra);
   await t.runAsync(() async {
     final b = key.currentContext!.findRenderObject() as RenderRepaintBoundary;
-    final img = await b.toImage(pixelRatio: 1.5);
+    final img = await b.toImage(pixelRatio: _store ? 3 : 1.5);
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    Directory(outDir).createSync(recursive: true);
-    File('$outDir/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
+    final dir = _store ? '/tmp/store' : outDir;
+    Directory(dir).createSync(recursive: true);
+    File('$dir/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
   });
 }
 

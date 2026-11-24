@@ -168,3 +168,12 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - AÇIK KONU: gizlilik metni "Ayarlar > Hesabı ve verilerimi sil" diyor ama uygulamada böyle bir seçenek yok (önceden de
   yoktu). Play hesap silme şartı için gerekli; firestore.rules users/{uid} ve grants için delete izni vermiyor → kural
   değişikliği (Firebase konsolunda yayınlama) gerektirir. Kullanıcıya soruldu.
+
+## Mağaza sayfası ve Windows (3.1 sonrası, sürüm numarası değişmedi)
+- docs/skynav_play/: Play metinleri + simge + öne çıkan görsel + 8 ekran görüntüsü (README'de nasıl üretildiği).
+  shots_test.dart'a STORE modu (--dart-define=STORE=true), test/shots/feature_graphic_test.dart.
+- Dar telefon düzeltmesi: "Ne yağıyor" halkası genişliğe göre küçülüyor (390 dp'de "%100" alt satıra kayıyordu).
+- Windows exe: aslan-cr/Deneme-At-lyesi- deposu, .github/workflows/skynav-windows.yml (windows-2022 = VS 2022;
+  windows-latest'te VS 2026 var ve Flutter 3.35.7 tanımıyor). kilit/main'i çekip `flutter create --platforms=windows`,
+  dik pencere 440×920, Inno Setup ile SkyNav-Setup-<sürüm>.exe + zip → o deponun Releases'ına.
+  Windows'ta telefona özel eklentiler (widget, workmanager, Google giriş, satın alma, sensörler) çalışmaz.

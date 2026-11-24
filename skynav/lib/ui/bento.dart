@@ -432,16 +432,17 @@ class PrecipRingsBlock extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const BlockHead('Ne yağıyor', dot: kSnow),
         const Spacer(),
-        Row(children: [
-          ExcludeSemantics(child: SizedBox(width: 92, height: 92, child: CustomPaint(painter: _RingsPainter([for (final d in data) (d.$2, d.$3)])))),
+        // Halka, yazılara en az 46 px bırakacak kadar küçülür (dar telefonlarda "%100" alt satıra kaymasın)
+        LayoutBuilder(builder: (_, c) { final ring = (c.maxWidth - 56).clamp(64.0, 92.0); return Row(children: [
+          ExcludeSemantics(child: SizedBox(width: ring, height: ring, child: CustomPaint(painter: _RingsPainter([for (final d in data) (d.$2, d.$3)])))),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            for (final (n, v, col) in data) Padding(padding: const EdgeInsets.only(bottom: 4), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('%${v.round()}', style: _st(13, FontWeight.w700, col, h: 1.15)),
+            for (final (n, v, col) in data) Padding(padding: const EdgeInsets.only(bottom: 3), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('%${v.round()}', maxLines: 1, softWrap: false, overflow: TextOverflow.visible, style: _st(13, FontWeight.w700, col, h: 1.15)),
               Text(n, maxLines: 1, softWrap: false, overflow: TextOverflow.visible, style: _st(10, FontWeight.w600, kInkSoft, h: 1.2)),
             ])),
           ])),
-        ]),
+        ]); }),
         const Spacer(),
       ]),
     );
