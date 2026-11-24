@@ -45,6 +45,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {});
   }
 
+  /// Sabah özetinin geleceği saat (arka plan görevi en geç ~15 dk gecikmeyle gönderir).
+  Future<void> _pickBriefHour() async {
+    final cur = SharedState.cached?.getInt('sn_brief_hour') ?? 7;
+    final h = await showModalBottomSheet<int>(context: context, showDragHandle: true, builder: (ctx) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Sabah özeti saati', style: T.h2),
+        const SizedBox(height: 12),
+        Wrap(spacing: 10, runSpacing: 10, children: [
+          for (final x in const [6, 7, 8, 9]) ChoiceChip(label: Text('${x.toString().padLeft(2, '0')}:00'), selected: x == cur, onSelected: (_) => Navigator.pop(ctx, x)),
+        ]),
+      ]),
+    ));
+    if (h == null) return;
+    final p = await SharedState.get();
+    await p.setInt('sn_brief_hour', h);
+    if (mounted) setState(() {});
+  }
+
   Widget _tile(IconData icon, Color color, String title, {String? sub, Widget? trailing, VoidCallback? onTap}) => ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         leading: IconBadge(icon, color: color, size: 38),
@@ -110,7 +129,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (v) await Notify.requestPermission();
                 setState(() {});
               })),
-          _tile(Icons.wb_twilight_rounded, kSun, 'Sabah özeti', sub: 'Her sabah 07–10 arası: bugünün havası ve kısa öneri',
+          _tile(Icons.wb_twilight_rounded, kSun, 'Sabah özeti',
+              sub: 'Her sabah ${(SharedState.cached?.getInt('sn_brief_hour') ?? 7).toString().padLeft(2, '0')}:00 civarı: bugünün havası ve kısa öneri · saati değiştirmek için dokun',
+              onTap: _pickBriefHour,
               trailing: Switch(value: SharedState.cached?.getBool('sn_brief_off') != true, onChanged: (v) async {
                 final p = await SharedState.get();
                 await p.setBool('sn_brief_off', !v);

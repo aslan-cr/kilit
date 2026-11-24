@@ -770,13 +770,22 @@ class LiveWindow extends StatefulWidget {
 
 class _LiveWindowState extends State<LiveWindow> {
   late final Map<String, double> _before = Map.of(SleepMixer.I.level);
-  late final _amb = LiveWindow.ambience(widget.wx, widget.s);
+  late final _auto = LiveWindow.ambience(widget.wx, widget.s);
+  /// Ses sırası: havaya uygun olan (otomatik) önce, sonra diğer gerçek kayıtlar, en sonda sessiz.
+  late final List<({String key, String label})?> _choices = [
+    _auto,
+    for (final e in const [(key: 'rain', label: 'Yağmur'), (key: 'forest', label: 'Gece ormanı'), (key: 'waves', label: 'Dalga'),
+        (key: 'campfire', label: 'Kamp ateşi'), (key: 'waterfall', label: 'Şelale')])
+      if (e.key != _auto.key) e,
+    null,
+  ];
+  int _choice = 0;
+  ({String key, String label})? get _amb => _choices[_choice];
   final _tilt = ValueNotifier(Offset.zero);
   final _shot = GlobalKey();
   bool _sharing = false;
   StreamSubscription<AccelerometerEvent>? _acc;
   double? _bx, _bz;
-  bool _sound = true;
 
   @override
   void initState() {
@@ -793,7 +802,10 @@ class _LiveWindowState extends State<LiveWindow> {
     } catch (_) {}
   }
 
-  void _play() => SleepMixer.I.preset({_amb.key: .7}, remember: false);
+  void _play() {
+    final a = _amb;
+    if (a == null) { SleepMixer.I.stopAll(); } else { SleepMixer.I.preset({a.key: .7}, remember: false); }
+  }
 
   @override
   void dispose() {
@@ -852,11 +864,12 @@ class _LiveWindowState extends State<LiveWindow> {
           _GlassButton(icon: Icons.close_rounded, onTap: () => Navigator.pop(context)),
         ])),
         Positioned(bottom: mq.padding.bottom + 24, right: 16, child: _GlassButton(
-          icon: _sound ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-          label: _sound ? _amb.label : 'Sessiz',
+          icon: _amb != null ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+          label: _amb?.label ?? 'Sessiz',
           onTap: () {
-            setState(() => _sound = !_sound);
-            if (_sound) { _play(); } else { SleepMixer.I.stopAll(); }
+            // Dokundukça sıradaki gerçek kayda geçer; en sonda sessiz, sonra yine havaya uygun olana döner.
+            setState(() => _choice = (_choice + 1) % _choices.length);
+            _play();
           },
         )),
       ]),

@@ -53,7 +53,8 @@ void callbackDispatcher() {
       }
       // Sabah özeti: 07:00–10:00 arası günde bir kez (Ayarlar'dan kapatılabilir)
       final t = DateTime.now();
-      if (sp.getBool('sn_brief_off') != true && t.hour >= 7 && t.hour < 10) {
+      final bh = sp.getInt('sn_brief_hour') ?? 7; // Ayarlar'dan seçilen saat; 3 saatlik pencere
+      if (sp.getBool('sn_brief_off') != true && t.hour >= bh && t.hour < bh + 3) {
         final day = '${t.year}-${t.month}-${t.day}';
         if (sp.getString('sn_brief_day') != day) {
           await sp.setString('sn_brief_day', day);
