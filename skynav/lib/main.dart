@@ -2,7 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'ui/clouds.dart';
 import 'ui/scene_shaders.dart';
+import 'package:home_widget/home_widget.dart';
+import 'ui/air_screen.dart';
 import 'ui/plain.dart';
+import 'ui/ski_screen.dart';
+import 'ui/weather_screen.dart' show SkyMoonPage;
 import 'ui/sky_bodies.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' show PlatformDispatcher;
@@ -60,6 +64,8 @@ class SkyNavApp extends StatefulWidget {
 class _SkyNavAppState extends State<SkyNavApp> with WidgetsBindingObserver {
   Timer? _pulse;
   bool _ready = Store.onboardingDone;
+  final _nav = GlobalKey<NavigatorState>();
+  StreamSubscription<Uri?>? _widgetTaps;
 
   @override
   void initState() {
@@ -67,6 +73,26 @@ class _SkyNavAppState extends State<SkyNavApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     IconService.markForeground(true);
     if (_ready) _boot();
+    // Ana ekran widget'ına dokununca ilgili sayfa (skynav://sky, ski, air, home)
+    HomeWidget.initiallyLaunchedFromHomeWidget().then(_fromWidget).catchError((_) {});
+    _widgetTaps = HomeWidget.widgetClicked.listen(_fromWidget, onError: (_) {});
+  }
+
+  Future<void> _fromWidget(Uri? u) async {
+    if (u == null || u.scheme != 'skynav' || !_ready) return;
+    // Hava verisi gelene kadar kısa bekle (soğuk açılış)
+    for (var i = 0; i < 40 && WeatherController.I.confirmed == null; i++) { await Future.delayed(const Duration(milliseconds: 250)); }
+    final s = WeatherController.I.confirmed, a = WeatherController.I.analysis;
+    final nav = _nav.currentState;
+    if (s == null || a == null || nav == null) return;
+    nav.popUntil((r) => r.isFirst);
+    final Widget? page = switch (u.host) {
+      'sky' => SkyMoonPage(s: s, a: a),
+      'ski' => SkiScreen(here: s.place),
+      'air' => AirScreen(s: s),
+      _ => null,
+    };
+    if (page != null) nav.push(MaterialPageRoute(builder: (_) => page));
   }
 
   /// İkon değişikliği uygulama açıkken yapılmaz (Android, özellikle Samsung, uygulamayı kapatıyor);
@@ -108,10 +134,11 @@ class _SkyNavAppState extends State<SkyNavApp> with WidgetsBindingObserver {
   }
 
   @override
-  void dispose() { WidgetsBinding.instance.removeObserver(this); _pulse?.cancel(); super.dispose(); }
+  void dispose() { WidgetsBinding.instance.removeObserver(this); _pulse?.cancel(); _widgetTaps?.cancel(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+        navigatorKey: _nav,
         title: 'SkyNav',
         debugShowCheckedModeBanner: false,
         theme: buildTheme(),
