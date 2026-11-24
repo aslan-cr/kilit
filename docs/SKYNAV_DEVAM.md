@@ -189,3 +189,14 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - Web sayfaları (Play Console'a link): docs/skynav_gizlilik.md, docs/skynav_hesap_silme.md (GitHub'da görüntülenir).
   hesap_silme.md: iletişim skynav.destek@gmail.com (kullanıcının seçtiği adres).
 - Mağaza görselleri Kahramanmaraş (shots_test STORE modunda _home; donma seviyesi 250 m ki "Karlı" görünsün).
+
+## Google Play paketi (AAB)
+- aslan-cr/Deneme-At-lyesi-: .github/workflows/skynav-aab.yml. Tetik: o depoda .github/skynav-aab-trigger dosyasını
+  değiştirip dala push (ccr-75415aef-qqitct). kilit/main'i çeker; build.gradle.kts'yi YALNIZCA CI'da yamalayıp release'i
+  "upload" anahtarıyla imzalar (kilit'teki APK/güncelleyici debug anahtarıyla kalır). Çıktı: o deponun Releases'ında
+  SkyNav-<sürüm>-<kod>.aab.
+- Yükleme anahtarı: GitHub Secrets SKYNAV_UPLOAD_JKS (base64 JKS, alias "upload") ve SKYNAV_UPLOAD_PASS; kullanıcıda
+  skynav-upload.jks olarak duruyor (depoda YOK). Sertifika: CN=SkyNav, O=SkyNav, C=TR,
+  SHA-256 A9:68:F1:77:82:0E:2D:62:77:8A:7A:26:B6:C2:7E:B3:1C:AF:16:A5:55:F7:EC:1E:7A:B4:1A:9E:FC:44:AE:CF.
+- Play'e her yeni sürümde pubspec versionCode +1 olmalı (Play aynı kodu reddeder).
+- Firestore kuralları (silme izinleri) kullanıcı tarafından Firebase konsolunda yayınlandı (skynav-af288).
