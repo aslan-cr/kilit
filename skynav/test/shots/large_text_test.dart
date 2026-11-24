@@ -78,4 +78,18 @@ void main() {
     print('TAŞMALAR:\n${errors.toSet().join('\n')}');
     expect(errors, isEmpty);
   });
+
+  testWidgets('ekran okuyucu: çizimli blokların açıklaması var', (t) async {
+    final h = t.ensureSemantics();
+    final s = fake();
+    WeatherController.I.debugSet(s, WeatherEngine.analyze(s));
+    await t.binding.setSurfaceSize(const Size(412, 4900));
+    await t.pumpWidget(MaterialApp(theme: buildTheme(), home: const AppShell()));
+    for (var i = 0; i < 4; i++) { await t.pump(const Duration(milliseconds: 250)); }
+    expect(find.bySemanticsLabel(RegExp('^Saatlik sıcaklık: şimdi')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('^Rüzgâr .* yönünden')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('^Gün doğumu')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('^Donma seviyesi')), findsOneWidget);
+    h.dispose();
+  });
 }

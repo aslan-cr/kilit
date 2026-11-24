@@ -204,7 +204,10 @@ class _HourlyBlockState extends State<HourlyBlock> {
             if (widget.onHour != null && i != null) widget.onHour!(widget.hours[i]);
             Future.delayed(const Duration(milliseconds: 1400), () { if (mounted) setState(() => _sel = null); });
           },
-          child: SizedBox(height: 150, width: double.infinity, child: CustomPaint(painter: _HourlyPainter(h, _sel, widget.fromNow))),
+          child: Semantics(container: true,
+            label: 'Saatlik sıcaklık: ${[for (var i = 0; i < h.length; i += 3) '${i == 0 && widget.fromNow ? 'şimdi' : '${h[i].time.hour} da'} ${deg(h[i].temp)}'].join(', ')}',
+            child: SizedBox(height: 150, width: double.infinity, child: CustomPaint(painter: _HourlyPainter(h, _sel, widget.fromNow))),
+          ),
         )),
       ]),
     );
@@ -313,7 +316,7 @@ class NowcastBlock extends StatelessWidget {
           Expanded(child: Text(n.headline, style: _st(16, FontWeight.w700, kInk, h: 1.25))),
         ]),
         const SizedBox(height: 14),
-        SizedBox(height: 74, width: double.infinity, child: CustomPaint(painter: _NowBars(w, now))),
+        ExcludeSemantics(child: SizedBox(height: 74, width: double.infinity, child: CustomPaint(painter: _NowBars(w, now)))),
       ]),
     );
   }
@@ -427,7 +430,7 @@ class PrecipRingsBlock extends StatelessWidget {
         const BlockHead('Ne yağıyor', dot: kSnow),
         const Spacer(),
         Row(children: [
-          SizedBox(width: 92, height: 92, child: CustomPaint(painter: _RingsPainter([for (final d in data) (d.$2, d.$3)]))),
+          ExcludeSemantics(child: SizedBox(width: 92, height: 92, child: CustomPaint(painter: _RingsPainter([for (final d in data) (d.$2, d.$3)])))),
           const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
             for (final (n, v, col) in data) Padding(padding: const EdgeInsets.only(bottom: 4), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -472,7 +475,7 @@ class WindBlock extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           BlockHead('Rüzgâr', dot: kGood, trailing: _Trail(Plain.on ? 'ani esinti ${(s.windGust * 3.6).round()}' : 'hamle ${s.windGust.round()}', color: s.windGust > 17 ? kDanger : kInkSoft)),
           const Spacer(),
-          SizedBox(width: 100, height: 100, child: CustomPaint(painter: _CompassPainter(s.windDir))),
+          Semantics(container: true, label: 'Rüzgâr ${windDirName(s.windDir)} yönünden', child: SizedBox(width: 100, height: 100, child: CustomPaint(painter: _CompassPainter(s.windDir)))),
           const Spacer(),
           Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
             Text(Plain.on ? '${(s.windSpeed * 3.6).round()}' : s.windSpeed.toStringAsFixed(1), style: _st(24, FontWeight.w700, kInk, ls: -.48)),
@@ -529,7 +532,8 @@ class DaylightBlock extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         BlockHead('Gün ışığı', dot: kSun, trailing: _Trail('${_dur(len)} gün')),
         const SizedBox(height: 10),
-        SizedBox(height: 110, width: double.infinity, child: CustomPaint(painter: _ArcPainter(day ? frac : null, _hm(sunrise), _hm(sunset), note))),
+        Semantics(container: true, label: 'Gün doğumu ${_hm(sunrise)}, gün batımı ${_hm(sunset)}. $note',
+            child: SizedBox(height: 110, width: double.infinity, child: CustomPaint(painter: _ArcPainter(day ? frac : null, _hm(sunrise), _hm(sunset), note)))),
       ]),
     );
   }
@@ -724,7 +728,7 @@ class MoonBlock extends StatelessWidget {
         BlockHead('Ay', dot: const Color(0xFFF4ECCF), labelColor: const Color(0xFF9DA9CF),
             trailing: onTap == null ? null : const _Trail('doğuş · evreler', color: Color(0xFF9DA9CF))),
         const Spacer(),
-        SizedBox(width: 92, height: 92, child: CustomPaint(painter: _MoonPainter(m.fraction, south, MoonView.at(lat, lon, now)))),
+        ExcludeSemantics(child: SizedBox(width: 92, height: 92, child: CustomPaint(painter: _MoonPainter(m.fraction, south, MoonView.at(lat, lon, now))))),
         const Spacer(),
         Text(m.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(13, FontWeight.w700, const Color(0xFFF4ECCF))),
         const SizedBox(height: 4),
@@ -813,7 +817,9 @@ class FreezeBlock extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           BlockHead(Plain.t('Donma seviyesi', 'Kar sınırı'), dot: kSnow),
           const SizedBox(height: 10),
-          Expanded(child: CustomPaint(size: Size.infinite, painter: _FreezePainter(freezeM, elevation))),
+          Expanded(child: Semantics(container: true,
+              label: freezeM == null ? 'Donma seviyesi verisi yok' : 'Donma seviyesi ${freezeM!.round()} metre, bulunduğun yer ${elevation?.round() ?? 0} metre',
+              child: CustomPaint(size: Size.infinite, painter: _FreezePainter(freezeM, elevation)))),
           const SizedBox(height: 10),
           Text(note(freezeM, elevation), maxLines: 3, overflow: TextOverflow.ellipsis, style: _st(11, FontWeight.w600, kInkSoft, h: 1.35)),
         ]),

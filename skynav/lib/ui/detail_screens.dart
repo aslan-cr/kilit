@@ -600,7 +600,15 @@ class _SeriesChartState extends State<SeriesChart> {
       onHorizontalDragEnd: (_) => setState(() => _x = null),
       onTapDown: (d) => setState(() => _x = d.localPosition.dx),
       onTapUp: (_) => Future.delayed(const Duration(milliseconds: 1400), () { if (mounted) setState(() => _x = null); }),
-      child: SizedBox(height: 190, width: double.infinity, child: CustomPaint(painter: _SeriesPainter(widget, _x))),
+      child: Semantics(container: true,
+        label: () {
+          final v = widget.series.map((e) => e.$2);
+          final cur = widget.series.reduce((a, b) => (a.$1.difference(widget.now).inMinutes).abs() <= (b.$1.difference(widget.now).inMinutes).abs() ? a : b);
+          String f(double x) => x.toStringAsFixed(widget.decimals);
+          return 'Grafik: şu an ${f(cur.$2)} ${widget.unit}, en düşük ${f(v.reduce(min))}, en yüksek ${f(v.reduce(max))}';
+        }(),
+        child: SizedBox(height: 190, width: double.infinity, child: CustomPaint(painter: _SeriesPainter(widget, _x))),
+      ),
     );
   }
 }
