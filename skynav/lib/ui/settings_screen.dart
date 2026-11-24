@@ -1,4 +1,5 @@
 import 'gpu.dart';
+import 'whats_new.dart';
 import 'plain.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -153,6 +154,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               trailing: Switch(value: IconService.enabled, onChanged: (v) async { await IconService.setEnabled(v); setState(() {}); })),
           _tile(Icons.speed_rounded, kGood, 'Hız & yol widget’ı', sub: 'Görünür bildirimle canlı GPS hızı · Pro',
               trailing: Switch(value: WidgetService.speedTracking, onChanged: (v) async { if (!ProService.I.state.isPro) { Navigator.push(context, MaterialPageRoute(builder: (_) => const Paywall())); return; } if (v) { await WidgetService.startSpeedTracking(); } else { await WidgetService.stopSpeedTracking(); } setState(() {}); })),
+        ]),
+
+        const SectionLabel('Hakkında'),
+        _group([
+          _tile(Icons.new_releases_outlined, kAccent, 'Yenilikler', sub: 'Son sürümlerde gelenler', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WhatsNew()))),
         ]),
 
         const SectionLabel('Diğer uygulamalarım'),

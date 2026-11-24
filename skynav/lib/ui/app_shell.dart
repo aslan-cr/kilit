@@ -1,3 +1,4 @@
+import 'whats_new.dart';
 import 'package:flutter/material.dart';
 import '../data/phrases.dart';
 import '../services/audio_service.dart';
@@ -22,6 +23,13 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _i = 0;
   final _w = WeatherController.I;
+
+  @override
+  void initState() {
+    super.initState();
+    // Güncellemeden sonra bir kez "Yenilikler"
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) WhatsNew.maybeShow(context).catchError((_) {}); });
+  }
 
   static List<(NavIcon, String)> get _tabs => [
     (NavIcon.cloud, L10n.t('nav_weather')),

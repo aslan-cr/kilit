@@ -30,6 +30,7 @@ import 'package:skynav/ui/plain.dart';
 import 'package:skynav/ui/places_screen.dart';
 import 'package:skynav/ui/compare_screen.dart';
 import 'package:skynav/ui/ski_screen.dart';
+import 'package:skynav/ui/whats_new.dart';
 import 'package:skynav/services/ski_service.dart';
 import 'package:skynav/ui/best_time_screen.dart';
 import 'package:skynav/ui/climate_screen.dart';
@@ -219,6 +220,7 @@ void main() {
     await shot(t, ClimateScreen(s: s, normals: ClimateNormals.compute(ct, cx, cn, cs), season: SeasonSnow.fromDaily(sd, sv), recent: recent), '23_climate', size: const Size(412, 1900));
     await shot(t, AirScreen(s: s, data: [for (var i = -24; i < 72; i++) AirPoint(DateTime(n0.year, n0.month, n0.day, n0.hour).add(Duration(hours: i)),
         28 + 14 * sin(i / 5) + (i > 30 && i < 40 ? 18 : 0), 9 + 5 * sin(i / 5), 22 + 8 * sin(i / 5), 55 + 20 * sin(i / 7), 14 + 9 * sin(i / 4))]), '24_air', size: const Size(412, 1100));
+    await shot(t, const WhatsNew(), '27_whats_new', size: const Size(412, 1700));
     await shot(t, const LabScreen(), '03_lab');
     await shot(t, const Paywall(), '04_paywall');
     await shot(t, const SettingsScreen(), '05_settings');
