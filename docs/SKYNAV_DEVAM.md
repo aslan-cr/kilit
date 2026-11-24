@@ -114,3 +114,8 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - Widget: SkyNav Kayak (SkySkiWidget, ski_img; en yakın merkez, SkiService) ve SkyNav Hava Kalitesi (SkyAirWidget, air_img).
 - Ekran okuyucu: çizimli bloklarda Semantics(container: true, label); test large_text_test.dart içinde.
 
+## 2.7.0+21
+- Widget'a dokununca sayfa: ImageWidget(key, page) → HomeWidgetLaunchIntent skynav://{home,sky,ski,air}; main.dart _fromWidget
+  (initiallyLaunchedFromHomeWidget + widgetClicked, navigatorKey). SkyWeatherWidget eskisi gibi ana ekranı açar.
+- İklim > Son 30 gün takvimi (RecentDays, past_days=30). Canlı pencere ses seçici. Sabah özeti saati (SharedState sn_brief_hour).
+
