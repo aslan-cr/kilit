@@ -12,6 +12,7 @@ import '../services/audio_service.dart';
 import '../services/climate_service.dart';
 import '../services/geocode_service.dart';
 import '../services/location_service.dart';
+import '../services/store.dart';
 import '../services/voice_service.dart';
 import '../services/weather_repository.dart';
 import 'lab_screen.dart';
@@ -200,7 +201,7 @@ class _ExploreGrid extends StatelessWidget {
       final night = bg == kBentoNight;
       return Bento(
         color: bg, padding: const EdgeInsets.all(14),
-        onTap: () { Sfx.tap(); Navigator.push(context, MaterialPageRoute(builder: (_) => page)); },
+        onTap: () { Sfx.tap(); _ExploreUse.used(title); Navigator.push(context, MaterialPageRoute(builder: (_) => page)); },
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Container(width: 38, height: 38, decoration: BoxDecoration(color: night ? const Color(0x22FFFFFF) : Colors.white.withValues(alpha: .85), shape: BoxShape.circle),
@@ -217,8 +218,18 @@ class _ExploreGrid extends StatelessWidget {
         ]),
       );
     }
-    return _ExplorePager(tiles: [for (final t in tiles) tile(t)]);
+    // Sık açılan kutular öne gelir (toplam 5 açılıştan sonra; eşitlikte varsayılan sıra korunur)
+    final order = [for (var i = 0; i < tiles.length; i++) i];
+    final uses = [for (final t in tiles) _ExploreUse.uses(t.$2)];
+    if (uses.fold<int>(0, (a, b) => a + b) >= 5) order.sort((x, y) => uses[y] != uses[x] ? uses[y].compareTo(uses[x]) : x.compareTo(y));
+    return _ExplorePager(tiles: [for (final i in order) tile(tiles[i])]);
   }
+}
+
+/// Keşfet kutularının açılma sayısı (yalnızca bu cihazda, sıralama için).
+class _ExploreUse {
+  static int uses(String title) { try { return (Store.prefs.get('xp_$title', defaultValue: 0) as num).toInt(); } catch (_) { return 0; } }
+  static void used(String title) { try { Store.put('xp_$title', uses(title) + 1); } catch (_) {} }
 }
 
 /// Keşfet: 2×2 kutuluk sayfalar yana kaydırılır (ana ekranda yalnızca iki satır yer kaplar).
