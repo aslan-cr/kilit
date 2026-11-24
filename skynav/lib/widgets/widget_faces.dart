@@ -4,6 +4,7 @@ import '../astro/sky_times.dart';
 import '../data/models.dart';
 import '../engine/formulas.dart' show moonPhase;
 import '../engine/nowcast.dart';
+import '../services/ski_service.dart';
 import '../ui/hero_scene.dart' show SceneStill, deg, moonLitPath;
 import '../ui/sky_bodies.dart';
 import '../ui/theme.dart';
@@ -207,6 +208,75 @@ class MiniWidgetFace extends StatelessWidget {
     if (n.startsIn != null) return n.startsIn! <= 5 ? '$noun başlıyor' : '$noun ${n.startsIn} dk sonra';
     if (n.endsIn != null) return '$noun ${n.endsIn} dk sonra diner';
     return '$noun sürüyor';
+  }
+}
+
+/// Kayak widget'ı (2×2): en yakın merkez, kar kalınlığı, son 24 saat ve 3 günlük kar.
+class SkiWidgetFace extends StatelessWidget {
+  final SkiNow s; final double km;
+  const SkiWidgetFace({super.key, required this.s, required this.km});
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 160, height: 160, padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(28),
+            gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFE4EEFB), Colors.white])),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.downhill_skiing_rounded, size: 15, color: kSnow),
+            const SizedBox(width: 4),
+            Expanded(child: Text(s.r.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: _t(12.5, FontWeight.w800, kInk))),
+          ]),
+          Text('${km.round()} km · ${s.temp.isFinite ? deg(s.temp) : '–'}', style: _t(10.5, FontWeight.w600, kInkSoft)),
+          const Spacer(),
+          Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+            Text('${s.snowCm.round()}', style: _t(40, FontWeight.w700, kSnow, h: 1, ls: -1.5)),
+            const SizedBox(width: 3),
+            Text('cm kar', style: _t(11.5, FontWeight.w700, kInkSoft)),
+          ]),
+          const SizedBox(height: 6),
+          Text('24 sa +${s.new24.round()} · 3 gün +${s.next72.round()} cm', maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: _t(10.5, FontWeight.w700, s.next72 >= 5 ? kGood : kInkSoft)),
+          if (s.windy) Text('Sert rüzgâr', style: _t(10.5, FontWeight.w700, kWarn)),
+        ]),
+      );
+}
+
+/// Hava kalitesi widget'ı (2×2): toz-duman durumu (PM10 ve PM2.5, DSÖ 2021 günlük sınırlarına göre).
+class AirWidgetFace extends StatelessWidget {
+  final WeatherSnapshot s; final String place;
+  const AirWidgetFace({super.key, required this.s, required this.place});
+  static (String, Color) level(double pm10, double pm25) {
+    final r = max(pm10 / 45, pm25 / 15); // sınıra oran
+    return r < .5 ? ('Temiz', kGood) : r < 1 ? ('Makul', const Color(0xFF50AF5A)) : r < 2 ? ('Kirli', kWarn) : ('Çok kirli', kDanger);
+  }
+  @override
+  Widget build(BuildContext context) {
+    final (label, col) = level(s.aqPm10, s.aqPm25);
+    return Container(
+      width: 160, height: 160, padding: const EdgeInsets.fromLTRB(13, 11, 13, 11),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 7, height: 7, decoration: BoxDecoration(color: col, shape: BoxShape.circle)),
+          const SizedBox(width: 5),
+          Expanded(child: Text('HAVA KALİTESİ', maxLines: 1, style: _t(9.5, FontWeight.w800, kInkFaint, ls: .8))),
+        ]),
+        Text(place, maxLines: 1, overflow: TextOverflow.ellipsis, style: _t(11, FontWeight.w600, kInkSoft)),
+        const Spacer(),
+        Text(label, style: _t(26, FontWeight.w800, col, h: 1.05, ls: -.5)),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('İnce toz', style: _t(9.5, FontWeight.w600, kInkFaint)),
+            Text('${s.aqPm25.round()}', style: _t(15, FontWeight.w800, kInk)),
+          ])),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Kaba toz', style: _t(9.5, FontWeight.w600, kInkFaint)),
+            Text('${s.aqPm10.round()}', style: _t(15, FontWeight.w800, kInk)),
+          ])),
+        ]),
+      ]),
+    );
   }
 }
 

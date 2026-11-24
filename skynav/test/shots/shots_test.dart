@@ -144,7 +144,13 @@ void main() {
         const SizedBox(width: 16),
         MoonWidgetFace(lat: s.place.lat, lon: s.place.lon, now: DateTime.now()),
       ]),
-    ]))), '00_widgets', size: const Size(412, 1000));
+      const SizedBox(height: 16),
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        SkiWidgetFace(s: SkiNow(skiResorts.first, snowCm: 85, new24: 12, next72: 30, temp: -8, wind: 6, gust: 12, gustNext12: 14, code: 73), km: 4),
+        const SizedBox(width: 16),
+        AirWidgetFace(s: s, place: 'Erzurum'),
+      ]),
+    ]))), '00_widgets', size: const Size(412, 1200));
     await shot(t, const Onboarding(onDone: _noop), '01_onboarding');
     await shot(t, const AppShell(), '02_weather');
     await shot(t, const AppShell(), '02b_weather_full', size: const Size(412, 4900));

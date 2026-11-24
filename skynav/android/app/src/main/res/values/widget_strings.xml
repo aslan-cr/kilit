@@ -5,4 +5,6 @@
   <string name="widget_hourly_desc">Önümüzdeki saatler: sıcaklık ve yağış</string>
   <string name="widget_moon_desc">Ay evresi, doğuş ve batış</string>
   <string name="widget_mini_desc">Küçük hava: sıcaklık ve yağış notu</string>
+  <string name="widget_ski_desc">En yakın kayak merkezi: kar kalınlığı ve yeni kar</string>
+  <string name="widget_air_desc">Hava kalitesi: toz ve duman</string>
 </resources>

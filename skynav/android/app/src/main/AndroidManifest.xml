@@ -98,6 +98,14 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/sky_mini_widget_info"/>
         </receiver>
+        <receiver android:name=".SkySkiWidget" android:exported="true" android:label="SkyNav Kayak">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/sky_ski_widget_info"/>
+        </receiver>
+        <receiver android:name=".SkyAirWidget" android:exported="true" android:label="SkyNav Hava Kalitesi">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/sky_air_widget_info"/>
+        </receiver>
 
         <meta-data android:name="flutterEmbedding" android:value="2"/>
     </application>

@@ -7,6 +7,7 @@ import '../data/phrases.dart';
 import '../services/weather_repository.dart';
 import '../services/store.dart';
 import '../pro/pro_service.dart';
+import '../services/ski_service.dart';
 import 'widget_faces.dart';
 
 class WidgetService {
@@ -33,6 +34,8 @@ class WidgetService {
   static const _hourly = 'com.skynav.skynav.SkyHourlyWidget';
   static const _moon = 'com.skynav.skynav.SkyMoonWidget';
   static const _mini = 'com.skynav.skynav.SkyMiniWidget';
+  static const _ski = 'com.skynav.skynav.SkySkiWidget';
+  static const _air = 'com.skynav.skynav.SkyAirWidget';
 
   /// Ana ekrana yalnızca eklenmiş widget'ların görüntüsünü üretir (bilinemezse hepsini).
   static Future<void> _renderExtras(WeatherSnapshot s, Analysis a) async {
@@ -53,6 +56,17 @@ class WidgetService {
     await one(_hourly, 'hourly_img', HourlyWidgetFace(s: s, place: place, now: now), const Size(320, 160));
     await one(_moon, 'moon_img', MoonWidgetFace(lat: s.place.lat, lon: s.place.lon, now: now), const Size(160, 160));
     await one(_mini, 'mini_img', MiniWidgetFace(s: s, a: a, place: place, today: _today(s), now: now), const Size(160, 160));
+    await one(_air, 'air_img', AirWidgetFace(s: s, place: place), const Size(160, 160));
+    // Kayak: yalnızca widget eklenmişse ağdan alınır (30 dk saklanır); en yakın merkez
+    if (want(_ski)) {
+      try {
+        final list = await SkiService.load();
+        if (list.isNotEmpty) {
+          final near = list.reduce((x, y) => SkiService.km(s.place, x.r) <= SkiService.km(s.place, y.r) ? x : y);
+          await one(_ski, 'ski_img', SkiWidgetFace(s: near, km: SkiService.km(s.place, near.r)), const Size(160, 160));
+        }
+      } catch (_) {}
+    }
   }
 
   static DayPoint? _today(WeatherSnapshot s) {

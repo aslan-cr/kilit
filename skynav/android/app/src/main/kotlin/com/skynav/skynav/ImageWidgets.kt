@@ -37,3 +37,9 @@ class SkyMoonWidget : ImageWidget("moon_img")
 
 /** Küçük hava: sıcaklık, en yüksek/düşük, kısa yağış notu (2×2). */
 class SkyMiniWidget : ImageWidget("mini_img")
+
+/** En yakın kayak merkezi: kar kalınlığı ve yeni kar (2×2). */
+class SkySkiWidget : ImageWidget("ski_img")
+
+/** Hava kalitesi: toz-duman durumu (2×2). */
+class SkyAirWidget : ImageWidget("air_img")
