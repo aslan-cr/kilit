@@ -248,6 +248,8 @@ class OpenMeteoService {
           pressure: opt(pmAll, i) ?? double.nan,
           uv: opt(uvAll, i) ?? double.nan,
           gust: opt(wgAll, i) ?? double.nan,
+          surface: opt(soil0All, i) ?? double.nan,
+          soil6: opt(soil6All, i) ?? double.nan,
         ),
     ];
 

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../services/audio_service.dart';
@@ -110,11 +111,16 @@ class _PlacesScreenState extends State<PlacesScreen> {
         child: ListView(padding: const EdgeInsets.fromLTRB(18, 4, 18, 40), children: [
           Text('Kayıtlı yerlerinin havası tek bakışta. Dokun: o yere geç · uzun bas: karşılaştır.', style: T.small),
           const SizedBox(height: 12),
-          GridView.count(
-            padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: .76,
-            children: cards,
-          ),
+          LayoutBuilder(builder: (context, c) {
+            // Kart en az içeriği kadar uzun (büyük yazı, dar ekran)
+            final w = (c.maxWidth - 12) / 2;
+            final h = max(w / .76, 200 * MediaQuery.textScalerOf(context).scale(1));
+            return GridView.count(
+              padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: w / h,
+              children: cards,
+            );
+          }),
           const SizedBox(height: 14),
           if (saved.isNotEmpty && here != null) ...[
             Bento(onTap: _pickCompare, color: kBentoBlue, padding: const EdgeInsets.all(14), child: Row(children: [

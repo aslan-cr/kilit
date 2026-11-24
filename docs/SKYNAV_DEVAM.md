@@ -124,3 +124,15 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - Gökyüzü olayı bildirimi: lib/engine/sky_notice.dart + bg_tasks (18–23, olay başına bir kez; sn_sky_off/sn_sky_last).
 - Ayarlar > Bildirimler bölümü.
 
+
+## 2.9.0+23
+- Yenilikler sayfası: lib/ui/whats_new.dart (sürüm değişince bir kez; Hive 'whats_new_seen'; yeni kurulumda gösterilmez),
+  AppShell initState'te WhatsNew.maybeShow; Ayarlar > Hakkında > Yenilikler.
+- Keşfet > Bahçe & tarla: lib/engine/garden.dart (don takvimi gece gece hava + toprak yüzeyi; ekim için 6 cm toprak, 72 saat ort.;
+  ilaçlama aralığı rüzgâr ≤ 4 m/s, hamle ≤ 7, 5–25 °C, nem ≥ %40, 4 saat kuru; sulama = 7 gün yağış − ET₀ Hargreaves/FAO-56),
+  lib/ui/garden_screen.dart. HourPoint'e surface (soil_temperature_0cm) ve soil6 eklendi (istek değişmedi, zaten çekiliyordu).
+  Test: test/garden_test.dart.
+- NOT: "Yol durumu" (24 saat yol buzlanma/sis şeridi) denendi ve bırakıldı: Pro'daki Yol Güvenliği Paketi ile çakışıyor
+  (lib/road/road_safety.dart). Pro/ücretsiz ayrımına dokunmamak için eklenmedi.
+- Dar ekran (320 dp) + yazı ölçeği 0.9–1.25 taşmaları giderildi (gün detayı, kayak, yerler, 7 günlük, araçlar, mini kutular).
+  large_text_test.dart'ı --dart-define=SCALE=.. --dart-define=W=.. ile tara.

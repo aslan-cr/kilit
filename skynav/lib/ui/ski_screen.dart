@@ -66,7 +66,7 @@ class _ResortCard extends StatelessWidget {
     Widget chip(IconData ic, String t, Color c) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
           decoration: BoxDecoration(color: c.withValues(alpha: .1), borderRadius: BorderRadius.circular(12)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(ic, size: 14, color: c), const SizedBox(width: 4), Text(t, style: _st(12, FontWeight.w700, c))]),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(ic, size: 14, color: c), const SizedBox(width: 4), Flexible(child: Text(t, style: _st(12, FontWeight.w700, c)))]),
         );
     final depth = s.snowCm.round();
     return Bento(
@@ -90,11 +90,11 @@ class _ResortCard extends StatelessWidget {
               Text('cm', style: _st(13, FontWeight.w700, kInkSoft)),
             ]),
           ]),
-          const Spacer(),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(s.temp.isFinite ? deg(s.temp) : '–', style: _st(22, FontWeight.w700, kInk)),
-            Text('${Plain.wind(s.wind, digits: 0)} · ${Plain.t('hamle', 'ani esinti')} ${Plain.wind(s.gust, digits: 0)}', style: _st(11.5, FontWeight.w600, kInkSoft)),
-          ]),
+            Text('${Plain.wind(s.wind, digits: 0)} · ${Plain.t('hamle', 'ani esinti')} ${Plain.wind(s.gust, digits: 0)}', textAlign: TextAlign.end, style: _st(11.5, FontWeight.w600, kInkSoft)),
+          ])),
         ]),
         const SizedBox(height: 10),
         Wrap(spacing: 8, runSpacing: 6, children: [

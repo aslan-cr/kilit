@@ -31,6 +31,7 @@ import 'package:skynav/ui/places_screen.dart';
 import 'package:skynav/ui/compare_screen.dart';
 import 'package:skynav/ui/ski_screen.dart';
 import 'package:skynav/ui/whats_new.dart';
+import 'package:skynav/ui/garden_screen.dart';
 import 'package:skynav/services/ski_service.dart';
 import 'package:skynav/ui/best_time_screen.dart';
 import 'package:skynav/ui/climate_screen.dart';
@@ -221,6 +222,17 @@ void main() {
     await shot(t, AirScreen(s: s, data: [for (var i = -24; i < 72; i++) AirPoint(DateTime(n0.year, n0.month, n0.day, n0.hour).add(Duration(hours: i)),
         28 + 14 * sin(i / 5) + (i > 30 && i < 40 ? 18 : 0), 9 + 5 * sin(i / 5), 22 + 8 * sin(i / 5), 55 + 20 * sin(i / 7), 14 + 9 * sin(i / 4))]), '24_air', size: const Size(412, 1100));
     await shot(t, const WhatsNew(), '27_whats_new', size: const Size(412, 1700));
+    await shot(t, GardenScreen(s: s), '28_garden_winter', size: const Size(412, 1700));
+    // Bahar örneği: geceleri yer yer don, gündüz ılık, sabahları sakin rüzgâr
+    final sp0 = DateTime(2026, 4, 22, 8);
+    double spT(DateTime x) => 7 + 9 * sin((x.hour - 9) / 24 * 2 * pi) - (x.day == 24 ? 4 : 0);
+    final spring = WeatherSnapshot(place: s.place, fetchedAt: sp0, temp: spT(sp0), feelsLike: spT(sp0), humidity: 60, dewPoint: 0, pressure: 1016, windSpeed: 2, windDir: 270, windGust: 3,
+        cloudCover: 30, cloudHigh: 10, precip: 0, snowfall: 0, visibilityM: 20000, cape: 0, uv: 4, snowDepthM: 0, weatherCode: 1, isDay: true, soil6: 10.4,
+        hourly: [for (var i = -12; i < 24 * 7; i++) for (final x in [sp0.add(Duration(hours: i))])
+          HourPoint(time: x, temp: spT(x), precip: x.day == 25 && x.hour > 12 ? .8 : 0, snowfall: 0, windSpeed: x.hour >= 11 && x.hour <= 17 ? 5.5 : 2, windDir: 270, cloud: 30,
+              humidity: 62, dewPoint: spT(x) - 6, weatherCode: x.day == 25 && x.hour > 12 ? 61 : 1, gust: x.hour >= 11 && x.hour <= 17 ? 9 : 3.5, surface: spT(x) - 1.5, soil6: 10 + 2 * sin((x.hour - 12) / 24 * 2 * pi))],
+        daily: [for (var d = 0; d < 7; d++) DayPoint(date: DateTime(2026, 4, 22 + d), tMax: 16 - (d == 2 ? 4 : 0), tMin: -2 + (d == 2 ? -4 : 0) + d * .6, precipSum: d == 3 ? 6 : 0, snowSum: 0, windMax: 6, weatherCode: d == 3 ? 61 : 1)]);
+    await shot(t, GardenScreen(s: spring, now: sp0), '28b_garden_spring', size: const Size(412, 1700));
     await shot(t, const LabScreen(), '03_lab');
     await shot(t, const Paywall(), '04_paywall');
     await shot(t, const SettingsScreen(), '05_settings');

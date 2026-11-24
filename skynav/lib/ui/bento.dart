@@ -371,6 +371,8 @@ class DailyBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lo = days.map((d) => d.tMin).reduce(min), hi = days.map((d) => d.tMax).reduce(max);
+    return LayoutBuilder(builder: (context, c) {
+    final double g = c.maxWidth < 300 ? 6 : 10; // dar ekranda sütun araları daralır
     return Bento(
       padding: const EdgeInsets.all(18),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -380,23 +382,24 @@ class DailyBlock extends StatelessWidget {
           if (i > 0) const Divider(height: 1, thickness: 1, color: kLine),
           InkWell(borderRadius: BorderRadius.circular(12), onTap: onDay == null ? null : () { HapticFeedback.selectionClick(); onDay!(i); },
               child: Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(children: [
-            SizedBox(width: 50, child: Text(i == 0 ? 'Bugün' : i == 1 ? 'Yarın' : _trDays[days[i].date.weekday - 1], maxLines: 1,
+            SizedBox(width: g == 6 ? 46 : 50, child: Text(i == 0 ? 'Bugün' : i == 1 ? 'Yarın' : _trDays[days[i].date.weekday - 1], maxLines: 1, overflow: TextOverflow.clip,
                 style: _st(15, i == 0 ? FontWeight.w700 : FontWeight.w600, kInk))),
-            const SizedBox(width: 10),
+            SizedBox(width: g),
             WxGlyph(wxFromCode(days[i].weatherCode), size: 30),
-            const SizedBox(width: 10),
+            SizedBox(width: g),
             SizedBox(width: 40, child: Text(_amount(days[i]), textAlign: TextAlign.center, maxLines: 1, style: _st(12, FontWeight.w700, kSnow))),
-            const SizedBox(width: 10),
+            SizedBox(width: g),
             SizedBox(width: 32, child: Text(deg(days[i].tMin), textAlign: TextAlign.right, style: _st(15, FontWeight.w500, kInkSoft))),
-            const SizedBox(width: 10),
+            SizedBox(width: g),
             Expanded(child: _Range(lo: lo, hi: hi, a: days[i].tMin, b: days[i].tMax)),
-            const SizedBox(width: 10),
+            SizedBox(width: g),
             SizedBox(width: 30, child: Text(deg(days[i].tMax), style: _st(15, FontWeight.w700, kInk))),
             if (onDay != null) const Icon(Icons.chevron_right_rounded, size: 18, color: kInkFaint),
           ]))),
         ],
       ]),
     );
+    });
   }
 
   static String _amount(DayPoint d) => d.snowSum >= .5 ? '${d.snowSum.round()} cm' : d.precipSum >= .5 ? '${d.precipSum.round()} mm' : '';
@@ -785,8 +788,7 @@ class SoilBlock extends StatelessWidget {
           for (final (d, v, col) in layers) Container(
             color: col, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             child: Row(children: [
-              Text(d, style: _st(11, FontWeight.w600, const Color(0xFFF1E6DC).withValues(alpha: .85))),
-              const Spacer(),
+              Expanded(child: Text(d, maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(11, FontWeight.w600, const Color(0xFFF1E6DC).withValues(alpha: .85)))),
               Text(_sg(v), style: _st(13, FontWeight.w700, Colors.white)),
             ]),
           ),
@@ -887,4 +889,4 @@ class MiniBento extends StatelessWidget {
 }
 
 /// Sistem yazısı büyütülmüş mü (sabit yükseklikli kutularda alt yazı tek satıra iner).
-bool _bigText(BuildContext context) => MediaQuery.textScalerOf(context).scale(10) > 11;
+bool _bigText(BuildContext context) => MediaQuery.textScalerOf(context).scale(10) > 10.5 || MediaQuery.sizeOf(context).width < 360;

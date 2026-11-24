@@ -19,6 +19,7 @@ class WhatsNew extends StatelessWidget {
     (Icons.grid_view_rounded, kGood, kBentoMint, 'Keşfet menüsü', [
       'Gök & Ay: bu gece gökte, Ay saatleri, fotoğrafçı saatleri, gökyüzü takvimi',
       'Yerlerim ve iki yeri karşılaştırma · En iyi zaman · Kayak merkezleri',
+      'Bahçe & tarla: don takvimi, ekim için toprak, ilaçlama saatleri, sulama',
       'İklim: normalden ne kadar farklı, rekorlar, bu kış kar, son 30 gün',
       'Hava kalitesi · 72 saatlik basınç ve rüzgâr grafikleri',
     ]),

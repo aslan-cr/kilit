@@ -53,6 +53,9 @@ class DayDetailScreen extends StatelessWidget {
     final hours = s.hourly.where((h) => !h.time.isBefore(d0) && h.time.isBefore(d0.add(const Duration(days: 1)))).toList();
     final title = index == 0 ? 'Bugün' : index == 1 ? 'Yarın' : _dayNames[d0.weekday - 1];
     const gap = SizedBox(height: 14);
+    // Büyük yazıda ve dar ekranda kutular uzar
+    final ts = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.25);
+    final rowH = 168 * ts + (MediaQuery.sizeOf(context).width < 360 ? 60 * (ts - .75) : 0);
     return Scaffold(
       backgroundColor: kIce,
       appBar: AppBar(title: Text(title)),
@@ -60,9 +63,9 @@ class DayDetailScreen extends StatelessWidget {
         _DayHeader(day: day, hours: hours),
         if (hours.length > 2) ...[gap, HourlyBlock(hours: hours, fromNow: false, onHour: (h) => showHourSheet(context, h))],
         gap,
-        BentoRow(height: 168, left: _PrecipDay(day: day, hours: hours), right: _WindDay(day: day, hours: hours)),
+        BentoRow(height: rowH, left: _PrecipDay(day: day, hours: hours), right: _WindDay(day: day, hours: hours)),
         gap,
-        BentoRow(height: 168, left: _UvDay(hours: hours), right: _SunDay(day: day)),
+        BentoRow(height: rowH, left: _UvDay(hours: hours), right: _SunDay(day: day)),
         gap,
         PhotoHoursBlock(lat: s.place.lat, lon: s.place.lon, day: d0),
         gap,
@@ -94,7 +97,7 @@ class _DayHeader extends StatelessWidget {
             const SizedBox(width: 8),
             Text(deg(day.tMin), style: _st(20, FontWeight.w600, kInkFaint)),
             const Spacer(),
-            if (cloud != null) Text('bulut %${cloud.round()}', style: _st(12, FontWeight.w600, kInkSoft)),
+            if (cloud != null) Flexible(child: Text('bulut %${cloud.round()}', maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(12, FontWeight.w600, kInkSoft))),
           ]),
         ])),
       ]),
@@ -203,7 +206,7 @@ class _SunDay extends StatelessWidget {
     final r = day.sunrise, st = day.sunset;
     Widget row(IconData ic, String l, String v) => Row(children: [
           Icon(ic, size: 18, color: kSun), const SizedBox(width: 8),
-          Expanded(child: Text(l, style: _st(12.5, FontWeight.w600, kInkSoft))),
+          Expanded(child: Text(l, maxLines: 1, overflow: TextOverflow.ellipsis, style: _st(12.5, FontWeight.w600, kInkSoft))),
           Text(v, style: _st(15, FontWeight.w700, kInk)),
         ]);
     return Bento(

@@ -7,6 +7,7 @@ import '../data/models.dart';
 import '../data/phrases.dart';
 import '../engine/compare.dart';
 import '../engine/formulas.dart';
+import '../engine/garden.dart' show gardenTeaser;
 import '../game/badges.dart';
 import '../services/audio_service.dart';
 import '../services/climate_service.dart';
@@ -20,6 +21,7 @@ import 'radar_map.dart';
 import 'bento.dart';
 import 'air_screen.dart';
 import 'best_time_screen.dart';
+import 'garden_screen.dart';
 import 'climate_screen.dart';
 import 'detail_screens.dart';
 import 'places_screen.dart';
@@ -187,6 +189,7 @@ class _ExploreGrid extends StatelessWidget {
       (Icons.bookmarks_rounded, 'Yerlerim', '${LocationService.places().length} kayıtlı yer · yan yana', const Color(0xFFE6EEFF), const Color(0xFF4F6BED),
           PlacesScreen(onAdd: () => WeatherScreen.pickPlace(context, add: true))),
       (Icons.schedule_rounded, 'En iyi zaman', bestTimeTeaser(s, now), kBentoMint, kGood, BestTimeScreen(s: s)),
+      (Icons.local_florist_rounded, 'Bahçe & tarla', gardenTeaser(s, now), const Color(0xFFEAF5E1), const Color(0xFF5A9A2E), GardenScreen(s: s)),
       (Icons.downhill_skiing_rounded, 'Kayak merkezleri', 'Palandöken, Sarıkamış, Erciyes…', const Color(0xFFE4EEFB), const Color(0xFF3B7DDD), SkiScreen(here: s.place)),
       (Icons.thermostat_auto_rounded, 'İklim', climateTeaser(s, now) ?? '30 yıllık normaller', const Color(0xFFFFF4E0), kWarn, ClimateScreen(s: s)),
       (Icons.air_rounded, 'Hava kalitesi', 'Toz-duman: ${Plain.dust(s.aqPm10).toLowerCase()} · 3 gün', const Color(0xFFE8F6EE), const Color(0xFF2E9E6A), AirScreen(s: s)),
@@ -390,15 +393,20 @@ class ToolsPage extends StatelessWidget {
   const ToolsPage({super.key});
   @override
   Widget build(BuildContext context) => _page('Araçlar', [
-        GridView.count(
-          padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.25,
-          children: [
-            _ToolTile(Icons.science_outlined, 'Yaşam Laboratuvarı', '30 hesaplayıcı', kGood, const LabScreen()),
-            _ToolTile(Icons.bedtime_outlined, 'Uyku Mikseri', 'Gerçek doğa sesleri', const Color(0xFF5B5BD6), const SleepMixerScreen()),
-            _ToolTile(Icons.flashlight_on_outlined, 'SOS Feneri', 'Işıkla yardım çağrısı', kDanger, const SosScreen()),
-            _ToolTile(Icons.inventory_2_outlined, 'Zaman Kapsülü', 'Bugünü sakla', kWarn, const TimeCapsuleScreen()),
-          ],
-        ),
+        LayoutBuilder(builder: (context, c) {
+          // Dar ekranda ve büyük yazıda kutular uzar (içerik taşmasın)
+          final w = (c.maxWidth - 12) / 2;
+          final h = max(w / 1.25, 114 * MediaQuery.textScalerOf(context).scale(1));
+          return GridView.count(
+            padding: EdgeInsets.zero, crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: w / h,
+            children: [
+              _ToolTile(Icons.science_outlined, 'Yaşam Laboratuvarı', '30 hesaplayıcı', kGood, const LabScreen()),
+              _ToolTile(Icons.bedtime_outlined, 'Uyku Mikseri', 'Gerçek doğa sesleri', const Color(0xFF5B5BD6), const SleepMixerScreen()),
+              _ToolTile(Icons.flashlight_on_outlined, 'SOS Feneri', 'Işıkla yardım çağrısı', kDanger, const SosScreen()),
+              _ToolTile(Icons.inventory_2_outlined, 'Zaman Kapsülü', 'Bugünü sakla', kWarn, const TimeCapsuleScreen()),
+            ],
+          );
+        }),
         const SizedBox(height: 12),
         SizedBox(height: 92, child: _ToolTile(Icons.videocam_outlined, 'Hava Kanalı', 'Kendi yayınını yap', kPro, const BroadcastScreen(), wide: true)),
       ]);
