@@ -27,6 +27,7 @@ class WhatsNew extends StatelessWidget {
       'Fırtına, buzlanma, yoğun kar ve tipi uyarıları',
       'Yağış geliyor: 30 dakika içinde başlayacaksa haber',
       'Sabah özeti (saatini sen seç) · meteor yağmuru ve tutulma akşamları',
+      'Bahçe don uyarısı: ılık günlerden sonra gelen don gecesinden önce haber',
     ]),
     (Icons.widgets_outlined, kPro, Color(0xFFEFEAFE), 'Ana ekran widget\'ları', [
       'Saatlik, Mini, Ay, Kayak ve Hava kalitesi; dokununca ilgili sayfa açılır',
@@ -34,7 +35,7 @@ class WhatsNew extends StatelessWidget {
     (Icons.touch_app_outlined, kWarn, kBentoPeach, 'Kolaylık', [
       'Günlere ve saatlere dokun: ayrıntı sayfası',
       'Anlaşılır dil: bilimsel terimler gündelik dile döner',
-      'Konum araması yazarken arar; büyük yazı ve ekran okuyucu desteği',
+      'Konum araması yazarken arar; büyük yazı, küçük ekran ve ekran okuyucu desteği',
     ]),
   ];
 

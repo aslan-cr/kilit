@@ -135,6 +135,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (v) await Notify.requestPermission();
                 setState(() {});
               })),
+          _tile(Icons.local_florist_rounded, kGood, 'Bahçe don uyarısı', sub: 'Ilık günlerden sonra gece don bekleniyorsa akşam haber: fidanlarını koru',
+              trailing: Switch(value: SharedState.cached?.getBool('sn_frost_off') != true, onChanged: (v) async {
+                final p = await SharedState.get();
+                await p.setBool('sn_frost_off', !v);
+                if (v) await Notify.requestPermission();
+                setState(() {});
+              })),
           _tile(Icons.wb_twilight_rounded, kSun, 'Sabah özeti',
               sub: 'Her sabah ${(SharedState.cached?.getInt('sn_brief_hour') ?? 7).toString().padLeft(2, '0')}:00 civarı: bugünün havası ve kısa öneri · saati değiştirmek için dokun',
               onTap: _pickBriefHour,
@@ -245,4 +252,5 @@ Hava kalitesi: Copernicus Atmosfer İzleme Servisi (CAMS) tahmini, Open-Meteo Ai
 
 Hava verisi: Open-Meteo (CC BY 4.0), havalimanı ölçümleri NOAA Aviation Weather Center, uzay havası NOAA SWPC. Uçaklar: OpenSky Network. Uydular: CelesTrak. Yol tarifi: OSRM. Yer arama: Photon (komoot), Overpass API (OpenStreetMap).
 
+Bahçe & tarla: sulama hesabı FAO-56 Hargreaves yöntemiyle (Allen ve ark., 1998, FAO Sulama ve Drenaj Yayını 56); toprak sıcaklıkları Open-Meteo tahmininden. Çimlenme sıcaklıkları genel kabul gören yaklaşık değerlerdir.
 Bulutlar, dağlar ve gökyüzü uygulamanın kendi kodu ile çizilir.''';

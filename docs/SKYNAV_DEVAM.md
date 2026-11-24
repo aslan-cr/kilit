@@ -136,3 +136,17 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
   (lib/road/road_safety.dart). Pro/ücretsiz ayrımına dokunmamak için eklenmedi.
 - Dar ekran (320 dp) + yazı ölçeği 0.9–1.25 taşmaları giderildi (gün detayı, kayak, yerler, 7 günlük, araçlar, mini kutular).
   large_text_test.dart'ı --dart-define=SCALE=.. --dart-define=W=.. ile tara.
+
+## 3.0.0+24 — kullanıcının "3.00'a kadar devam" hedefi
+- Bahçe don uyarısı bildirimi: lib/engine/garden.dart frostNotice (16–21 arası; bu gece hava ≤ 0 °C VE son 48 saatte ≥ 8 °C,
+  karla örtülü değil; gece başına bir kez). bg_tasks: SharedState sn_frost_off / sn_frost_last. Ayarlar > Bildirimler'de anahtar.
+  Kışın her gece don olan yerlerde bildirim gelmez (test: garden_test.dart).
+- Keşfet mevsime göre: Kasım–Mart Kayak, Nisan–Ekim Bahçe & tarla önde (kullanım sıralaması yine üstte).
+- Kaynaklar'a FAO-56 Hargreaves notu. Yenilikler sayfası güncel.
+
+### 3.0 sonrası için notlar (sıradaki geliştirici)
+- Cihazda doğrulanacaklar (sandbox'ta ağ kapalıydı): konum araması (Ağrı vb.), iklim/ERA5, hava kalitesi, kayak verisi,
+  toprak sıcaklığı alanlarının gerçek veride dolu gelmesi (soil_temperature_0cm/6cm, hourly).
+- Widget'lar 7 adet (ImageWidgets.kt + SkyWeatherWidget). Yeni widget = layout aynı, info xml + receiver + Dart yüzü.
+- Pro ile çakışan ücretsiz özellik ekleme (ör. yol durumu şeridi denendi, bırakıldı).
+- Taşma testi: flutter test test/shots/large_text_test.dart --dart-define=SCALE={0.9,1.0,1.25} --dart-define=W={320,360,412}.

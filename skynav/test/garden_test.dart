@@ -90,6 +90,24 @@ void main() {
     expect(wet.waterVerdict, contains('yetiyor'));
   });
 
+  test('don bildirimi: ılık günlerden sonra don gecesi akşam bir kez; kışın ve gündüz yok', () {
+    final ev = DateTime(2026, 4, 20, 18);
+    final n = frostNotice(garden(ev, temp: (t) => t.hour >= 22 || t.hour < 7 ? -3 : 12), ev);
+    expect(n, isNotNull);
+    expect(n!.title, 'Bu gece orta don');
+    expect(n.body, contains('22:00'));
+    expect(n.key, 'frost-2026-4-20');
+    // Öğlen bildirim yok
+    expect(frostNotice(garden(DateTime(2026, 4, 20, 12), temp: (t) => t.hour >= 22 || t.hour < 7 ? -3 : 12), DateTime(2026, 4, 20, 12)), isNull);
+    // Kış: gündüz de soğuk → her gece don, bildirim yok
+    final w = DateTime(2026, 12, 20, 18);
+    expect(frostNotice(garden(w, temp: (t) => t.hour >= 20 || t.hour < 8 ? -12 : -2), w), isNull);
+    // Karla örtülü bahçe: bildirim yok
+    expect(frostNotice(garden(ev, temp: (t) => t.hour >= 22 || t.hour < 7 ? -3 : 12, snowDepth: .1), ev), isNull);
+    // Don yok: bildirim yok
+    expect(frostNotice(garden(ev, temp: (t) => 6), ev), isNull);
+  });
+
   test('Keşfet özeti: don varsa önce don', () {
     final now = DateTime(2026, 11, 24, 15);
     expect(gardenTeaser(garden(now, temp: (t) => t.hour >= 19 || t.hour < 8 ? -8 : 1), now), 'Don: bu gece −8°');

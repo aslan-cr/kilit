@@ -4,6 +4,7 @@ import 'package:workmanager/workmanager.dart';
 import '../data/models.dart';
 import '../engine/alerts.dart';
 import '../engine/brief.dart';
+import '../engine/garden.dart' show frostNotice;
 import '../engine/nowcast.dart';
 import '../engine/sky_notice.dart';
 import '../engine/weather_engine.dart';
@@ -58,6 +59,14 @@ void callbackDispatcher() {
         final n = skyNotice(ev, p.lat, p.lon);
         if (n != null && sp.getString('sn_sky_last') != n.key) {
           await sp.setString('sn_sky_last', n.key);
+          await Notify.show('SkyNav · ${n.title}', n.body);
+        }
+      }
+      // Bahçe don uyarısı: ılık günlerden sonra don gecesi, akşam 16–21 arası, gece başına bir kez
+      if (sp.getBool('sn_frost_off') != true) {
+        final n = frostNotice(s, DateTime.now());
+        if (n != null && sp.getString('sn_frost_last') != n.key) {
+          await sp.setString('sn_frost_last', n.key);
           await Notify.show('SkyNav · ${n.title}', n.body);
         }
       }

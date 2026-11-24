@@ -189,8 +189,12 @@ class _ExploreGrid extends StatelessWidget {
       (Icons.bookmarks_rounded, 'Yerlerim', '${LocationService.places().length} kayıtlı yer · yan yana', const Color(0xFFE6EEFF), const Color(0xFF4F6BED),
           PlacesScreen(onAdd: () => WeatherScreen.pickPlace(context, add: true))),
       (Icons.schedule_rounded, 'En iyi zaman', bestTimeTeaser(s, now), kBentoMint, kGood, BestTimeScreen(s: s)),
-      (Icons.local_florist_rounded, 'Bahçe & tarla', gardenTeaser(s, now), const Color(0xFFEAF5E1), const Color(0xFF5A9A2E), GardenScreen(s: s)),
-      (Icons.downhill_skiing_rounded, 'Kayak merkezleri', 'Palandöken, Sarıkamış, Erciyes…', const Color(0xFFE4EEFB), const Color(0xFF3B7DDD), SkiScreen(here: s.place)),
+      // Mevsime göre: kışın kayak, baharda ve yazın bahçe önde
+      ...() {
+        final garden = (Icons.local_florist_rounded, 'Bahçe & tarla', gardenTeaser(s, now), const Color(0xFFEAF5E1), const Color(0xFF5A9A2E), GardenScreen(s: s) as Widget);
+        final ski = (Icons.downhill_skiing_rounded, 'Kayak merkezleri', 'Palandöken, Sarıkamış, Erciyes…', const Color(0xFFE4EEFB), const Color(0xFF3B7DDD), SkiScreen(here: s.place) as Widget);
+        return now.month >= 11 || now.month <= 3 ? [ski, garden] : [garden, ski];
+      }(),
       (Icons.thermostat_auto_rounded, 'İklim', climateTeaser(s, now) ?? '30 yıllık normaller', const Color(0xFFFFF4E0), kWarn, ClimateScreen(s: s)),
       (Icons.air_rounded, 'Hava kalitesi', 'Toz-duman: ${Plain.dust(s.aqPm10).toLowerCase()} · 3 gün', const Color(0xFFE8F6EE), const Color(0xFF2E9E6A), AirScreen(s: s)),
       (Icons.show_chart_rounded, 'Grafikler', 'Basınç ${trend ?? 'sabit'} · 72 saat', kBentoBlue, kAccent, TrendScreen(s: s)),

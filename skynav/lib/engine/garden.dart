@@ -222,3 +222,29 @@ String gardenTeaser(WeatherSnapshot s, DateTime now) {
   final g = r.soil3d.isNaN ? null : r.soil3d.round();
   return 'Don yok · toprak ${g == null ? '–' : '${g < 0 ? '−' : ''}${g.abs()}°'}';
 }
+
+/// Akşam don bildirimi: yalnızca ılık günlerden sonra gelen "sürpriz" don gecesi (bahçe ve fidanlar için).
+/// Kışın her gece don olan yerlerde rahatsız etmez. Saf hesap; arka plan görevi kullanır (Hive yok).
+class FrostNotice {
+  final String key, title, body;
+  const FrostNotice(this.key, this.title, this.body);
+}
+
+FrostNotice? frostNotice(WeatherSnapshot s, DateTime now) {
+  if (now.hour < 16 || now.hour >= 21) return null;
+  if ((s.snowDepthM ?? 0) >= .02) return null;
+  final today = DateTime(now.year, now.month, now.day);
+  final a = today.add(const Duration(hours: 18)), b = today.add(const Duration(days: 1, hours: 9));
+  final night = s.hourly.where((h) => !h.time.isBefore(a) && h.time.isBefore(b)).toList();
+  if (night.length < 10) return null;
+  final low = night.map((h) => h.temp).reduce(min);
+  if (low > 0) return null;
+  // Son 48 saatte gündüz en az 8 °C olmalı (büyüme mevsimi; bitkiler dona hazırlıksız)
+  final past = s.hourly.where((h) => h.time.isBefore(now) && h.time.isAfter(now.subtract(const Duration(hours: 48)))).toList();
+  if (past.isEmpty || past.map((h) => h.temp).reduce(max) < 8) return null;
+  final lv = low < -4 ? 4 : low < -2 ? 3 : 2;
+  final at = night.firstWhere((h) => h.temp <= 0).time;
+  final t = low.round();
+  return FrostNotice('frost-${today.year}-${today.month}-${today.day}', 'Bu gece ${frostName(lv).toLowerCase()}',
+      '${at.hour.toString().padLeft(2, '0')}:00 sonrası hava donuyor, en düşük ${t < 0 ? '−' : ''}${t.abs()}°. Fidanları ört, saksıları içeri al kanki.');
+}
