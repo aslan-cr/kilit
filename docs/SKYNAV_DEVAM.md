@@ -110,3 +110,7 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
 - Keşfet > Kayak merkezleri (lib/services/ski_service.dart: 8 merkez, Open-Meteo çoklu konum + elevation; lib/ui/ski_screen.dart).
   Model tahmini olduğu ekranda yazıyor; merkez koordinat/yükseklikleri yaklaşık.
 
+## 2.6.0+20
+- Widget: SkyNav Kayak (SkySkiWidget, ski_img; en yakın merkez, SkiService) ve SkyNav Hava Kalitesi (SkyAirWidget, air_img).
+- Ekran okuyucu: çizimli bloklarda Semantics(container: true, label); test large_text_test.dart içinde.
+
