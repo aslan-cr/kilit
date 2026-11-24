@@ -187,5 +187,5 @@ Kullanıcı (RSA): Türkçe, kısa ve samimi konuş; teknik değil, tasarıma ç
   firestore.rules'a users/grants/credits için sahibine delete izni eklendi → KULLANICI FIREBASE KONSOLUNDA YAYINLAMALI,
   yoksa silme "sunucu izni" hatası verir.
 - Web sayfaları (Play Console'a link): docs/skynav_gizlilik.md, docs/skynav_hesap_silme.md (GitHub'da görüntülenir).
-  hesap_silme.md'de [DESTEK E-POSTASI] yer tutucusu var: kullanıcıdan adres alınacak.
+  hesap_silme.md: iletişim skynav.destek@gmail.com (kullanıcının seçtiği adres).
 - Mağaza görselleri Kahramanmaraş (shots_test STORE modunda _home; donma seviyesi 250 m ki "Karlı" görünsün).

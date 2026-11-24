@@ -8,7 +8,7 @@
 3. Uyarıyı okuyup **Kalıcı olarak sil**'e dokun ve onay için Google hesabını seç.
 
 ## Uygulama olmadan
-Uygulama artık telefonunda yoksa, SkyNav'a giriş yaptığın Gmail adresinden **[DESTEK E-POSTASI]** adresine
+Uygulama artık telefonunda yoksa, SkyNav'a giriş yaptığın Gmail adresinden **skynav.destek@gmail.com** adresine
 "SkyNav hesap silme" konulu bir e-posta gönder. Talebin en geç 30 gün içinde yerine getirilir.
 
 ## Silinen veriler

@@ -7,7 +7,8 @@ const privacyText = '''Gizlilik Politikası (özet)
 • Cihaz kimliği: davet/ödül suistimalini önlemek için cihazdan türetilmiş tek yönlü bir özet (hash) saklanır; ham kimlik gönderilmez.
 • Özetler ve hava önbelleği yalnızca cihazında (Hive) kalır. Giriş yapmadıysan ya da bulut yedeği kapalıysa kayıtlı konumların ve öz-denetim kayıtların da yalnızca cihazındadır. Harici yapay zeka servisi kullanılmaz.
 • Kamera/mikrofon yalnızca "Kendi Hava Kanalını Sun" kaydı sırasında, senin başlattığında çalışır; kayıt cihazında kalır.
-• Hesabını ve verilerini silmek için: Ayarlar > Gizlilik & izinler > Hesabımı ve verilerimi sil. Hesabın, Pro hakların, davet kredilerin ve buluttaki yedeğin kalıcı olarak silinir. Kötüye kullanımı önlemek için cihazdan türetilmiş tek yönlü özet ve kullanılmış davet kodları saklanır. Telefondaki veriler uygulamayı silince kalkar.''';
+• Hesabını ve verilerini silmek için: Ayarlar > Gizlilik & izinler > Hesabımı ve verilerimi sil. Hesabın, Pro hakların, davet kredilerin ve buluttaki yedeğin kalıcı olarak silinir. Kötüye kullanımı önlemek için cihazdan türetilmiş tek yönlü özet ve kullanılmış davet kodları saklanır. Telefondaki veriler uygulamayı silince kalkar.
+• İletişim ve uygulama olmadan hesap silme talebi: skynav.destek@gmail.com''';
 
 const termsText = '''Kullanım Şartları (özet)
 
