@@ -11,6 +11,11 @@ import 'package:skynav/ui/app_shell.dart';
 import 'package:skynav/ui/best_time_screen.dart';
 import 'package:skynav/ui/detail_screens.dart';
 import 'package:skynav/ui/places_screen.dart';
+import 'package:skynav/ui/ski_screen.dart';
+import 'package:skynav/ui/compare_screen.dart';
+import 'package:skynav/ui/air_screen.dart';
+import 'package:skynav/services/ski_service.dart';
+import 'package:skynav/services/air_service.dart';
 import 'package:skynav/ui/theme.dart';
 import 'package:skynav/ui/weather_screen.dart' show SkyMoonPage, ToolsPage;
 import 'shots_test.dart' show fake;
@@ -62,6 +67,10 @@ void main() {
       ('araçlar', const ToolsPage()),
       ('en iyi', BestTimeScreen(s: s)),
       ('yerler', PlacesScreen(fetch: (p) async => PlaceNow(place: p, temp: -3, tMax: 0, tMin: -8, wind: 4, precip: .4, cloud: 95, code: 73, isDay: true))),
+      ('kayak', SkiScreen(here: s.place, data: [for (final r in skiResorts) SkiNow(r, snowCm: 120, new24: 14, next72: 38, temp: -12, wind: 9, gust: 19, gustNext12: 22, code: 73)])),
+      ('kıyas', CompareScreen(a: PlaceNow(place: const GeoPoint2(39.9, 41.27, name: 'Doğubayazıt, Ağrı'), temp: -12, tMax: -8, tMin: -21, wind: 4, precip: 0, cloud: 0, code: 0, isDay: true, days: s.daily),
+          b: PlaceNow(place: const GeoPoint2(39.95, 41.1, name: 'Anneannemin köyü'), temp: -15, tMax: -10, tMin: -24, wind: 3, precip: 0, cloud: 0, code: 73, isDay: true, days: s.daily))),
+      ('hava', AirScreen(s: s, data: [for (var i = 0; i < 72; i++) AirPoint(DateTime.now().add(Duration(hours: i - 24)), 64.0 + i % 9, 31, 70, 120, 44)])),
     ]) {
       cur = name;
       await t.pumpWidget(MaterialApp(theme: buildTheme(), home: w));
